@@ -1,10 +1,16 @@
 # Heal Box Vanilla
 
-ADDON DOCUMENTATION · VERSION 1.4.1 · CLIENT 1.12.1
+ADDON DOCUMENTATION · VERSION 1.4.1 · World of Warcraft CLIENT 1.12.1
 
 Party, pet and self heal display with quick-cast buttons for healers. One name plate with a health bar per group slot, plus one for every pet in the group directly below its owner, and next to it up to ten freely assignable spell buttons. A thin mana bar sits inside the health bar for everyone who actually uses mana. On top of that a complete heal prediction (direct heals, remaining HoT ticks and absorb shields) that corrects itself from the combat log and shares its numbers with other healers in the HealComm format. The interface is available in **English and German**, switchable in the options window.
 
 **The short version:** click the minimap button (or type `/fbp config`) → options window → pick a spell for each button → done. Everything else happens on its own. `/fbp` tells you at any time what the prediction currently believes. **New in 1.4.1:** tick *Test mode* to fill the display with ghost players and arrange everything without a group.
+
+<img width="585" height="441" alt="Screenshot 2026-09-05 003418" src="https://github.com/user-attachments/assets/38d3a8d6-8a41-4bb3-8cba-661341b6a99d" />
+
+<img width="846" height="1104" alt="Screenshot 2026-09-05 003500" src="https://github.com/user-attachments/assets/000ba234-6837-4078-82eb-336b7dc23901" />
+
+<img width="842" height="1106" alt="Screenshot 2026-09-05 003510" src="https://github.com/user-attachments/assets/474fd9c4-ce5b-413d-b179-21219b950bba" />
 
 \---
 
