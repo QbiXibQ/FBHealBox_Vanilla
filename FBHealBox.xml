@@ -1,0 +1,19 @@
+<Ui xmlns="http://www.blizzard.com/wow/ui/">
+    <!--
+        Heal Box Vanilla
+        Original: "Heal Box" von Dourd (Argent Dawn EU) - UI Overhauled.
+        Vanilla-Portierung und Funktionserweiterung 09/2026 von Mquadrat.
+    -->
+    <Script file="FBHealBox.lua"/>
+
+    <Frame name="FBHealBoxEventFrame" parent="UIParent">
+        <Scripts>
+            <OnLoad>
+                FBHealBox_OnLoad();
+            </OnLoad>
+            <OnEvent>
+                FBHealBox_OnEvent(event, arg1);
+            </OnEvent>
+        </Scripts>
+    </Frame>
+</Ui>
