@@ -8,6 +8,8 @@ Party and self heal display with quick-cast buttons for healers. One name plate 
 
 \---
 
+<img width="507" height="683" alt="Screenshot 2026-09-04 164548" src="https://github.com/user-attachments/assets/4d11a537-d4d9-48da-88ae-d74ad29e8f9b" />
+
 ## Installation
 
 Download zip, unpack into your Addons folder.
