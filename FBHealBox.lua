@@ -15,10 +15,18 @@
 --     Buff-Wache (oranger Rahmen bei fehlendem Buff), Reichweiten-Fading,
 --     Optionsfenster mit Tabs, Rechtsklick-Zweitzauber, Tot/Geist/Offline-
 --     Anzeige, Debuff-Icon mit Stackzahl
+--   * v1.4.2: Hook-Schnittstelle fuer Module (FBHealBox_RegisterHook,
+--     FBHealBox_AddOptionsTab). Der Raidmodus lebt in FBHealBox_Raid.lua.
 --
 -- Ehre wem Ehre gebuehrt: Aufbau, Namensplaketten und Grundidee stammen
 -- aus dem Original.
 -- ========================================================================== 
+
+-- Schutz gegen doppeltes Laden (z. B. .toc und .xml binden dieselbe Datei
+-- ein). Ein zweiter Durchlauf wuerde alle Frames, Hooks und das
+-- Optionsfenster erneut anlegen.
+if (FBHealBox_CoreLoaded) then return; end
+FBHealBox_CoreLoaded = true;
 
 FBHasSuperWoW = (SUPERWOW_VERSION ~= nil); 
 FBClass = UnitClass("player"); 
@@ -53,7 +61,7 @@ HealBox = {
 -- feuert ADDON_LOADED fuer uns.
 FBADDON_NAME   = "Heal Box Vanilla";
 FBADDON_FOLDER = "FBHealBox";
-HealBoxVersion = "|cFFFFFF00v1.4.1|r"; 
+HealBoxVersion = "|cFFFFFF00v1.4.2|r"; 
 
 -- ==========================================================================
 -- [ Lokalisierung / Localization ]
@@ -93,6 +101,9 @@ FBLocale["enUS"] = {
     RIGHTCLICK    = "Right-click spell",
     RIGHTCLICK_TIP = "Gives every button a second spell on right click (e.g. Flash Heal left, Greater Heal right). Off by default. When on, a second column appears above and a small icon in the corner of each button shows the right-click spell.",
     TT_RIGHT      = "Right click",
+    DROP_SET      = "Button %d: |cFFFFFFFF%s|r (dragged from the spellbook)",
+    DROP_SET_R    = "Button %d, right click: |cFFFFFFFF%s|r (dragged from the spellbook)",
+    DROP_UNKNOWN  = "Could not identify the dragged spell.",
     STATE_DEAD    = "Dead",
     STATE_GHOST   = "Ghost",
     STATE_OFFLINE = "Offline",
@@ -195,6 +206,9 @@ FBLocale["deDE"] = {
     RIGHTCLICK    = "Rechtsklick-Zauber",
     RIGHTCLICK_TIP = "Gibt jedem Button einen zweiten Zauber per Rechtsklick (z. B. Blitzheilung links, Grosse Heilung rechts). Standardmaessig aus. Eingeschaltet erscheint oben eine zweite Spalte, und ein kleines Icon in der Ecke jedes Buttons zeigt den Rechtsklick-Zauber.",
     TT_RIGHT      = "Rechtsklick",
+    DROP_SET      = "Button %d: |cFFFFFFFF%s|r (aus dem Zauberbuch gezogen)",
+    DROP_SET_R    = "Button %d, Rechtsklick: |cFFFFFFFF%s|r (aus dem Zauberbuch gezogen)",
+    DROP_UNKNOWN  = "Der gezogene Zauber liess sich nicht erkennen.",
     STATE_DEAD    = "Tot",
     STATE_GHOST   = "Geist",
     STATE_OFFLINE = "Offline",
@@ -301,6 +315,34 @@ function FBSetLocale(code, apply)
 end
 
 FBL = FBLocale[FBDetectLocale()];
+
+-- ==========================================================================
+-- [ Hooks fuer Module ]
+--
+-- Module (z. B. FBHealBox_Raid.lua) haengen sich hier ein, statt den
+-- Kern zu aendern. Aufrufpunkte: Defaults, SyncOptions, ApplyLocale,
+-- UpdateNames, RefreshAllBars, ButtonsChanged, ActiveToggle, Status, Loaded
+-- und Slash (Slash-Hooks geben true zurueck, wenn sie den Befehl verarbeitet
+-- haben).
+-- ==========================================================================
+
+FBHookRegistry = {};
+
+function FBHealBox_RegisterHook(name, fn)
+    if (not FBHookRegistry[name]) then FBHookRegistry[name] = {}; end
+    table.insert(FBHookRegistry[name], fn);
+end
+
+function FBHealBox_RunHook(name, a1, a2, a3)
+    local list = FBHookRegistry[name];
+    if (not list) then return false; end
+    local handled = false;
+    for _, fn in ipairs(list) do
+        if (fn(a1, a2, a3)) then handled = true; end
+    end
+    return handled;
+end
+
 LowHP = 0.6; 
 VeryLowHP = 0.3; 
 NamePlateWidth = 120; 
@@ -663,6 +705,7 @@ function FBHealBox_ApplyDefaults()
     if (HealBox.BuffWatchPets == nil) then HealBox.BuffWatchPets = 0; end
     if (not FBPlateActionName[HealBox.PlateLeft or ""]) then HealBox.PlateLeft = "target"; end
     if (not FBPlateActionName[HealBox.PlateRight or ""]) then HealBox.PlateRight = "target"; end
+    FBHealBox_RunHook("Defaults");
 end
 
 -- Optionsfenster an die gespeicherten Werte angleichen
@@ -685,6 +728,7 @@ function FBHealBox_SyncOptions()
     FBHealBox_UpdateBuffWatchLabel();
     FBHealBox_UpdatePlateActionLabels();
     FBHealBox_ApplyRightClickLayout();
+    FBHealBox_RunHook("SyncOptions");
 end
 
 function FBUnitGUID(unit) 
@@ -699,11 +743,22 @@ end
 function FBLoadSpellData() 
     FBPlayerSpells = {}; 
     FBBuffSpells = {}; 
+    -- Zauber, die per Drag & Drop belegt wurden, koennen ausserhalb der
+    -- Klassenliste liegen: ihre Namen aus der gespeicherten Belegung mitnehmen
+    local extra = {}; 
+    for _, tbl in ipairs({ HealBox.SpellChoice or {}, HealBox.SpellChoiceR or {} }) do 
+        for _, cast in pairs(tbl) do 
+            if (type(cast) == "string") then 
+                local base = FBPredict_SplitCast(cast); 
+                if (base) then extra[base] = true; end 
+            end 
+        end 
+    end 
     local i = 1; 
     while true do 
         local spellName, spellRank = GetSpellName(i, BOOKTYPE_SPELL); 
         if not spellName then break; end 
-        local isHealBoxSpell = false; 
+        local isHealBoxSpell = (extra[spellName] == true); 
         for _, v in ipairs(Spell.Name) do 
             if v == spellName then  
                 isHealBoxSpell = true;  
@@ -730,6 +785,8 @@ function FBLoadSpellData()
     
     -- Tooltips auswerten: welche dieser Zauber sind HoTs bzw. Absorb-Schilde?
     FBPredict_BuildWatch();
+    -- Doppelt gezaehlte Absorb-Lernwerte (Versionen vor 1.4.2) verwerfen
+    FBPredict_SanitizeMemory();
 
     if (not HealBox.SpellChoiceR) then HealBox.SpellChoiceR = {}; end 
     for _, side in ipairs({ "L", "R" }) do 
@@ -1236,6 +1293,7 @@ function FBHealBox_OnEvent(event, arg1)
     if ((event == "ADDON_LOADED") and (arg1 == FBADDON_FOLDER)) then 
         FBHealBox_ApplyDefaults(); 
         FBSetLocale(HealBox.Locale, 1); 
+        FBHealBox_RunHook("Loaded");   -- Module melden sich im Chat 
         FBHealBox_SyncOptions(); 
         HealBoxAttachMode(HealBox.AttachMode); 
         FBHealBox_ApplyButtonSpacing(); 
@@ -1540,6 +1598,91 @@ function FBHealBoxCreateFrame(FrameName,ParentFrame,FrameTexture,FrameWidth,Fram
     return f; 
 end 
 
+-- ==========================================================================
+-- [ Drag & Drop aus dem Zauberbuch ]
+--
+-- 1.12 kennt kein GetCursorInfo(). Das Zauberbuch ruft beim Ziehen
+-- PickupSpell(id, book) auf; ein Vor-Hook merkt sich diese beiden Werte.
+-- Loslassen auf einem Heil-Button (OnReceiveDrag oder Klick mit Zauber am
+-- Cursor) belegt den Button: Linksklick-Feld, bei aktiviertem Rechtsklick-
+-- Zauber und rechter Maustaste das Rechtsklick-Feld. Auch die Felder im
+-- Optionsfenster nehmen Zauber an.
+-- ==========================================================================
+
+FBDragSpell = nil;   -- { id, book } des zuletzt aufgenommenen Zaubers
+
+function FBHealBox_HookSpellPickup()
+    if (FBHealBox_PickupHooked) then return; end
+    FBHealBox_PickupHooked = true;
+    if (PickupSpell) then
+        local origPickup = PickupSpell;
+        PickupSpell = function(id, book)
+            FBDragSpell = { id = id, book = book or BOOKTYPE_SPELL };
+            origPickup(id, book);
+        end
+    end
+    if (ClearCursor) then
+        local origClear = ClearCursor;
+        ClearCursor = function()
+            FBDragSpell = nil;
+            origClear();
+        end
+    end
+end
+
+-- Zauber am Cursor: name, rank, id, book oder nil
+function FBHealBox_CursorSpell()
+    if (not FBDragSpell) then return nil; end
+    if (CursorHasSpell and not CursorHasSpell()) then
+        FBDragSpell = nil;
+        return nil;
+    end
+    local name, rank = GetSpellName(FBDragSpell.id, FBDragSpell.book);
+    if (not name) then return nil; end
+    return name, rank, FBDragSpell.id, FBDragSpell.book;
+end
+
+-- Zauber vom Cursor auf Button btnIndex legen. side = "L" oder "R".
+-- true, wenn etwas belegt wurde.
+function FBHealBox_DropSpell(btnIndex, side)
+    if (not btnIndex) then return false; end
+    local name, rank, id, book = FBHealBox_CursorSpell();
+    if (not name) then
+        if (FBDragSpell) then
+            DEFAULT_CHAT_FRAME:AddMessage("|cFFFFFF00"..FBADDON_NAME..":|r "..FBT("DROP_UNKNOWN"));
+        end
+        return false;
+    end
+    side = side or "L";
+    if (side == "R" and HealBox.RightClick ~= 1) then side = "L"; end
+
+    -- Zauber in die Rangliste aufnehmen, falls er nicht aus der Klassenliste stammt
+    if (not FBPlayerSpells[name]) then FBPlayerSpells[name] = {}; end
+    local known = false;
+    for _, sd in ipairs(FBPlayerSpells[name]) do
+        if (sd.rank == rank) then known = true; break; end
+    end
+    if (not known) then
+        table.insert(FBPlayerSpells[name], { rank = rank, id = id, icon = GetSpellTexture(id, book) });
+    end
+
+    local castString = name;
+    if (rank and rank ~= "") then castString = name.."("..rank..")"; end
+
+    local _, _, _, _, savedTable = FBChoiceTables(side);
+    savedTable[btnIndex] = castString;
+    FBApplySpellChoice(btnIndex, castString, side);
+    FBHealBoxButtonsChanged();
+
+    local key = "DROP_SET";
+    if (side == "R") then key = "DROP_SET_R"; end
+    DEFAULT_CHAT_FRAME:AddMessage("|cFFFFFF00"..FBADDON_NAME..":|r "..format(FBT(key), btnIndex, castString));
+
+    FBDragSpell = nil;
+    if (ClearCursor) then ClearCursor(); end
+    return true;
+end
+
 -- Zauber castString auf das Ziel des Buttons wirken (Links- oder Rechtsklick)
 function FBHealBox_CastOn(button, castString)
     if (not castString) then return; end
@@ -1643,9 +1786,18 @@ function FBHealBoxCreateButton(FBButtonName, FBParentFrame, xoffset, yoffset, te
     button:RegisterForClicks("LeftButtonUp"); 
     
     button:SetScript("OnClick", function()
+        -- Zauber am Cursor: belegen statt casten
+        if (FBDragSpell and button.btnIndex) then
+            local side = "L";
+            if (arg1 == "RightButton") then side = "R"; end
+            if (FBHealBox_DropSpell(button.btnIndex, side)) then return; end
+        end
         local castString = button.spellName;
         if (arg1 == "RightButton") then castString = button.spellNameR; end
         FBHealBox_CastOn(button, castString);
+    end);
+    button:SetScript("OnReceiveDrag", function()
+        if (button.btnIndex) then FBHealBox_DropSpell(button.btnIndex, "L"); end
     end);
     
     button:RegisterEvent("SPELL_UPDATE_USABLE"); 
@@ -1677,6 +1829,7 @@ function FBHealBox_RefreshAllBars()
         local unit = FBPartyUnit[p]; 
         if (FBUnitExists(unit)) then FBHealBox_UpdateUnit(unit, FBPartyFrame[p]); end 
     end 
+    FBHealBox_RunHook("RefreshAllBars"); 
 end 
 
 -- Ist dieser Slot gerade anzuzeigen? (Begleiter nur mit ShowPets)
@@ -1727,6 +1880,7 @@ function FBUpdateNames()
     FBHealBox_CheckRangeAll(); 
     FBHealBox_CheckLOSAll(); 
     FBHealBox_RefreshAllBars(); 
+    FBHealBox_RunHook("UpdateNames"); 
 end 
 
 -- Name in Klassenfarbe (Spieler) bzw. Pet-Farbe (Begleiter)
@@ -2003,8 +2157,9 @@ function FBHealBox_ApplyLocale()
         if (r and not FBDropDownButtonR[i]) then r.text:SetText(FBT("SELECT_SPELL")); end
     end
     if (panel.tabButtons) then
-        panel.tabButtons[1].text:SetText(FBT("TAB_BUTTONS"));
-        panel.tabButtons[2].text:SetText(FBT("TAB_GENERAL"));
+        for i, btn in ipairs(panel.tabButtons) do
+            btn.text:SetText(FBT(panel.tabLabelKeys[i] or ""));
+        end
     end
     if (panel.colLeft) then
         panel.colLeft:SetText(FBT("COL_LEFT"));
@@ -2068,6 +2223,7 @@ function FBHealBox_ApplyLocale()
     if (FBLangBtn) then
         FBLangBtn.text:SetText(FBT("LANGUAGE") .. ": |cFFFFFFFF" .. FBT("LANG_NAME"));
     end
+    FBHealBox_RunHook("ApplyLocale");
 end
 
 -- [ Options-Fenster ] -- 
@@ -2135,6 +2291,22 @@ function FBHealBox_CreateTabButton(name, parent, x, index)
     return t;
 end
 
+-- Neuen Reiter anlegen (auch fuer Module). Liefert den Inhalts-Frame, der
+-- die Panelgroesse hat; Koordinaten wie im Panel, Inhalt ab FBOPT_CONTENT_Y.
+function FBHealBox_AddOptionsTab(labelKey)
+    if (not panel) or (not panel.tabs) then return nil; end
+    local i = table.getn(panel.tabs) + 1;
+    local tab = CreateFrame("Frame", "HealBoxOptionsTab"..i, panel);
+    tab:SetAllPoints(panel);
+    tab:Hide();
+    panel.tabs[i] = tab;
+    panel.tabLabelKeys[i] = labelKey;
+    panel.tabButtons[i] = FBHealBox_CreateTabButton("HealBoxOptionsTabButton"..i, panel, 25 + (i - 1) * 116, i);
+    panel.tabButtons[i].text:SetText(FBT(labelKey));
+    if (panel.activeTab) then FBHealBox_ShowTab(panel.activeTab); end
+    return tab;
+end
+
 function FBHealBox_ShowTab(index)
     if (not panel) or (not panel.tabs) then return; end
     FBMenu_CloseAll();
@@ -2196,6 +2368,7 @@ function FBHealBoxCreateAddonOptionFrame()
         table.insert(UISpecialFrames, "HealBoxOptionsFrame"); 
     end 
     FBHealBox_HookEscape(); 
+    FBHealBox_HookSpellPickup(); 
     
     panel.CloseButton = CreateFrame("Button", "HealBoxOptionsFrameClose", panel, "UIPanelCloseButton"); 
     panel.CloseButton:SetPoint("TOPRIGHT", -5, -5); 
@@ -2226,15 +2399,9 @@ function FBHealBoxCreateAddonOptionFrame()
     -- [ Reiter ] ------------------------------------------------------------
     panel.tabs = {}; 
     panel.tabButtons = {}; 
-    for i = 1, 2 do 
-        local tab = CreateFrame("Frame", "HealBoxOptionsTab"..i, panel); 
-        tab:SetAllPoints(panel); 
-        tab:Hide(); 
-        panel.tabs[i] = tab; 
-        panel.tabButtons[i] = FBHealBox_CreateTabButton("HealBoxOptionsTabButton"..i, panel, 25 + (i - 1) * 116, i); 
-    end 
-    local tabButtons = panel.tabs[1]; 
-    local tabGeneral = panel.tabs[2]; 
+    panel.tabLabelKeys = {}; 
+    local tabButtons = FBHealBox_AddOptionsTab("TAB_BUTTONS"); 
+    local tabGeneral = FBHealBox_AddOptionsTab("TAB_GENERAL"); 
     
     -- Trennlinie unter den Reitern
     panel.tabLine = panel:CreateTexture(nil, "ARTWORK"); 
@@ -2272,17 +2439,21 @@ function FBHealBoxCreateAddonOptionFrame()
         btn.label:SetJustifyH("RIGHT"); 
         btn.label:SetText(FBT("BUTTON") .. " " .. i); 
         btn:SetScript("OnClick", function() 
+            if (FBDragSpell and FBHealBox_DropSpell(btnIndex, "L")) then return; end 
             PlaySound("igMainMenuOptionCheckBoxOn"); 
             FBMenu_OpenSpellMenu(btnIndex, btn, "L"); 
         end); 
+        btn:SetScript("OnReceiveDrag", function() FBHealBox_DropSpell(btnIndex, "L"); end); 
         FBSpellBtns[i] = btn; 
         
         local btnR = FBHealBox_CreatePickButton("FBHealBoxBtnR"..i, tabButtons, xRight, yPos, fieldW, 28, 20); 
         btnR.text:SetText(FBT("SELECT_SPELL")); 
         btnR:SetScript("OnClick", function() 
+            if (FBDragSpell and FBHealBox_DropSpell(btnIndex, "R")) then return; end 
             PlaySound("igMainMenuOptionCheckBoxOn"); 
             FBMenu_OpenSpellMenu(btnIndex, btnR, "R"); 
         end); 
+        btnR:SetScript("OnReceiveDrag", function() FBHealBox_DropSpell(btnIndex, "R"); end); 
         btnR:Hide(); 
         FBSpellBtnsR[i] = btnR; 
     end 
@@ -2501,17 +2672,21 @@ end
 -- ESC: ToggleGameMenu abfangen, solange das Optionsfenster offen ist.
 -- Ist das Spielmenue selbst offen (ESC darueber gedrueckt), bleibt alles
 -- beim Original; sonst schliesst ESC zuerst unser Fenster und verpufft.
-FBHealBox_OrigToggleGameMenu = nil; 
+-- Das Original liegt in einem lokalen Upvalue (nie in einer globalen
+-- Variablen, die ein zweiter Ladevorgang ueberschreiben koennte), der
+-- Hook wird hoechstens einmal gesetzt, und der Aufruf ist bewusst kein
+-- Tail-Call (return f()), weil Lua 5.0 im 1.12-Client damit Probleme hat.
 function FBHealBox_HookEscape() 
-    if (FBHealBox_OrigToggleGameMenu) or (not ToggleGameMenu) then return; end 
-    FBHealBox_OrigToggleGameMenu = ToggleGameMenu; 
+    if (FBHealBox_EscHooked) or (not ToggleGameMenu) then return; end 
+    FBHealBox_EscHooked = true; 
+    local origToggleGameMenu = ToggleGameMenu; 
     ToggleGameMenu = function(clicked) 
         local gameMenuOpen = (GameMenuFrame and GameMenuFrame:IsVisible()); 
         if (panel and panel:IsVisible() and not gameMenuOpen) then 
             panel:Hide(); 
             return; 
         end 
-        return FBHealBox_OrigToggleGameMenu(clicked); 
+        origToggleGameMenu(clicked); 
     end 
 end 
 
@@ -2561,6 +2736,7 @@ function FBHealBoxButtons()
                     local name = "FBHealBoxSlot"..p.."Btn"..i; 
                     FBPartyTable[p][i] = FBHealBoxCreateButton(name, anchor, HealBox.ButtonSpacing or 2, 0, 
                         FBDropDownButtonIcon[i], FBDropDownButton[i], unit, FBActiveSpellIDs[i]); 
+                    FBPartyTable[p][i].btnIndex = i; 
                 end 
                 prevButton = FBPartyTable[p][i]; 
             end 
@@ -2608,6 +2784,7 @@ function FBHealBoxButtonsChanged()
             end 
         end 
     end 
+    FBHealBox_RunHook("ButtonsChanged"); 
 end 
 
 -- Buttons neu verketten: erster Button haengt an der Plakette, jeder weitere
@@ -2711,6 +2888,7 @@ function CreateMiniMapButton()
             if (IsShiftKeyDown()) then 
                 HealBox.Active = 1 - HealBox.Active; 
                 if (HealBox.Active == 1) then FBHealBox1:Show(); else FBHealBox1:Hide(); end 
+                FBHealBox_RunHook("ActiveToggle"); 
             else 
                 FBHealBox_ToggleOptions(); 
             end 
@@ -3030,6 +3208,31 @@ end
 
 -- [ Lernspeicher (wandert in die SavedVariables) ] --------------------------
 
+FBPREDICT_ABSORB_MAX_FACTOR = 1.5;
+
+-- Unplausible Absorb-Lernwerte verwerfen (etwa doppelt gezaehlte aus
+-- aelteren Versionen). Laeuft nach dem Einlesen der Zauber.
+function FBPredict_SanitizeMemory()
+    if (not HealBox) or (not HealBox.PredictMemory) then return; end
+    local drop = {};
+    for key, value in pairs(HealBox.PredictMemory) do
+        local _, _, spell, rank = string.find(key, "^absorb|([^|]+)|(.*)$");
+        if (spell) then
+            local bookID = FBPredict_FindBookID(spell, rank);
+            local info = bookID and FBPredict_GetSpellInfo(bookID, spell);
+            if (info and info.shield and value > info.shield.amount * FBPREDICT_ABSORB_MAX_FACTOR) then
+                table.insert(drop, key);
+            end
+        end
+    end
+    for _, key in ipairs(drop) do
+        HealBox.PredictMemory[key] = nil;
+        if (FBPredictDebug) then
+            DEFAULT_CHAT_FRAME:AddMessage("|cFF00FFFF[FBP]|r memory dropped: "..key);
+        end
+    end
+end
+
 function FBPredict_MemKey(kind, spell, rank)
     return kind.."|"..spell.."|"..(rank or "");
 end
@@ -3093,11 +3296,17 @@ function FBPredict_StartShield(unitName, spellName, rank, bookID, rankKnown)
     local info = FBPredict_GetSpellInfo(bookID, spellName);
     if (not info) or (not info.shield) then return false; end
 
-    local amount = FBPredict_Remembered("absorb", spellName, rank) or info.shield.amount;
+    -- Gelernter Wert nur, wenn er plausibel ist (hoechstens das
+    -- FBPREDICT_ABSORB_MAX_FACTOR-fache des Tooltips); sonst Tooltip.
+    local amount = FBPredict_Remembered("absorb", spellName, rank);
+    if (not amount) or (amount > info.shield.amount * FBPREDICT_ABSORB_MAX_FACTOR) then
+        amount = info.shield.amount;
+    end
     FBShields[unitName] = {
         spell     = spellName,
         rank      = rank,
         rankKnown = rankKnown,
+        tooltip  = info.shield.amount,
         max      = amount,
         absorbed = 0,
         expires  = GetTime() + info.shield.duration,
@@ -3427,9 +3636,12 @@ function FBPredict_OnAbsorb(unitName, amount)
 
     s.absorbed = s.absorbed + amount;
     if (s.absorbed > s.max) then
-        -- mehr absorbiert als der Tooltip hergibt (+Heilung) -> anheben
+        -- mehr absorbiert als der Tooltip hergibt (+Heilung) -> anheben.
+        -- Dauerhaft gemerkt wird nur ein plausibler Wert: PW:S skaliert in
+        -- Vanilla mit rund 10 % der Heilkraft, mehr als das
+        -- FBPREDICT_ABSORB_MAX_FACTOR-fache des Tooltips ist ein Zaehlfehler.
         s.max = s.absorbed;
-        if (s.rankKnown) then
+        if (s.rankKnown and s.tooltip and s.max <= s.tooltip * FBPREDICT_ABSORB_MAX_FACTOR) then
             FBPredict_Remember("absorb", s.spell, s.rank, s.max);
         end
     end
@@ -3822,6 +4034,9 @@ end
 
 SLASH_FBHEALPREDICT1 = "/fbp";
 SlashCmdList["FBHEALPREDICT"] = function(msg)
+    -- Module zuerst (z. B. /fbp raid)
+    if (FBHealBox_RunHook("Slash", msg)) then return; end
+
     if (msg == "debug") then
         FBPredictDebug = not FBPredictDebug;
         DEFAULT_CHAT_FRAME:AddMessage("|cFF00FFFF[FBP]|r "..FBT("FBP_DEBUG").." "..tostring(FBPredictDebug));
@@ -3907,6 +4122,7 @@ SlashCmdList["FBHEALPREDICT"] = function(msg)
             end
         end
     end
+    FBHealBox_RunHook("Status");
     DEFAULT_CHAT_FRAME:AddMessage("|cFF00FFFF[FBP]|r "..FBT("FBP_COMMANDS"));
 end
 

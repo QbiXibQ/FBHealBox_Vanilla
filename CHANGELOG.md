@@ -1,5 +1,55 @@
 # Changelog
 
+## 1.4.2 (2026-09-05)
+
+### English
+
+**New: raid mode** (module `FBHealBox_Raid.lua`, on by default, switches in automatically from 11 raid members; *Raid view from N players* is adjustable)
+
+- Compact grid for 20 and 40 player raids: one cell per member in blocks of five per raid group, blocks arranged in rows (*Groups per row*). Empty groups collapse, so a 20-player raid is a single row.
+- Each cell: name in class colour, health bar with shield and incoming-heal layers, 3 px mana strip, HP percent or deficit, dispel colouring, dead/ghost/offline text, range fading, line-of-sight eye, buff-watch border.
+- Up to four mini buttons per cell, wired to Button 1 to N from the Buttons tab (right-click spells included). Click on a cell targets the unit (or unit menu / move / nothing, as configured for plates).
+- Own options tab *Raid mode* with size, spacing, scale, headers, mana strip, HP text mode, title bar, hide-empty-groups and hide-party-plates switches.
+- Raid test with 20 or 40 ghosts covering every visual state. `/fbp raid`, `/fbp raidtest 20|40|off`, raid line in `/fbp`.
+- Grid position and scale are saved separately from the party plates. Party plates are hidden while the grid is up (switchable).
+
+**New: drag and drop.** Spells can be dragged from the spellbook onto any heal button, raid mini button or options field. Right mouse button fills the right-click side when that option is on. Spells outside the class list are accepted.
+
+**Fixed**
+
+- **Double loading.** The `.xml` included `FBHealBox.lua` a second time on top of the `.toc`. Every frame, hook and the options window existed twice. Visible effects: the raid tab was missing (added to the first, overwritten options window), Escape could crash the client (the second hook called itself), and learned absorb values were doubled (two prediction frames counted every absorb line). The `.xml` no longer loads scripts, and both Lua files refuse to run twice.
+- Escape hook stores the original in a local upvalue, is installed at most once, and no longer uses a tail call.
+- Learned absorb values above 1.5 times the tooltip are dropped on load; doubled values from earlier versions clean themselves up.
+
+**Changed**
+
+- Core gained a hook interface (`FBHealBox_RegisterHook`, `FBHealBox_AddOptionsTab`) so modules can attach without editing the core. No behaviour change for the party display.
+- `.toc` now loads `FBHealBox_Raid.lua` after the core; removing that line disables raid mode entirely.
+
+### Deutsch
+
+**Neu: Raidmodus** (Modul `FBHealBox_Raid.lua`, standardmaessig an, schaltet ab 11 Raidmitgliedern automatisch um; *Raid-Ansicht ab N Spielern* ist einstellbar)
+
+- Kompaktes Raster fuer 20er- und 40er-Raids: eine Zelle je Mitglied in Fuenferbloecken je Gruppe, die Bloecke in Zeilen (*Gruppen je Zeile*). Leere Gruppen fallen weg, ein 20er-Raid ist also eine einzige Zeile.
+- Jede Zelle: Name in Klassenfarbe, Lebensbalken mit Schild- und Vorhersage-Schicht, 3 px Manastreifen, HP-Prozent oder Defizit, Dispel-Faerbung, Tot/Geist/Offline, Reichweiten-Fading, Sichtlinien-Auge, Buff-Wache-Rahmen.
+- Bis zu vier Mini-Buttons je Zelle, belegt wie Button 1 bis N aus dem Reiter Buttons (Rechtsklick-Zauber inklusive). Klick auf die Zelle visiert an (oder Einheitenmenue / Verschieben / Nichts, wie fuer Plaketten eingestellt).
+- Eigener Options-Reiter *Raidmodus* mit Groesse, Abstaenden, Skalierung, Gruppenkoepfen, Manastreifen, HP-Text-Modus, Titelleiste, Leere-Gruppen- und Plaketten-Ausblenden-Schaltern.
+- Raid-Test mit 20 oder 40 Geistern, die jeden Anzeigezustand abdecken. `/fbp raid`, `/fbp raidtest 20|40|off`, Raid-Zeile in `/fbp`.
+- Position und Skalierung des Rasters werden getrennt von den Plaketten gespeichert. Die Gruppenplaketten sind ausgeblendet, solange das Raster steht (abschaltbar).
+
+**Neu: Drag & Drop.** Zauber lassen sich aus dem Zauberbuch auf jeden Heil-Button, Raid-Mini-Button oder jedes Optionsfeld ziehen. Die rechte Maustaste fuellt die Rechtsklick-Seite, wenn die Option an ist. Zauber ausserhalb der Klassenliste werden angenommen.
+
+**Behoben**
+
+- **Doppeltes Laden.** Die `.xml` band `FBHealBox.lua` zusaetzlich zur `.toc` ein zweites Mal ein. Jeder Frame, jeder Hook und das Optionsfenster existierten doppelt. Sichtbare Folgen: der Raid-Reiter fehlte (an das erste, ueberschriebene Optionsfenster gehaengt), Escape konnte den Client zum Absturz bringen (der zweite Hook rief sich selbst auf), und gelernte Absorb-Werte waren verdoppelt (zwei Vorhersage-Frames zaehlten jede Absorb-Zeile). Die `.xml` laedt keine Skripte mehr, beide Lua-Dateien verweigern einen zweiten Durchlauf.
+- Der Escape-Hook haelt das Original in einem lokalen Upvalue, wird hoechstens einmal gesetzt und nutzt keinen Tail-Call mehr.
+- Gelernte Absorb-Werte ueber dem 1,5-fachen des Tooltips werden beim Laden verworfen; verdoppelte Werte aus frueheren Versionen bereinigen sich selbst.
+
+**Geaendert**
+
+- Der Kern hat eine Hook-Schnittstelle bekommen (`FBHealBox_RegisterHook`, `FBHealBox_AddOptionsTab`), damit Module andocken koennen, ohne den Kern zu aendern. Kein Verhaltensunterschied fuer die Gruppenanzeige.
+- Die `.toc` laedt `FBHealBox_Raid.lua` nach dem Kern; wer die Zeile entfernt, hat keinen Raidmodus.
+
 ## 1.4.1 (2026-09-04)
 
 ### English

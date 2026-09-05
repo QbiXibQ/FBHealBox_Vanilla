@@ -4,7 +4,9 @@
         Original: "Heal Box" von Dourd (Argent Dawn EU) - UI Overhauled.
         Vanilla-Portierung und Funktionserweiterung 09/2026 von Mquadrat.
     -->
-    <Script file="FBHealBox.lua"/>
+    <!-- Die Lua-Dateien laedt ausschliesslich die .toc (FBHealBox.lua,
+         FBHealBox_Raid.lua). Ein <Script file="..."/> hier wuerde den Kern
+         ein zweites Mal ausfuehren. -->
 
     <Frame name="FBHealBoxEventFrame" parent="UIParent">
         <Scripts>

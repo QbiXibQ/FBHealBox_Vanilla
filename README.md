@@ -1,16 +1,10 @@
 # Heal Box Vanilla
 
-ADDON DOCUMENTATION · VERSION 1.4.1 · World of Warcraft CLIENT 1.12.1
+ADDON DOCUMENTATION · VERSION 1.4.2 · World of Warcraft CLIENT 1.12.1
 
 Party, pet and self heal display with quick-cast buttons for healers. One name plate with a health bar per group slot, plus one for every pet in the group directly below its owner, and next to it up to ten freely assignable spell buttons. A thin mana bar sits inside the health bar for everyone who actually uses mana. On top of that a complete heal prediction (direct heals, remaining HoT ticks and absorb shields) that corrects itself from the combat log and shares its numbers with other healers in the HealComm format. The interface is available in **English and German**, switchable in the options window.
 
 **The short version:** click the minimap button (or type `/fbp config`) → options window → pick a spell for each button → done. Everything else happens on its own. `/fbp` tells you at any time what the prediction currently believes. **New in 1.4.1:** tick *Test mode* to fill the display with ghost players and arrange everything without a group.
-
-<img width="585" height="441" alt="Screenshot 2026-09-05 003418" src="https://github.com/user-attachments/assets/38d3a8d6-8a41-4bb3-8cba-661341b6a99d" />
-
-<img width="846" height="1104" alt="Screenshot 2026-09-05 003500" src="https://github.com/user-attachments/assets/000ba234-6837-4078-82eb-336b7dc23901" />
-
-<img width="842" height="1106" alt="Screenshot 2026-09-05 003510" src="https://github.com/user-attachments/assets/474fd9c4-ce5b-413d-b179-21219b950bba" />
 
 \---
 
@@ -18,12 +12,13 @@ Party, pet and self heal display with quick-cast buttons for healers. One name p
 
 Download zip, unpack into your Addons folder.
 
-The folder under `Interface\\AddOns` is called **`FBHealBox`** and holds four files:
+The folder under `Interface\\AddOns` is called **`FBHealBox`** and holds five files:
 
 |File|Contents|
 |-|-|
 |`FBHealBox.toc`|Metadata, load order, saved variables|
-|`FBHealBox.lua`|The entire addon code|
+|`FBHealBox.lua`|The core: party and pet display, prediction, HealComm, options|
+|`FBHealBox_Raid.lua`|The raid mode module (see [Raid mode](#raid-mode)). Remove it from the `.toc` and the core runs exactly as in 1.4.1|
 |`FBHealBox.xml`|Only the event frame that calls `FBHealBox\_OnLoad` and `FBHealBox\_OnEvent`|
 |`CHANGELOG.md`|What changed in which version|
 
@@ -89,6 +84,8 @@ The thresholds for the HP colours are `LowHP` (0.6) and `VeryLowHP` (0.3) near t
 
 Up to ten buttons sit next to each plate, each showing its spell's icon. A **left click** casts that spell on exactly this group member, no matter who you currently have targeted.
 
+**Assigning by drag and drop.** Open the spellbook, drag a spell and drop it on any heal button, on a raid mini button, or on a field in the *Buttons* tab; that button number takes the spell on every plate. With the right-click spell enabled, dropping with the right mouse button fills the right-click side. Spells outside the class list (Dispel Magic, say) are accepted too and keep their icon after a reload. Vanilla has no `GetCursorInfo()`, so the addon remembers what `PickupSpell` last put on the cursor.
+
 **Right-click spell (optional).** Each button can carry a second spell for **right click** (Flash Heal left, Greater Heal right, say), which doubles the density without adding buttons. This is off by default and is enabled only through the switch on the *Buttons* tab. When on, a second column appears in the assignment and a small icon in the bottom-right corner of every button shows its right-click spell; the tooltip lists it as well. Switching it off keeps the assignments, it just stops the buttons from reacting to right click.
 
 **Dead, ghost, offline.** Instead of `0 %` the bar shows *Dead*, *Ghost* or *Offline*, empty and grey, with no mana strip.
@@ -105,6 +102,48 @@ The icon tints to show the state:
 |Reddish|Target out of range|
 
 Hovering shows the full spell tooltip plus the line *Heal Box Vanilla Target: `<name>`*, so it is always clear who this button serves.
+
+\---
+
+## Raid mode
+
+Raid mode is an addon within the addon: it lives in its own file `FBHealBox_Raid.lua`, hooks into the core only through `FBHealBox\_RegisterHook` and `FBHealBox\_AddOptionsTab`, and is on by default. It does nothing until it is needed: the grid appears on its own once you are in a raid with **at least 11 players** (*Raid view from N players*, adjustable from 2 to 40); smaller raids keep the party display, which shows your own subgroup. The *Raid mode* switch is only an emergency off. Everything described above keeps working unchanged.
+
+**Installing the module:** `FBHealBox_Raid.lua` must sit next to `FBHealBox.lua`, the `.toc` must list it (the shipped `.toc` does), and the game client must be **restarted** once. A `/reload` does not pick up files newly added to a `.toc`. When the module is active, the login lines in the chat include *Raid mode module loaded*, and the options window shows a third tab.
+
+### What it shows
+
+Once the raid reaches the threshold, a compact **grid** appears: one **cell** per member, grouped in **blocks of five** by raid group, the blocks arranged in rows. Each cell (70 by 22 px by default) shows the name in class colour, the health bar with the same shield and incoming-heal layers as the party plates, a 3 px mana strip for mana users, the HP percentage or the missing health, dispel colouring, *Dead* / *Ghost* / *Offline* text, range fading, the line-of-sight eye and the orange buff-watch border. To the right of every cell sit up to four **mini buttons** that cast the spells of Button 1 to N from the *Buttons* tab, right-click spells included. A click on the cell itself does what *Left click on plate* / *Right click on plate* says (target by default; the unit menu comes from Blizzard's raid frame).
+
+Group blocks are laid out with *Groups per row* (default 4): a 40-player raid is two rows of four blocks, about 450 by 270 px with two buttons per cell. **Empty groups take no space**, so a 20-player raid is a single row. The whole grid scales independently of the party plates and remembers its position.
+
+While the grid is shown the five party plates are hidden (option *Hide party plates in raid*), so the screen is never filled twice.
+
+### Tab *Raid mode*
+
+|Setting|Effect|
+|-|-|
+|Raid mode|Master switch (emergency off). On by default|
+|Raid view from N players|Threshold for switching from the party display to the grid. Default 11, that is more than 10 players|
+|Hide party plates in raid|Hide the party display while the grid is up. On|
+|Group headers|Group number above each block. On|
+|Mana strip|3 px mana bar in the cell. On|
+|Hide empty groups|Groups without members collapse. On|
+|Title bar|Thin bar above the grid to drag it by. Without it, Shift + drag any cell. On|
+|HP text|none, percent or deficit (missing health as a negative number)|
+|Raid test|Fills the grid with 20 or 40 ghosts: dead, offline, ghost, debuffed, out of range, out of sight, missing buff, shield and incoming heal are all represented. Not saved|
+|Groups per row|1 to 8. Default 4|
+|Raid scale|0.5 to 1.5|
+|Cell width / height|50 to 120 px / 14 to 32 px|
+|Buttons per unit|0 to 4 mini buttons. Default 2|
+|Button size|12 to 28 px|
+|Cell spacing / Group spacing|0 to 10 px / 0 to 20 px|
+
+All raid settings live in `HealBox.Raid`. `/fbp raidtest 20`, `/fbp raidtest 40` and `/fbp raidtest off` switch the raid test from the chat line; `/fbp` reports the raid state.
+
+### How it hooks in
+
+The core exposes `FBHealBox\_RegisterHook(name, fn)` and runs the hooks at fixed points: `Defaults`, `SyncOptions`, `ApplyLocale`, `UpdateNames`, `RefreshAllBars`, `ButtonsChanged`, `ActiveToggle`, `Status` and `Slash`. `FBHealBox\_AddOptionsTab(labelKey)` adds a tab to the options window. The raid module registers its roster refresh on `UpdateNames`, its cell refresh on `RefreshAllBars` (so the heal prediction reaches raid cells for free), and its slash commands on `Slash`. Raid units are added to `FBPredictUnits`, which lets HoT and shield confirmation via `UNIT\_AURA` work for `raid1` to `raid40`. Pets are not shown in raid mode.
 
 \---
 
@@ -280,6 +319,8 @@ On receive, your own messages are filtered by sender name, and since HealComm st
 |`/fbp reset`|Discards all learned values and re-reads the tooltips|
 |`/fbp test`|Toggles test mode (same as the checkbox)|
 |`/fbp config`|Opens or closes the options window (same as the minimap button)|
+|`/fbp raid`|Toggles raid mode|
+|`/fbp raidtest 20` · `40` · `off`|Raid test with 20 or 40 ghosts, or off|
 
 `/fbp` is the first place to look when something is not displayed: if a spell is not listed there, the tooltip parser did not recognise it; the display is not at fault.
 
@@ -312,6 +353,7 @@ Everything lives in the `HealBox` table, saved **per character**:
 |`WatchBuff`|Spell name of the buff watch, or nil|
 |`BuffWatchPets`|1 = buff watch also on pets, 0 = players only (default)|
 |`PosX` · `PosY`|Top-left corner of the player plate in screen pixels|
+|`Raid`|Sub-table with every raid-mode setting (see [Raid mode](#raid-mode)), including `PosX` / `PosY` of the grid|
 |`PredictMemory`|Learned heal values per spell and rank|
 
 Missing keys, for example in an old `HealBox` table from 1.4, are filled in by `FBHealBox\_ApplyDefaults()` on load. Test mode is deliberately **not** saved.
@@ -374,6 +416,7 @@ Every knob is a global at the top of its own section and can be changed without 
 |`FBHealBox\_DispelType(unit)`|First debuff your class can remove: type, texture, stacks, or nil|
 |`FBHealBox\_UpdateDebuffIcon(frame, tex, count)`|Debuff icon and stack count|
 |`FBHealBox\_CastOn(button, castString)`|Casts a button's spell (left or right) on its target|
+|`FBHealBox\_DropSpell(btnIndex, side)` · `FBHealBox\_CursorSpell()`|Drag and drop from the spellbook|
 |`FBHealBox\_ShowTab(n)` · `FBHealBox\_ApplyRightClickLayout()`|Options tabs; show/hide the right-click column|
 |`FBHealBox\_PlateMouseDown(f)` · `FBHealBox\_PlateMouseUp(f)` · `FBHealBox\_RunPlateAction(f, action)`|Click and drag on a plate|
 |`FBHealBox\_RefreshAllBars()`|Updates all ten|
@@ -483,6 +526,8 @@ The four functions that feed the bars. All of them expect a **player name**, not
 
 **A spell does not appear in the menu.** It is not in your class's spell list (`Spell.Name` near the top of the file), or not learned yet. The list can be extended freely.
 
+**Learned absorb values are capped.** A remembered absorb larger than 1.5 times the tooltip value is treated as a counting error and dropped on load (`FBPredict\_SanitizeMemory`); values from versions before 1.4.2 that were doubled by the old double load clean themselves up this way.
+
 **No prediction for a particular spell.** Run `/fbp`: if the spell is not among the spells read, the tooltip parser did not recognise it. Wording can differ on custom servers; the patterns all sit in `FBPredict\_GetSpellInfo`.
 
 **Combat log corrections do not take.** The patterns are built from the client's global strings (`PERIODICAURAHEALOTHERSELF`, `HEALEDSELFOTHER`, `ABSORB\_TRAILER`) and otherwise fall back to English defaults. `/fbp debug` shows whether corrections arrive.
@@ -520,18 +565,19 @@ Entries that do not exist do no harm: if the spellbook scan does not find them, 
 * heal prediction for direct heals, remaining HoT ticks and absorb shields, self-correcting from the combat log
 * HealComm sync with Puppeteer, pfUI, Luna and others, without any Ace libraries
 * English / German localization, switchable in game
+* 1.4.2: raid mode as a separate module (`FBHealBox_Raid.lua`) with a compact 20/40 grid, mini buttons, own options tab and raid test; hook interface in the core
 * 1.4.1: pet plates, mana bar inside the health bar, adjustable button and row spacing, test mode with ghost players, saved plate position, class colours, buff watch, range fading, tabbed options, right-click spell, dead/ghost/offline text, debuff icon. See CHANGELOG.md.
 
 \---
 
-Heal Box Vanilla v1.4.1 · original by Dourd, UI Overhauled · ported to Vanilla and extended 09/2026 by Mquadrat
+Heal Box Vanilla v1.4.2 · original by Dourd, UI Overhauled · ported to Vanilla and extended 09/2026 by Mquadrat
 
 _______________________________________________________________________
 GERMAN
 
 # Heal Box Vanilla
 
-ADDON-DOKUMENTATION · VERSION 1.4.1 · CLIENT 1.12.1
+ADDON-DOKUMENTATION · VERSION 1.4.2 · CLIENT 1.12.1
 
 Party-, Begleiter- und Selbst-Heilanzeige mit Schnellzugriff-Buttons für Heiler. Für jeden Gruppenplatz eine Namensplakette mit Lebensbalken, dazu eine für jeden Begleiter in der Gruppe direkt unter seinem Besitzer, daneben bis zu zehn frei belegbare Zauber-Buttons. Ein schmaler Manabalken liegt im Lebensbalken, bei allen, die tatsächlich Mana nutzen. Dazu eine vollständige Heilvorhersage (Direktheilung, HoT-Restticks und Absorb-Schilde), die sich über den Combatlog selbst korrigiert und ihre Werte im HealComm-Format mit anderen Heilern teilt. Die Oberfläche gibt es auf **Deutsch und Englisch**, umschaltbar im Optionsfenster.
 
@@ -541,12 +587,13 @@ Party-, Begleiter- und Selbst-Heilanzeige mit Schnellzugriff-Buttons für Heiler
 
 ## Installation
 
-Der Ordner unter `Interface\\AddOns` heißt **`FBHealBox`** und enthält vier Dateien:
+Der Ordner unter `Interface\\AddOns` heißt **`FBHealBox`** und enthält fünf Dateien:
 
 |Datei|Inhalt|
 |-|-|
 |`FBHealBox.toc`|Metadaten, Ladereihenfolge, SavedVariables|
-|`FBHealBox.lua`|Der komplette Addon-Code|
+|`FBHealBox.lua`|Der Kern: Gruppen- und Begleiteranzeige, Vorhersage, HealComm, Optionen|
+|`FBHealBox_Raid.lua`|Das Raidmodus-Modul (siehe [Raidmodus](#raidmodus)). Aus der `.toc` entfernt, läuft der Kern genau wie in 1.4.1|
 |`FBHealBox.xml`|Nur der Event-Frame, der `FBHealBox\_OnLoad` und `FBHealBox\_OnEvent` aufruft|
 |`CHANGELOG.md`|Was sich in welcher Version geaendert hat|
 
@@ -612,6 +659,8 @@ Die Schwellwerte für die HP-Farben stehen als `LowHP` (0.6) und `VeryLowHP` (0.
 
 Rechts neben jeder Plakette liegen bis zu zehn Buttons, jeder mit dem Icon seines Zaubers. Ein **Linksklick** wirkt den Zauber auf genau dieses Gruppenmitglied, unabhängig davon, wen du gerade im Ziel hast.
 
+**Belegen per Drag & Drop.** Zauberbuch öffnen, einen Zauber ziehen und auf einen beliebigen Heil-Button, einen Raid-Mini-Button oder ein Feld im Reiter *Buttons* fallen lassen; diese Buttonnummer übernimmt den Zauber auf allen Plaketten. Ist der Rechtsklick-Zauber aktiv, füllt ein Ablegen mit der rechten Maustaste die Rechtsklick-Seite. Auch Zauber außerhalb der Klassenliste (etwa Magie bannen) werden angenommen und behalten ihr Icon über einen Reload. Vanilla hat kein `GetCursorInfo()`, deshalb merkt sich das Addon, was `PickupSpell` zuletzt an den Cursor gehängt hat.
+
 **Rechtsklick-Zauber (optional).** Jeder Button kann einen zweiten Zauber für **Rechtsklick** tragen (etwa Blitzheilung links, Große Heilung rechts), was die Anzeige verdichtet, ohne Buttons hinzuzufügen. Das ist standardmäßig aus und wird ausschließlich über den Schalter im Reiter *Buttons* eingeschaltet. Eingeschaltet erscheint eine zweite Spalte in der Belegung, und ein kleines Icon unten rechts auf jedem Button zeigt seinen Rechtsklick-Zauber; der Tooltip nennt ihn ebenfalls. Ausschalten behält die Belegung, die Buttons reagieren nur nicht mehr auf Rechtsklick.
 
 **Tot, Geist, Offline.** Statt `0 %` zeigt der Balken *Tot*, *Geist* oder *Offline*, leer und grau, ohne Manastreifen.
@@ -628,6 +677,48 @@ Der Icon-Rand färbt sich mit:
 |Rötlich|Ziel außer Reichweite|
 
 Beim Überfahren erscheint der komplette Zaubertooltip plus die Zeile *Heal Box Vanilla Ziel: `<Name>`*, damit klar ist, wen dieser Button bedient.
+
+\---
+
+## Raidmodus
+
+Der Raidmodus ist ein Addon im Addon: Er lebt in der eigenen Datei `FBHealBox_Raid.lua`, hängt sich nur über `FBHealBox\_RegisterHook` und `FBHealBox\_AddOptionsTab` in den Kern ein und ist standardmäßig an. Er tut nichts, bis er gebraucht wird: Das Raster erscheint von selbst, sobald du in einem Schlachtzug mit **mindestens 11 Spielern** bist (*Raid-Ansicht ab N Spielern*, einstellbar von 2 bis 40); kleinere Raids behalten die Gruppenanzeige, die deine eigene Untergruppe zeigt. Der Schalter *Raidmodus* ist nur ein Notaus. Alles oben Beschriebene funktioniert unverändert weiter.
+
+**Modul installieren:** `FBHealBox_Raid.lua` muss neben `FBHealBox.lua` liegen, die `.toc` muss sie auflisten (die mitgelieferte tut das), und der Spielclient muss einmal **neu gestartet** werden. Ein `/reload` übernimmt keine neu in eine `.toc` eingetragenen Dateien. Ist das Modul aktiv, steht beim Login *Raidmodus-Modul geladen* im Chat, und das Optionsfenster zeigt einen dritten Reiter.
+
+### Was er zeigt
+
+Erreicht der Raid die Schwelle, erscheint ein kompaktes **Raster**: eine **Zelle** je Mitglied, in **Fünferblöcken** nach Gruppe geordnet, die Blöcke in Zeilen. Jede Zelle (standardmäßig 70 mal 22 px) zeigt den Namen in Klassenfarbe, den Lebensbalken mit denselben Schild- und Vorhersage-Schichten wie die Plaketten, einen 3 px hohen Manastreifen bei Mana-Nutzern, die Lebensprozente oder die fehlenden Lebenspunkte, die Dispel-Färbung, *Tot* / *Geist* / *Offline*, das Reichweiten-Fading, das Sichtlinien-Auge und den orangen Buff-Wache-Rahmen. Rechts an jeder Zelle sitzen bis zu vier **Mini-Buttons**, die die Zauber von Button 1 bis N aus dem Reiter *Buttons* wirken, Rechtsklick-Zauber inklusive. Ein Klick auf die Zelle selbst tut, was *Linksklick auf Plakette* / *Rechtsklick auf Plakette* vorgibt (Standard Anvisieren; das Einheitenmenü kommt aus Blizzards Raid-Fenster).
+
+Die Gruppenblöcke stehen mit *Gruppen je Zeile* (Standard 4) im Raster: Ein 40er-Raid sind zwei Zeilen zu vier Blöcken, etwa 450 mal 270 px bei zwei Buttons je Zelle. **Leere Gruppen brauchen keinen Platz**, ein 20er-Raid ist also eine einzige Zeile. Das ganze Raster skaliert unabhängig von den Plaketten und merkt sich seine Position.
+
+Solange das Raster zu sehen ist, werden die fünf Gruppenplaketten ausgeblendet (Option *Gruppenplaketten im Raid ausblenden*), damit der Bildschirm nie doppelt belegt ist.
+
+### Reiter *Raidmodus*
+
+|Einstellung|Wirkung|
+|-|-|
+|Raidmodus|Hauptschalter (Notaus). Standardmäßig an|
+|Raid-Ansicht ab N Spielern|Schwelle für den Wechsel von der Gruppenanzeige zum Raster. Standard 11, also mehr als 10 Spieler|
+|Gruppenplaketten im Raid ausblenden|Gruppenanzeige verstecken, solange das Raster steht. An|
+|Gruppenköpfe|Gruppennummer über jedem Block. An|
+|Manastreifen|3 px Manabalken in der Zelle. An|
+|Leere Gruppen ausblenden|Gruppen ohne Mitglieder fallen weg. An|
+|Titelleiste|Schmale Leiste über dem Raster zum Ziehen. Ohne sie: Shift + eine beliebige Zelle ziehen. An|
+|HP-Text|keiner, Prozent oder Defizit (fehlende Lebenspunkte als negative Zahl)|
+|Raid-Test|Füllt das Raster mit 20 oder 40 Geistern: tot, offline, Geist, Debuff, außer Reichweite, außer Sicht, fehlender Buff, Schild und eingehende Heilung sind alle vertreten. Wird nicht gespeichert|
+|Gruppen je Zeile|1 bis 8. Standard 4|
+|Raid-Skalierung|0.5 bis 1.5|
+|Zellenbreite / -höhe|50 bis 120 px / 14 bis 32 px|
+|Buttons je Einheit|0 bis 4 Mini-Buttons. Standard 2|
+|Buttongröße|12 bis 28 px|
+|Zellenabstand / Gruppenabstand|0 bis 10 px / 0 bis 20 px|
+
+Alle Raid-Einstellungen liegen in `HealBox.Raid`. `/fbp raidtest 20`, `/fbp raidtest 40` und `/fbp raidtest off` schalten den Raid-Test aus der Chatzeile; `/fbp` meldet den Raid-Zustand.
+
+### Wie er andockt
+
+Der Kern bietet `FBHealBox\_RegisterHook(name, fn)` und ruft die Hooks an festen Stellen: `Defaults`, `SyncOptions`, `ApplyLocale`, `UpdateNames`, `RefreshAllBars`, `ButtonsChanged`, `ActiveToggle`, `Status` und `Slash`. `FBHealBox\_AddOptionsTab(labelKey)` legt einen Reiter im Optionsfenster an. Das Raid-Modul hängt sein Roster-Update an `UpdateNames`, sein Zellen-Update an `RefreshAllBars` (so erreicht die Heilvorhersage die Raid-Zellen ohne Zusatzaufwand) und seine Slash-Befehle an `Slash`. Die Raid-Einheiten werden in `FBPredictUnits` eingetragen, damit die HoT- und Schild-Bestätigung über `UNIT\_AURA` auch für `raid1` bis `raid40` greift. Begleiter werden im Raidmodus nicht angezeigt.
 
 \---
 
@@ -801,6 +892,8 @@ Beim Empfang werden eigene Nachrichten über den Absendernamen gefiltert, und da
 |`/fbp reset`|Verwirft alle gelernten Werte und liest die Tooltips neu ein|
 |`/fbp test`|Testmodus an/aus (wie der Haken in den Optionen)|
 |`/fbp config`|Optionsfenster auf/zu (wie der Minimap-Button)|
+|`/fbp raid`|Raidmodus an/aus|
+|`/fbp raidtest 20` · `40` · `off`|Raid-Test mit 20 oder 40 Geistern, oder aus|
 
 `/fbp` ist die erste Anlaufstelle, wenn etwas nicht angezeigt wird: Steht ein Zauber dort nicht drin, hat der Tooltip-Parser ihn nicht erkannt und nicht die Anzeige versagt.
 
@@ -833,6 +926,7 @@ Alles liegt in der Tabelle `HealBox`, gespeichert **pro Charakter**:
 |`WatchBuff`|Zaubername der Buff-Wache oder nil|
 |`BuffWatchPets`|1 = Buff-Wache auch für Pets, 0 = nur Spieler (Standard)|
 |`PosX` · `PosY`|Linke obere Ecke der Spielerplakette in Bildschirmpixeln|
+|`Raid`|Untertabelle mit allen Raidmodus-Einstellungen (siehe [Raidmodus](#raidmodus)), einschließlich `PosX` / `PosY` des Rasters|
 |`PredictMemory`|Gelernte Heilwerte je Zauber und Rang|
 
 Fehlende Schlüssel, etwa in einer alten `HealBox`-Tabelle aus 1.4, zieht `FBHealBox\_ApplyDefaults()` beim Laden nach. Der Testmodus wird bewusst **nicht** gespeichert.
@@ -892,6 +986,7 @@ Alle Stellschrauben stehen als Globals oben in ihrem jeweiligen Abschnitt und la
 |`FBHealBox\_DispelType(unit)`|Erster von der eigenen Klasse entfernbarer Debuff: Typ, Textur, Stacks, sonst nil|
 |`FBHealBox\_UpdateDebuffIcon(frame, tex, count)`|Debuff-Icon und Stackzahl|
 |`FBHealBox\_CastOn(button, castString)`|Wirkt den Zauber eines Buttons (links oder rechts) auf sein Ziel|
+|`FBHealBox\_DropSpell(btnIndex, side)` · `FBHealBox\_CursorSpell()`|Drag & Drop aus dem Zauberbuch|
 |`FBHealBox\_ShowTab(n)` · `FBHealBox\_ApplyRightClickLayout()`|Options-Reiter; Rechtsklick-Spalte ein-/ausblenden|
 |`FBHealBox\_PlateMouseDown(f)` · `FBHealBox\_PlateMouseUp(f)` · `FBHealBox\_RunPlateAction(f, action)`|Klick und Ziehen auf einer Plakette|
 |`FBHealBox\_RefreshAllBars()`|Aktualisiert alle zehn|
@@ -990,6 +1085,8 @@ Die vier Funktionen, die die Balken speisen. Alle erwarten einen **Spielernamen*
 
 **Ein Zauber taucht im Menü nicht auf.** Er steht nicht in der Zauberliste deiner Klasse (`Spell.Name` am Dateianfang) oder ist noch nicht gelernt. Die Liste lässt sich frei erweitern.
 
+**Gelernte Absorb-Werte sind gedeckelt.** Ein gemerkter Absorb über dem 1,5-fachen des Tooltipwerts gilt als Zählfehler und wird beim Laden verworfen (`FBPredict\_SanitizeMemory`); die durch die alte Doppelladung verdoppelten Werte aus Versionen vor 1.4.2 räumen sich so von selbst auf.
+
 **Keine Vorhersage für einen bestimmten Zauber.** `/fbp` aufrufen: Steht der Zauber nicht in der Liste der ausgelesenen Zauber, hat der Tooltip-Parser ihn nicht erkannt. Auf abweichenden Servern können die Formulierungen abweichen; die Muster sitzen gebündelt in `FBPredict\_GetSpellInfo`.
 
 **Combatlog-Korrekturen greifen nicht.** Die Muster werden aus den GlobalStrings des Clients gebaut (`PERIODICAURAHEALOTHERSELF`, `HEALEDSELFOTHER`, `ABSORB\_TRAILER`) und fallen sonst auf englische Vorgaben zurück. `/fbp debug` zeigt, ob Korrekturen ankommen.
@@ -1027,9 +1124,10 @@ Nicht vorhandene Einträge stören nicht: Findet der Zauberbuch-Scan sie nicht, 
 * Heilvorhersage für Direktheilung, HoT-Restticks und Absorb-Schilde, selbstkorrigierend über den Combatlog
 * HealComm-Sync mit Puppeteer, pfUI, Luna und Co., ohne Ace-Bibliotheken
 * Lokalisierung Deutsch / Englisch, im laufenden Spiel umschaltbar
+* 1.4.2: Raidmodus als eigenes Modul (`FBHealBox_Raid.lua`) mit kompaktem 20/40-Raster, Mini-Buttons, eigenem Options-Reiter und Raid-Test; Hook-Schnittstelle im Kern
 * 1.4.1: Begleiter-Plaketten, Manabalken im Lebensbalken, einstellbare Button- und Zeilenabstände, Testmodus mit Geisterspielern, gespeicherte Plattenposition, Klassenfarben, Buff-Wache, Reichweiten-Fading, Optionen in Reitern, Rechtsklick-Zauber, Tot/Geist/Offline-Text, Debuff-Icon. Siehe CHANGELOG.md.
 
 \---
 
-Heal Box Vanilla v1.4.1 · Original von Dourd, UI Overhauled · Vanilla-Portierung und Erweiterung 09/2026 von Mquadrat
+Heal Box Vanilla v1.4.2 · Original von Dourd, UI Overhauled · Vanilla-Portierung und Erweiterung 09/2026 von Mquadrat
 
