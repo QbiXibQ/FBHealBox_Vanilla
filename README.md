@@ -6,25 +6,21 @@ Party, pet and self heal display with quick-cast buttons for healers. One name p
 
 **The short version:** click the minimap button (or type `/fbp config`) → options window → pick a spell for each button → done. Everything else happens on its own. `/fbp` tells you at any time what the prediction currently believes. **New in 1.4.1:** tick *Test mode* to fill the display with ghost players and arrange everything without a group.
 
-<img width="585" height="441" alt="Screenshot 2026-09-05 003418" src="https://github.com/user-attachments/assets/4fca55e1-3dfb-475b-950a-da86fab4c196" />
-
-<img width="1146" height="527" alt="Screenshot 2026-09-05 081047" src="https://github.com/user-attachments/assets/ee18f0d1-d448-4129-b72b-dd999b79a91b" />
-
-<img width="844" height="1100" alt="Screenshot 2026-09-05 081138" src="https://github.com/user-attachments/assets/e7a8bb0e-f800-4884-94ed-6e51bddf0283" />
-
 \---
 
 ## Installation
 
 Download zip, unpack into your Addons folder.
 
-The folder under `Interface\\AddOns` is called **`FBHealBox`** and holds five files:
+The folder under `Interface\\AddOns` is called **`FBHealBox`** and holds seven files:
 
 |File|Contents|
 |-|-|
 |`FBHealBox.toc`|Metadata, load order, saved variables|
 |`FBHealBox.lua`|The core: party and pet display, prediction, HealComm, options|
 |`FBHealBox_Raid.lua`|The raid mode module (see [Raid mode](#raid-mode)). Remove it from the `.toc` and the core runs exactly as in 1.4.1|
+|`FBHealBox_Ticker.lua`|The mana ticker module (see [Mana ticker](#mana-ticker)), also removable|
+|`FBHealBox_Damage.lua`|The Smart Damage module (see [Smart Damage](#smart-damage)), also removable|
 |`FBHealBox.xml`|Only the event frame that calls `FBHealBox\_OnLoad` and `FBHealBox\_OnEvent`|
 |`CHANGELOG.md`|What changed in which version|
 
@@ -46,9 +42,13 @@ Plates are stacked in the order **owner, then that owner's pet**: you, your pet,
 
 A **left click** on a name or health bar targets that unit; so does a **right click**. Both are configurable on the *General* tab (*Left click on plate* / *Right click on plate*): **Target**, **Unit menu** (Blizzard's own unit menu with whisper, invite, promote, leave, for players and your own pet; group pets fall back to targeting), **Move display** (drag without holding Shift) or **Nothing**. Shift + left drag always moves the display, whatever is set. In test mode clicks on ghosts only print a note.
 
+### Who is being attacked
+
+If your current hostile target is targeting a group member, that member's plate (and raid cell) gets a **red border**, refreshed five times a second from `targettarget`. Red takes precedence over the orange buff-watch border. Option *Mark who is attacked*.
+
 ### Line of sight
 
-While a unit is out of your line of sight an **eye badge** (`FBLOS\_ICON`, the Blind icon) hangs on the left edge of its plate. Vanilla has no API for this, so two paths are used: with the **UnitXP SP3** client mod installed the addon asks `UnitXP("inSight", "player", unit)` every half second, live and exact. Without it, the addon watches for the *not in line of sight* error after one of your heals and marks the unit you tried to heal for `FBLOS\_TIMEOUT` (8) seconds; the mark is cleared as soon as a cast on that unit starts or one of your heals or HoT ticks lands on it. `/fbp` reports which path is active. Option *Line of sight*; badge position via `FBLOS\_ICON\_X/Y`.
+While a unit is out of your line of sight an **eye badge** (`FBLOS\_ICON`, the Blind icon) sits on the top-left corner of its plate. Vanilla has no API for this, so two paths are used: with the **UnitXP SP3** client mod installed the addon asks `UnitXP("inSight", "player", unit)` every half second, live and exact. Without it, the addon watches for the *not in line of sight* error after one of your heals and marks the unit you tried to heal for `FBLOS\_TIMEOUT` (8) seconds; the mark is cleared as soon as a cast on that unit starts or one of your heals or HoT ticks lands on it. `/fbp` reports which path is active. Option *Line of sight*; badge position via `FBLOS\_ICON\_X/Y`.
 
 ### Pets
 
@@ -90,9 +90,17 @@ The thresholds for the HP colours are `LowHP` (0.6) and `VeryLowHP` (0.3) near t
 
 Up to ten buttons sit next to each plate, each showing its spell's icon. A **left click** casts that spell on exactly this group member, no matter who you currently have targeted.
 
-**Assigning by drag and drop.** Open the spellbook, drag a spell and drop it on any heal button, on a raid mini button, or on a field in the *Buttons* tab; that button number takes the spell on every plate. With the right-click spell enabled, dropping with the right mouse button fills the right-click side. Spells outside the class list (Dispel Magic, say) are accepted too and keep their icon after a reload. Vanilla has no `GetCursorInfo()`, so the addon remembers what `PickupSpell` last put on the cursor.
+**Assigning by drag and drop.** Open the spellbook, drag a spell and drop it on any heal button, on a raid mini button, or on a field in the *Buttons* tab; that button number takes the spell on every plate. With the right-click spell enabled, dropping with the right mouse button, or with Shift held while dropping, fills the right-click side. Spells outside the class list (Dispel Magic, say) are accepted too and keep their icon after a reload. Vanilla has no `GetCursorInfo()`, so the addon remembers what `PickupSpell` last put on the cursor.
 
 **Right-click spell (optional).** Each button can carry a second spell for **right click** (Flash Heal left, Greater Heal right, say), which doubles the density without adding buttons. This is off by default and is enabled only through the switch on the *Buttons* tab. When on, a second column appears in the assignment and a small icon in the bottom-right corner of every button shows its right-click spell; the tooltip lists it as well. Switching it off keeps the assignments, it just stops the buttons from reacting to right click.
+
+**Smart Healing (off by default).** With *Smart Healing* on, a click casts the lowest rank of the assigned spell whose expected heal covers the target's missing health, minus healing already on the way, plus the *Safety margin* (default 20 %). Expected heals come from the learned values of the prediction where available, otherwise from the tooltip average. It never goes above the rank you assigned, applies to direct heals only (HoTs, shields and buffs such as Fortitude are always cast as assigned; a spell qualifies only if its tooltip describes a heal), and below 30 % health it always casts the assigned rank. Downsides: the estimate ignores crits, and with burst damage or when you want to overheal on purpose (a tank before a big hit) the lower rank can fall short. Leave it off whenever overhealing is what you want. `/fbp debug` prints every decision, `/fbp` shows the state.
+
+**Cooldowns.** Every button shows the usual cooldown sweep for its spell. The global cooldown is not shown (`FBCD\_MIN\_DURATION`). Option *Cooldowns on buttons*.
+
+**HoT and shield timers.** The button of a spell shows, for its unit, the remaining seconds of your own HoT (green) or shield (blue) of that spell. When Power Word: Shield is used up, the same button shows Weakened Soul in red until the target can be shielded again. The left-click spell is checked first, then the right-click spell. Only your own effects are tracked. Option *HoT and shield timers*.
+
+**Buff icons left of the bar.** Buffs with a duration that sit on your buttons (Fortitude, Divine Spirit, Fear Ward, Inner Fire, left or right click) appear as small 8 px icons on the **outer left side** of the plate while the buff is up, stacked two high: the first at the top next to the plate, the second below it, the third at the top of the next column to the left, and so on. The icon is a **clock**: like a minute hand, it turns black and white clockwise from twelve o'clock as the time runs out. Fresh buff: fully coloured. Half the time left: right half grey. A quarter left: three quarters grey. Vanilla cannot draw a true circular sweep, so the icon is split into four quadrants; on 8 px that is the finest resolution that still reads. Elapsed quadrants are drawn dark (desaturated where the client supports it, with a dark wash `FBBUFFICON\_WASH`) on a small frame one level above the icon, so the split is visible on every client; `/fbp buffs` also prints the grey-quadrant count per icon. Hovering an icon shows the buff name and the remaining time. The remaining time is exact on yourself (buff API, re-read on every `PLAYER_AURAS_CHANGED`, so a recast resets the clock) and counted from your own cast on others; a buff cast by someone else stays fully coloured (time unknown). Up to six icons per plate (`FBBUFFICON\_MAX`). Option *Buff icons left of the bar*, on by default. Raid cells show the same clock icons outside their left edge at 6 px in a 3 by 4 grid (twelve slots, columns filling from the cell outward), and the grid reserves the room for them between the groups. After a `/reload` or a group change the addon scans all units once, so existing buffs show up without waiting for an aura event. `/fbp buffs` lists the tracked buffs and their state on you.
 
 **Dead, ghost, offline.** Instead of `0 %` the bar shows *Dead*, *Ghost* or *Offline*, empty and grey, with no mana strip.
 
@@ -121,7 +129,7 @@ Raid mode is an addon within the addon: it lives in its own file `FBHealBox_Raid
 
 Once the raid reaches the threshold, a compact **grid** appears: one **cell** per member, grouped in **blocks of five** by raid group, the blocks arranged in rows. Each cell (70 by 22 px by default) shows the name in class colour, the health bar with the same shield and incoming-heal layers as the party plates, a 3 px mana strip for mana users, the HP percentage or the missing health, dispel colouring, *Dead* / *Ghost* / *Offline* text, range fading, the line-of-sight eye and the orange buff-watch border. To the right of every cell sit up to four **mini buttons** that cast the spells of Button 1 to N from the *Buttons* tab, right-click spells included. A click on the cell itself does what *Left click on plate* / *Right click on plate* says (target by default; the unit menu comes from Blizzard's raid frame).
 
-Group blocks are laid out with *Groups per row* (default 4): a 40-player raid is two rows of four blocks, about 450 by 270 px with two buttons per cell. **Empty groups take no space**, so a 20-player raid is a single row. The whole grid scales independently of the party plates and remembers its position.
+Group blocks are laid out with *Groups per row* (default 4): a 40-player raid is two rows of four blocks, about 570 by 270 px with two buttons per cell and the buff-icon strip. **Empty groups take no space**, so a 20-player raid is a single row. The whole grid scales independently of the party plates and remembers its position.
 
 While the grid is shown the five party plates are hidden (option *Hide party plates in raid*), so the screen is never filled twice.
 
@@ -136,8 +144,9 @@ While the grid is shown the five party plates are hidden (option *Hide party pla
 |Mana strip|3 px mana bar in the cell. On|
 |Hide empty groups|Groups without members collapse. On|
 |Title bar|Thin bar above the grid to drag it by. Without it, Shift + drag any cell. On|
+|Show buffs|Buff icons with clock left of each cell. Off: no icons and no reserved strip, the groups move closer together. On|
 |HP text|none, percent or deficit (missing health as a negative number)|
-|Raid test|Fills the grid with 20 or 40 ghosts: dead, offline, ghost, debuffed, out of range, out of sight, missing buff, shield and incoming heal are all represented. Not saved|
+|Raid test|Fills the grid with 20 or 40 ghosts: dead, offline, ghost, magic and disease debuffs, out of range, out of sight, missing buff, shield, incoming heal and buff icons (every third ghost, ghost 12 with twelve) are all represented. Not saved|
 |Groups per row|1 to 8. Default 4|
 |Raid scale|0.5 to 1.5|
 |Cell width / height|50 to 120 px / 14 to 32 px|
@@ -149,7 +158,61 @@ All raid settings live in `HealBox.Raid`. `/fbp raidtest 20`, `/fbp raidtest 40`
 
 ### How it hooks in
 
-The core exposes `FBHealBox\_RegisterHook(name, fn)` and runs the hooks at fixed points: `Defaults`, `SyncOptions`, `ApplyLocale`, `UpdateNames`, `RefreshAllBars`, `ButtonsChanged`, `ActiveToggle`, `Status` and `Slash`. `FBHealBox\_AddOptionsTab(labelKey)` adds a tab to the options window. The raid module registers its roster refresh on `UpdateNames`, its cell refresh on `RefreshAllBars` (so the heal prediction reaches raid cells for free), and its slash commands on `Slash`. Raid units are added to `FBPredictUnits`, which lets HoT and shield confirmation via `UNIT\_AURA` work for `raid1` to `raid40`. Pets are not shown in raid mode.
+The core exposes `FBHealBox\_RegisterHook(name, fn)` and runs the hooks at fixed points: `Defaults`, `SyncOptions`, `ApplyLocale`, `UpdateNames`, `RefreshAllBars`, `ButtonsChanged`, `ActiveToggle`, `Status`, `Slash`, `Loaded`, `Aggro`, `SpellTimers` and `Cooldowns`. `FBHealBox\_AddOptionsTab(labelKey)` adds a tab to the options window. The raid module registers its roster refresh on `UpdateNames`, its cell refresh on `RefreshAllBars` (so the heal prediction reaches raid cells for free), and its slash commands on `Slash`. Raid units are added to `FBPredictUnits`, which lets HoT and shield confirmation via `UNIT\_AURA` work for `raid1` to `raid40`. Pets are not shown in raid mode.
+
+\---
+
+## Mana ticker
+
+The mana ticker lives in its own module `FBHealBox_Ticker.lua` and is on by default. A **spark** travels across the mana strip of your own plate (and of your own cell in the raid grid) every 2 seconds, in step with the server's mana regeneration tick. When you spend mana the spark turns **orange** and runs the five-second rule down; it reaches the end exactly when spirit regeneration resumes, which is the first tick after the five seconds, not the five seconds themselves. Casting right after the spark reaches the end wastes no regeneration.
+
+### How it works
+
+There is no API for this in 1.12, so the module watches `UNIT\_MANA` for the player. Mana going down starts the five-second rule. Mana going up is a tick candidate: the first one sets the 2 s grid, every later one that lands within *Tick tolerance* of the expected time re-synchronises it. Candidates outside the tolerance (Mana Spring pulses, Innervate) are ignored; only after three misses in a row is a new grid accepted. Jumps of at least 300 mana and more than four times the learned tick size (potions, runes) never count. With full mana no ticks arrive, so the grid runs on silently and the spark stays hidden until mana is missing again; it re-synchronises on the next real tick. The spark needs the mana strip (option *Mana bar*) and disappears in bear or cat form.
+
+### Tab *Extras*, section *Mana ticker*
+
+|Setting|Effect|
+|-|-|
+|Mana ticker|Master switch. On by default|
+|Five-second rule|Show the orange phase after spending mana. On|
+|Tick tolerance|0.1 to 0.6 s. Raise it if ticks are being missed|
+|Tick offset|0.0 to 0.5 s. Runs the spark earlier to compensate latency if it arrives late compared to your mana jumps|
+|Spark width|1 to 4 px|
+
+`/fbp ticker` toggles the ticker; `/fbp` reports whether the grid is synced, the time to the next tick and a running five-second rule. Settings live in `HealBox.Ticker`. The ticker shares the *Extras* tab with Smart Damage.
+
+\---
+
+## Smart Damage
+
+Rank selection for **attack spells on any action bar**, in its own module `FBHealBox_Damage.lua`, **off by default**. When you press Smite rank 4 on a Bongos or Blizzard bar (or its key binding) and rank 2 would still kill the target, rank 2 is cast instead. Never above the rank on the bar.
+
+### How it works
+
+Every bar and key binding ends in `UseAction(slot)`. The module hooks that function, reads the spell and rank in the slot from a tooltip scan, and decides. Damage per rank is the **minimum** damage from the spell's tooltip ("86 to 98 Holy damage"), raised by the smallest full hit you have actually landed with that rank (crits and partial resists are not counted). A rank qualifies if its minimum damage covers the target's remaining health plus the *Safety margin* (default 20 %). Macros with `/cast` are not affected.
+
+The target's remaining health comes from the first source that answers:
+
+|Source|When|Accuracy|
+|-|-|-|
+|Server|`UnitHealthMax("target")` is not 100, i.e. the server sends real values (Turtle WoW and others)|exact|
+|MobHealth3|`MobHealth3:GetUnitHealth()` knows the mob|as good as that addon|
+|MobInfo-2|`MobHealth_GetTargetCurHP()` knows the mob|as good as that addon|
+|Own estimate|The addon has fought this mob type (name and level) before|see below|
+
+**Own estimate.** On percent-only servers the addon learns *health points per percent* for each mob type: it adds up the damage it can see in the combat log (yours, your party's, pets') and divides by the drop in the target's percentage, but only once the drop reaches 3 % to keep the 1 % rounding out of it. Of all measurements the **highest** is kept, because damage from raid members outside your party is invisible and would otherwise pull the estimate down; erring high only costs a slightly bigger rank. The remaining health is then the upper edge of the current percent times that value. The estimate is saved per character in `HealBox.MobHP` and improves with every fight; until a type has been measured, Smart Damage leaves that target alone.
+
+### Section *Smart Damage* on the *Extras* tab
+
+|Setting|Effect|
+|-|-|
+|Smart Damage|Master switch. Off by default|
+|Safety margin|0 to 50 %, default 20. Covers partial resists and estimate error|
+|Target health source|Live line: which of the four sources answers for your current target|
+|Spells|The attack spells found in your spellbook with their rank count|
+
+Spells per class: Priest Smite, Holy Fire, Mind Blast; Druid Wrath, Starfire, Moonfire; Shaman Lightning Bolt, Chain Lightning, Earth/Flame/Frost Shock; Paladin Holy Shock, Hammer of Wrath, Exorcism, Holy Wrath; Mage Fireball, Frostbolt, Fire Blast, Scorch, Pyroblast; Warlock Shadow Bolt, Searing Pain, Immolate, Soul Fire, Conflagrate; Hunter Arcane Shot, Aimed Shot (list `FBDamageSpells`). `/fbp damage` toggles, `/fbp debug` logs every decision with the health source used.
 
 \---
 
@@ -173,6 +236,8 @@ The window has two tabs.
 
 **Show N buttons**: how many of the ten buttons actually appear (0 to 10). Assigned but hidden buttons keep their spell.
 
+**Smart Healing / Safety margin**: see [The buttons](#the-buttons). Off by default; margin 0 to 50 %, default 20.
+
 ### Tab *General*
 
 **Frame scale**: scales the plates from 0.6 to 1.5. Has no effect in party-frame mode.
@@ -190,6 +255,8 @@ The window has two tabs.
 **Debuff icon**: shows or hides the debuff icon with stack count next to the name. On by default.
 
 **Line of sight**: shows or hides the eye badge for units out of line of sight (see [Line of sight](#line-of-sight)). On by default.
+
+**Mark who is attacked**, **HoT and shield timers**, **Cooldowns on buttons**, **Buff icons left of the bar**: the indicators described under [The buttons](#the-buttons) and [Who is being attacked](#who-is-being-attacked). All on by default.
 
 **Left click on plate / Right click on plate**: what a click on a name plate does: Target (default), Unit menu, Move display, Nothing. See [Clicking a plate](#clicking-a-plate).
 
@@ -219,13 +286,13 @@ The ghosts are built to show every visual state at once:
 
 |Ghost|Shows|
 |-|-|
-|Brynn|warrior: no mana bar, health near full, **missing buff** (orange border when a buff watch is set)|
+|Brynn|warrior: **dead**, no mana bar, **missing buff** (orange border when a buff watch is set)|
 |Cerys|warlock: mana bar, an **absorb shield** segment and the **line-of-sight** badge|
 |Dorn|hunter: low health (red) with **incoming healing** behind it|
 |Elowen|druid: a **dispellable debuff** (the health bar takes the dispel colour of your class) and **out of range** (faded)|
-|Fang, Zorbek, Bramble|pets: a focus pet without mana bar, a mana pet with one, and a pet with incoming healing|
+|Fang, Zorbek, Bramble|pets: a focus pet without mana bar, a mana pet with one, and a pet with incoming healing and a **disease** debuff|
 
-Their health drifts slowly up and down so you can watch the yellow and red thresholds come and go. Spell buttons on ghosts do nothing except print a short note; tooltips work. The ghost table is `FBTestGhosts` near the top of the file; names, values and which extras each ghost carries can be edited freely.
+Their health drifts slowly up and down so you can watch the yellow and red thresholds come and go. Dorn also carries the red attacked border, sample timers on buttons 1 and 2 and **six buff icons** with different remaining times (one without a clock). Spell buttons on ghosts do nothing except print a short note; tooltips work. The ghost table is `FBTestGhosts` near the top of the file; names, values and which extras each ghost carries can be edited freely.
 
 Test mode is meant for the addon's own plates; in party-frame mode the ghosts sit at Blizzard's (hidden) frames and are of little use.
 
@@ -325,8 +392,11 @@ On receive, your own messages are filtered by sender name, and since HealComm st
 |`/fbp reset`|Discards all learned values and re-reads the tooltips|
 |`/fbp test`|Toggles test mode (same as the checkbox)|
 |`/fbp config`|Opens or closes the options window (same as the minimap button)|
+|`/fbp buffs`|Lists the tracked buff spells, their presence and remaining time on you, and your raw buff textures|
 |`/fbp raid`|Toggles raid mode|
 |`/fbp raidtest 20` · `40` · `off`|Raid test with 20 or 40 ghosts, or off|
+|`/fbp ticker`|Toggles the mana ticker|
+|`/fbp damage`|Toggles Smart Damage|
 
 `/fbp` is the first place to look when something is not displayed: if a spell is not listed there, the tooltip parser did not recognise it; the display is not at fault.
 
@@ -344,7 +414,7 @@ Everything lives in the `HealBox` table, saved **per character**:
 |`AttachMode`|0 = own plates, 1 = default party frames|
 |`Active`|Display on/off (shift + left click on the minimap)|
 |`HealComm`|1 = sync on, 0 = off|
-|`Locale`|`deDE` or `enUS`|
+|`Locale`|`deDE`, `enUS`, `esES`, `frFR` or `itIT`|
 |`ButtonSpacing`|Gap between the buttons in px (0 to 20)|
 |`RowSpacing`|Gap between the plates in px (0 to 20)|
 |`ManaBar`|1 = mana strip on, 0 = off|
@@ -354,11 +424,15 @@ Everything lives in the `HealBox` table, saved **per character**:
 |`DebuffIcon`|1 = debuff icon on, 0 = off|
 |`LOSIcon`|1 = line-of-sight badge on, 0 = off|
 |`PlateLeft` · `PlateRight`|Click action on a plate: `target`, `menu`, `move` or `none`|
+|`SmartRank` · `SmartMargin`|Smart Healing on/off (default off) and safety margin in percent|
+|`Cooldowns` · `AggroMark` · `SpellTimers` · `BuffIcons`|Cooldown sweep, red border for the attacked member, HoT/shield timers, buff icons left of the bar|
 |`ClassColors`|1 = names in class colour, 0 = white|
 |`RangeFade`|1 = fade plates out of range, 0 = off|
 |`WatchBuff`|Spell name of the buff watch, or nil|
 |`BuffWatchPets`|1 = buff watch also on pets, 0 = players only (default)|
 |`PosX` · `PosY`|Top-left corner of the player plate in screen pixels|
+|`Ticker`|Sub-table with the mana ticker settings (see [Mana ticker](#mana-ticker))|
+|`Damage`|Sub-table with the Smart Damage settings; `MobHP` and `DmgMemory` hold the learned mob health and minimum damage values (see [Smart Damage](#smart-damage))|
 |`Raid`|Sub-table with every raid-mode setting (see [Raid mode](#raid-mode)), including `PosX` / `PosY` of the grid|
 |`PredictMemory`|Learned heal values per spell and rank|
 
@@ -381,12 +455,19 @@ Every knob is a global at the top of its own section and can be changed without 
 |`FBPET\_INDENT`|12|Indent (and width reduction) of pet plates|
 |`FBPET\_ICON` · `FBPET\_ICON\_SIZE`|footprint · 12|Paw icon in front of pet names|
 |`FBDEBUFF\_ICON\_SIZE`|14|Edge length of the debuff icon|
-|`FBLOS\_ICON` · `FBLOS\_ICON\_SIZE`|Blind icon · 16|Line-of-sight badge|
-|`FBLOS\_ICON\_X` · `FBLOS\_ICON\_Y`|6 · 0|Badge offset from the plate's left edge|
+|`FBLOS\_ICON` · `FBLOS\_ICON\_SIZE`|Blind icon · 12|Line-of-sight badge|
+|`FBLOS\_ICON\_X` · `FBLOS\_ICON\_Y`|-3 · 3|Badge offset from the plate's top-left corner|
 |`FBLOS\_TIMEOUT`|8|Seconds a line-of-sight error stays marked without UnitXP|
 |`FBNAME\_WIDTH\_FULL` · `FBNAME\_WIDTH\_ICON`|78 · 60|Width of the name box without / with a visible debuff icon|
 |`FBRANGE\_ALPHA` · `FBRANGE\_INTERVAL`|0.5 · 0.5|Faded opacity and check interval of the range fading|
 |`FBBUFF\_MISSING\_COLOR`|`{1, 0.5, 0, 1}`|Border colour when the watched buff is missing|
+|`FBAGGRO\_COLOR`|`{1, 0.15, 0.15, 1}`|Border colour for the attacked member|
+|`FBCD\_MIN\_DURATION`|2|Cooldowns shorter than this (the global cooldown) are not shown|
+|`FBTIMER\_COLOR\_HOT` · `\_SHIELD` · `\_WS`|green · blue · red|Timer colours on the buttons|
+|`FBBUFFICON\_SIZE` · `FBBUFFICON\_GAP` · `FBBUFFICON\_MAX` · `FBBUFFICON\_XOFF`|8 · 1 · 6 · -2|Buff icons left of the plate|
+|`FBBUFFICON\_GREY`|0.55|Grey tint of elapsed quadrants when the client cannot desaturate|
+|`FBNAME\_HEIGHT`|12|Height of the name box (one line, vertically centred)|
+|`FBWEAKENED\_SOUL\_SEC`|15|Length of Weakened Soul|
 |`FBClassColors`|(table)|Fallback class colours if the client has no `RAID\_CLASS\_COLORS`|
 |`FBBuffWatchSpells` · `FBBuffAlternates`|(table)|Buffs offered per class, and which group version counts as the same|
 |`FBPartyUnit` · `FBLayoutOrder`|(table)|The ten slots and their display order|
@@ -423,6 +504,10 @@ Every knob is a global at the top of its own section and can be changed without 
 |`FBHealBox\_UpdateDebuffIcon(frame, tex, count)`|Debuff icon and stack count|
 |`FBHealBox\_CastOn(button, castString)`|Casts a button's spell (left or right) on its target|
 |`FBHealBox\_DropSpell(btnIndex, side)` · `FBHealBox\_CursorSpell()`|Drag and drop from the spellbook|
+|`FBHealBox\_SmartRank(castString, unit)`|Picks the rank to cast|
+|`FBHealBox\_CheckAggroAll()` · `FBHealBox\_ApplyBorder(f)`|Red border for the attacked member; border precedence|
+|`FBHealBox\_UpdateSpellTimers()` · `FBHealBox\_SpellTimerFor(...)`|HoT/shield timers on buttons|
+|`FBHealBox\_UpdateButtonCooldown(b)` · `FBHealBox\_UpdateAllCooldowns()`|Cooldown sweep|
 |`FBHealBox\_ShowTab(n)` · `FBHealBox\_ApplyRightClickLayout()`|Options tabs; show/hide the right-click column|
 |`FBHealBox\_PlateMouseDown(f)` · `FBHealBox\_PlateMouseUp(f)` · `FBHealBox\_RunPlateAction(f, action)`|Click and drag on a plate|
 |`FBHealBox\_RefreshAllBars()`|Updates all ten|
@@ -570,20 +655,29 @@ Entries that do not exist do no harm: if the spellbook scan does not find them, 
 * a custom cascading menu for spell and rank selection, because `UIDropDownMenu` provides no usable submenus in 1.12
 * heal prediction for direct heals, remaining HoT ticks and absorb shields, self-correcting from the combat log
 * HealComm sync with Puppeteer, pfUI, Luna and others, without any Ace libraries
-* English / German localization, switchable in game
+* English, German, Spanish, French and Italian localization, switchable in game
+* 1.4.3: mana ticker module (2 s regeneration tick and five-second rule as a spark in the mana bar), Smart Damage module (rank selection for attack spells on any action bar), Smart Healing (auto-downrank, off by default), cooldown sweep on buttons, red border for the attacked member, HoT/shield timers on buttons
 * 1.4.2: raid mode as a separate module (`FBHealBox_Raid.lua`) with a compact 20/40 grid, mini buttons, own options tab and raid test; hook interface in the core
 * 1.4.1: pet plates, mana bar inside the health bar, adjustable button and row spacing, test mode with ghost players, saved plate position, class colours, buff watch, range fading, tabbed options, right-click spell, dead/ghost/offline text, debuff icon. See CHANGELOG.md.
 
 \---
 
-Heal Box Vanilla v1.4.2 · original by Dourd, UI Overhauled · ported to Vanilla and extended 09/2026 by Mquadrat
+Heal Box Vanilla v1.4.3 · original by Dourd, UI Overhauled · ported to Vanilla and extended 09/2026 by Mquadrat
+
+\---
+
+## Tags & Keywords
+
+**Keywords:** World of Warcraft Vanilla, WoW 1.12.1, Classic Healer Addon, HealComm Vanilla, Heal Prediction, Grid, Raid Frames, Unit Frames, Click Healing, Mouseover Healing, Quick Cast, Smart Healing, Auto Downranking, Mana Ticker, Five Second Rule (FSR), SuperWoW, Turtle WoW Addon, Octo WoW Addon, Priest Healing, Restoration Druid, Holy Paladin, Restoration Shaman, HoT Tracker, Shield Prediction, Party Frames, Pet Healing.
+
+**Tags:** `#WoWVanilla` `#WoW1121` `#TurtleWoW` `#OctoWoW` `#SuperWoW` `#HealerAddon` `#HealComm` `#RaidFrames` `#UnitFrames` `#ClassicWoWAddons` `#VanillaAddons` `#HealPrediction` `#WorldOfWarcraft`
 
 _______________________________________________________________________
 GERMAN
 
 # Heal Box Vanilla
 
-ADDON-DOKUMENTATION · VERSION 1.4.2 · CLIENT 1.12.1
+ADDON-DOKUMENTATION · VERSION 1.4.3 · CLIENT 1.12.1
 
 Party-, Begleiter- und Selbst-Heilanzeige mit Schnellzugriff-Buttons für Heiler. Für jeden Gruppenplatz eine Namensplakette mit Lebensbalken, dazu eine für jeden Begleiter in der Gruppe direkt unter seinem Besitzer, daneben bis zu zehn frei belegbare Zauber-Buttons. Ein schmaler Manabalken liegt im Lebensbalken, bei allen, die tatsächlich Mana nutzen. Dazu eine vollständige Heilvorhersage (Direktheilung, HoT-Restticks und Absorb-Schilde), die sich über den Combatlog selbst korrigiert und ihre Werte im HealComm-Format mit anderen Heilern teilt. Die Oberfläche gibt es auf **Deutsch und Englisch**, umschaltbar im Optionsfenster.
 
@@ -593,13 +687,15 @@ Party-, Begleiter- und Selbst-Heilanzeige mit Schnellzugriff-Buttons für Heiler
 
 ## Installation
 
-Der Ordner unter `Interface\\AddOns` heißt **`FBHealBox`** und enthält fünf Dateien:
+Der Ordner unter `Interface\\AddOns` heißt **`FBHealBox`** und enthält sieben Dateien:
 
 |Datei|Inhalt|
 |-|-|
 |`FBHealBox.toc`|Metadaten, Ladereihenfolge, SavedVariables|
 |`FBHealBox.lua`|Der Kern: Gruppen- und Begleiteranzeige, Vorhersage, HealComm, Optionen|
 |`FBHealBox_Raid.lua`|Das Raidmodus-Modul (siehe [Raidmodus](#raidmodus)). Aus der `.toc` entfernt, läuft der Kern genau wie in 1.4.1|
+|`FBHealBox_Ticker.lua`|Das Mana-Ticker-Modul (siehe [Mana-Ticker](#mana-ticker)), ebenfalls entfernbar|
+|`FBHealBox_Damage.lua`|Das Smart-Damage-Modul (siehe [Smart Damage](#smart-damage)), ebenfalls entfernbar|
 |`FBHealBox.xml`|Nur der Event-Frame, der `FBHealBox\_OnLoad` und `FBHealBox\_OnEvent` aufruft|
 |`CHANGELOG.md`|Was sich in welcher Version geaendert hat|
 
@@ -621,9 +717,13 @@ Gestapelt wird in der Reihenfolge **Besitzer, darunter sein Begleiter**: du, dei
 
 Ein **Linksklick** auf Name oder Lebensbalken visiert die Einheit an; ein **Rechtsklick** ebenfalls. Beides ist im Reiter *Allgemein* belegbar (*Linksklick auf Plakette* / *Rechtsklick auf Plakette*): **Anvisieren**, **Einheitenmenü** (Blizzards eigenes Menü mit Flüstern, Einladen, Befördern, Verlassen, für Spieler und den eigenen Begleiter; Gruppen-Begleiter fallen auf Anvisieren zurück), **Anzeige verschieben** (Ziehen ohne Shift) oder **Nichts**. Shift + Linksklick ziehen verschiebt die Anzeige immer, egal was eingestellt ist. Im Testmodus geben Klicks auf Geister nur eine Chatmeldung.
 
+### Wer wird angegriffen
+
+Hat dein aktuelles feindliches Ziel ein Gruppenmitglied im Ziel, bekommt dessen Plakette (und Raid-Zelle) einen **roten Rahmen**, fünfmal je Sekunde aus `targettarget` aufgefrischt. Rot hat Vorrang vor dem orangen Buff-Wache-Rahmen. Option *Angegriffenen markieren*.
+
 ### Sichtlinie
 
-Solange eine Einheit außerhalb deiner Sichtlinie ist, hängt ein **Augen-Abzeichen** (`FBLOS\_ICON`, das Blenden-Icon) am linken Rand ihrer Plakette. Vanilla hat dafür keine API, deshalb zwei Wege: Ist der Client-Mod **UnitXP SP3** installiert, fragt das Addon alle halbe Sekunde `UnitXP("inSight", "player", unit)` ab, live und exakt. Ohne ihn achtet das Addon auf die Fehlermeldung *nicht in Sichtlinie* nach einer eigenen Heilung und markiert die Einheit, die du heilen wolltest, für `FBLOS\_TIMEOUT` (8) Sekunden; die Markierung verschwindet, sobald ein Cast auf sie startet oder eine eigene Heilung bzw. ein HoT-Tick dort ankommt. `/fbp` zeigt, welcher Weg aktiv ist. Option *Sichtlinie*; Position des Abzeichens über `FBLOS\_ICON\_X/Y`.
+Solange eine Einheit außerhalb deiner Sichtlinie ist, sitzt ein **Augen-Abzeichen** (`FBLOS\_ICON`, das Blenden-Icon) auf der linken oberen Ecke ihrer Plakette. Vanilla hat dafür keine API, deshalb zwei Wege: Ist der Client-Mod **UnitXP SP3** installiert, fragt das Addon alle halbe Sekunde `UnitXP("inSight", "player", unit)` ab, live und exakt. Ohne ihn achtet das Addon auf die Fehlermeldung *nicht in Sichtlinie* nach einer eigenen Heilung und markiert die Einheit, die du heilen wolltest, für `FBLOS\_TIMEOUT` (8) Sekunden; die Markierung verschwindet, sobald ein Cast auf sie startet oder eine eigene Heilung bzw. ein HoT-Tick dort ankommt. `/fbp` zeigt, welcher Weg aktiv ist. Option *Sichtlinie*; Position des Abzeichens über `FBLOS\_ICON\_X/Y`.
 
 ### Begleiter
 
@@ -665,9 +765,17 @@ Die Schwellwerte für die HP-Farben stehen als `LowHP` (0.6) und `VeryLowHP` (0.
 
 Rechts neben jeder Plakette liegen bis zu zehn Buttons, jeder mit dem Icon seines Zaubers. Ein **Linksklick** wirkt den Zauber auf genau dieses Gruppenmitglied, unabhängig davon, wen du gerade im Ziel hast.
 
-**Belegen per Drag & Drop.** Zauberbuch öffnen, einen Zauber ziehen und auf einen beliebigen Heil-Button, einen Raid-Mini-Button oder ein Feld im Reiter *Buttons* fallen lassen; diese Buttonnummer übernimmt den Zauber auf allen Plaketten. Ist der Rechtsklick-Zauber aktiv, füllt ein Ablegen mit der rechten Maustaste die Rechtsklick-Seite. Auch Zauber außerhalb der Klassenliste (etwa Magie bannen) werden angenommen und behalten ihr Icon über einen Reload. Vanilla hat kein `GetCursorInfo()`, deshalb merkt sich das Addon, was `PickupSpell` zuletzt an den Cursor gehängt hat.
+**Belegen per Drag & Drop.** Zauberbuch öffnen, einen Zauber ziehen und auf einen beliebigen Heil-Button, einen Raid-Mini-Button oder ein Feld im Reiter *Buttons* fallen lassen; diese Buttonnummer übernimmt den Zauber auf allen Plaketten. Ist der Rechtsklick-Zauber aktiv, füllt ein Ablegen mit der rechten Maustaste oder mit gehaltener Shift-Taste die Rechtsklick-Seite. Auch Zauber außerhalb der Klassenliste (etwa Magie bannen) werden angenommen und behalten ihr Icon über einen Reload. Vanilla hat kein `GetCursorInfo()`, deshalb merkt sich das Addon, was `PickupSpell` zuletzt an den Cursor gehängt hat.
 
 **Rechtsklick-Zauber (optional).** Jeder Button kann einen zweiten Zauber für **Rechtsklick** tragen (etwa Blitzheilung links, Große Heilung rechts), was die Anzeige verdichtet, ohne Buttons hinzuzufügen. Das ist standardmäßig aus und wird ausschließlich über den Schalter im Reiter *Buttons* eingeschaltet. Eingeschaltet erscheint eine zweite Spalte in der Belegung, und ein kleines Icon unten rechts auf jedem Button zeigt seinen Rechtsklick-Zauber; der Tooltip nennt ihn ebenfalls. Ausschalten behält die Belegung, die Buttons reagieren nur nicht mehr auf Rechtsklick.
+
+**Smart Healing (standardmäßig aus).** Mit *Smart Healing* wirkt ein Klick den niedrigsten Rang des belegten Zaubers, dessen erwartete Heilung das fehlende Leben des Ziels abzüglich schon eingehender Heilung plus *Sicherheitsaufschlag* (Standard 20 %) deckt. Die erwartete Heilung stammt aus den gelernten Werten der Vorhersage, wo vorhanden, sonst aus dem Tooltip-Mittelwert. Nie über dem belegten Rang, nur für Direktheilungen (HoTs, Schilde und Buffs wie Seelenstärke gehen immer wie belegt raus; ein Zauber kommt nur in Frage, wenn sein Tooltip eine Heilung beschreibt), und unter 30 % Leben immer der belegte Rang. Nachteile: Die Schätzung kennt keine Crits, und bei Schadensspitzen oder gewolltem Überheilen (Tank vor einem großen Treffer) kann der kleinere Rang zu wenig sein. Aus lassen, wann immer Overheal gewollt ist. `/fbp debug` zeigt jede Entscheidung, `/fbp` den Zustand.
+
+**Cooldowns.** Jeder Button zeigt die gewohnte Cooldown-Uhr seines Zaubers. Der globale Cooldown wird nicht gezeigt (`FBCD\_MIN\_DURATION`). Option *Cooldowns auf den Buttons*.
+
+**HoT- und Schild-Timer.** Der Button eines Zaubers zeigt für seine Einheit die Restsekunden deines eigenen HoTs (grün) oder Schilds (blau) dieses Zaubers. Ist Machtwort: Schild verbraucht, zeigt derselbe Button rot die Geschwächte Seele, bis das Ziel wieder schildbar ist. Geprüft wird zuerst der Linksklick-Zauber, dann der Rechtsklick-Zauber. Nur eigene Effekte werden verfolgt. Option *HoT- und Schild-Timer*.
+
+**Buff-Icons links am Balken.** Buffs mit Laufzeit, die auf deinen Buttons liegen (Seelenstärke, Göttlicher Willen, Furchtzauberschutz, Inneres Feuer, links oder rechts), erscheinen als kleine 8-px-Icons **außen links** neben der Plakette, solange der Buff wirkt, in Zweierstapeln: das erste oben an der Platte, das zweite darunter, das dritte oben in der nächsten Spalte links, und so weiter. Das Icon ist eine **Uhr**: Wie ein Minutenzeiger wird es mit ablaufender Zeit im Uhrzeigersinn ab zwölf Uhr schwarz-weiß. Frischer Buff: ganz farbig. Halbe Zeit übrig: rechte Hälfte grau. Ein Viertel übrig: drei Viertel grau. Vanilla kann keinen echten Kreis-Sweep zeichnen, deshalb ist das Icon in vier Quadranten geteilt; bei 8 px ist das die feinste Auflösung, die noch lesbar ist. Abgelaufene Quadranten werden dunkel gezeichnet (entsättigt, wo der Client das kann, mit dunkler Wäsche `FBBUFFICON\_WASH`) auf einem kleinen Frame eine Ebene über dem Icon, damit die Teilung auf jedem Client sichtbar ist; `/fbp buffs` nennt außerdem je Icon die Zahl grauer Quadranten. Mouseover auf ein Icon zeigt Buffname und Restzeit. Die Restzeit ist bei dir selbst exakt (Buff-API, bei jedem `PLAYER_AURAS_CHANGED` neu gelesen, ein Neucast stellt die Uhr also zurück) und wird bei anderen ab deinem eigenen Cast gezählt; ein fremd gewirkter Buff bleibt ganz farbig (Zeit unbekannt). Bis zu sechs Icons je Plakette (`FBBUFFICON\_MAX`). Option *Buff-Icons links am Balken*, standardmäßig an. Die Raid-Zellen zeigen dieselben Uhr-Icons außen an ihrer linken Kante mit 6 px in einem 3-mal-4-Raster (zwölf Plätze, Spalten füllen sich von der Zelle nach außen), das Raster hält zwischen den Gruppen Platz dafür frei. Nach einem `/reload` oder Gruppenwechsel scannt das Addon alle Einheiten einmal aktiv, damit vorhandene Buffs sofort erscheinen und nicht erst beim nächsten Aura-Event. `/fbp buffs` listet die verfolgten Buffs und ihren Zustand auf dir.
 
 **Tot, Geist, Offline.** Statt `0 %` zeigt der Balken *Tot*, *Geist* oder *Offline*, leer und grau, ohne Manastreifen.
 
@@ -696,7 +804,7 @@ Der Raidmodus ist ein Addon im Addon: Er lebt in der eigenen Datei `FBHealBox_Ra
 
 Erreicht der Raid die Schwelle, erscheint ein kompaktes **Raster**: eine **Zelle** je Mitglied, in **Fünferblöcken** nach Gruppe geordnet, die Blöcke in Zeilen. Jede Zelle (standardmäßig 70 mal 22 px) zeigt den Namen in Klassenfarbe, den Lebensbalken mit denselben Schild- und Vorhersage-Schichten wie die Plaketten, einen 3 px hohen Manastreifen bei Mana-Nutzern, die Lebensprozente oder die fehlenden Lebenspunkte, die Dispel-Färbung, *Tot* / *Geist* / *Offline*, das Reichweiten-Fading, das Sichtlinien-Auge und den orangen Buff-Wache-Rahmen. Rechts an jeder Zelle sitzen bis zu vier **Mini-Buttons**, die die Zauber von Button 1 bis N aus dem Reiter *Buttons* wirken, Rechtsklick-Zauber inklusive. Ein Klick auf die Zelle selbst tut, was *Linksklick auf Plakette* / *Rechtsklick auf Plakette* vorgibt (Standard Anvisieren; das Einheitenmenü kommt aus Blizzards Raid-Fenster).
 
-Die Gruppenblöcke stehen mit *Gruppen je Zeile* (Standard 4) im Raster: Ein 40er-Raid sind zwei Zeilen zu vier Blöcken, etwa 450 mal 270 px bei zwei Buttons je Zelle. **Leere Gruppen brauchen keinen Platz**, ein 20er-Raid ist also eine einzige Zeile. Das ganze Raster skaliert unabhängig von den Plaketten und merkt sich seine Position.
+Die Gruppenblöcke stehen mit *Gruppen je Zeile* (Standard 4) im Raster: Ein 40er-Raid sind zwei Zeilen zu vier Blöcken, etwa 570 mal 270 px bei zwei Buttons je Zelle und dem Streifen für die Buff-Icons. **Leere Gruppen brauchen keinen Platz**, ein 20er-Raid ist also eine einzige Zeile. Das ganze Raster skaliert unabhängig von den Plaketten und merkt sich seine Position.
 
 Solange das Raster zu sehen ist, werden die fünf Gruppenplaketten ausgeblendet (Option *Gruppenplaketten im Raid ausblenden*), damit der Bildschirm nie doppelt belegt ist.
 
@@ -711,8 +819,9 @@ Solange das Raster zu sehen ist, werden die fünf Gruppenplaketten ausgeblendet 
 |Manastreifen|3 px Manabalken in der Zelle. An|
 |Leere Gruppen ausblenden|Gruppen ohne Mitglieder fallen weg. An|
 |Titelleiste|Schmale Leiste über dem Raster zum Ziehen. Ohne sie: Shift + eine beliebige Zelle ziehen. An|
+|Buffs anzeigen|Buff-Icons mit Uhr links an jeder Zelle. Aus: keine Icons und kein reservierter Streifen, die Gruppen rücken enger zusammen. An|
 |HP-Text|keiner, Prozent oder Defizit (fehlende Lebenspunkte als negative Zahl)|
-|Raid-Test|Füllt das Raster mit 20 oder 40 Geistern: tot, offline, Geist, Debuff, außer Reichweite, außer Sicht, fehlender Buff, Schild und eingehende Heilung sind alle vertreten. Wird nicht gespeichert|
+|Raid-Test|Füllt das Raster mit 20 oder 40 Geistern: tot, offline, Geist, Magie- und Krankheits-Debuff, außer Reichweite, außer Sicht, fehlender Buff, Schild, eingehende Heilung und Buff-Icons (jeder dritte Geist, Geist 12 mit zwölf) sind alle vertreten. Wird nicht gespeichert|
 |Gruppen je Zeile|1 bis 8. Standard 4|
 |Raid-Skalierung|0.5 bis 1.5|
 |Zellenbreite / -höhe|50 bis 120 px / 14 bis 32 px|
@@ -724,7 +833,61 @@ Alle Raid-Einstellungen liegen in `HealBox.Raid`. `/fbp raidtest 20`, `/fbp raid
 
 ### Wie er andockt
 
-Der Kern bietet `FBHealBox\_RegisterHook(name, fn)` und ruft die Hooks an festen Stellen: `Defaults`, `SyncOptions`, `ApplyLocale`, `UpdateNames`, `RefreshAllBars`, `ButtonsChanged`, `ActiveToggle`, `Status` und `Slash`. `FBHealBox\_AddOptionsTab(labelKey)` legt einen Reiter im Optionsfenster an. Das Raid-Modul hängt sein Roster-Update an `UpdateNames`, sein Zellen-Update an `RefreshAllBars` (so erreicht die Heilvorhersage die Raid-Zellen ohne Zusatzaufwand) und seine Slash-Befehle an `Slash`. Die Raid-Einheiten werden in `FBPredictUnits` eingetragen, damit die HoT- und Schild-Bestätigung über `UNIT\_AURA` auch für `raid1` bis `raid40` greift. Begleiter werden im Raidmodus nicht angezeigt.
+Der Kern bietet `FBHealBox\_RegisterHook(name, fn)` und ruft die Hooks an festen Stellen: `Defaults`, `SyncOptions`, `ApplyLocale`, `UpdateNames`, `RefreshAllBars`, `ButtonsChanged`, `ActiveToggle`, `Status`, `Slash`, `Loaded`, `Aggro`, `SpellTimers` und `Cooldowns`. `FBHealBox\_AddOptionsTab(labelKey)` legt einen Reiter im Optionsfenster an. Das Raid-Modul hängt sein Roster-Update an `UpdateNames`, sein Zellen-Update an `RefreshAllBars` (so erreicht die Heilvorhersage die Raid-Zellen ohne Zusatzaufwand) und seine Slash-Befehle an `Slash`. Die Raid-Einheiten werden in `FBPredictUnits` eingetragen, damit die HoT- und Schild-Bestätigung über `UNIT\_AURA` auch für `raid1` bis `raid40` greift. Begleiter werden im Raidmodus nicht angezeigt.
+
+\---
+
+## Mana-Ticker
+
+Der Mana-Ticker lebt im eigenen Modul `FBHealBox_Ticker.lua` und ist standardmäßig an. Ein **Funke** wandert alle 2 Sekunden über den Manastreifen deiner eigenen Plakette (und deiner eigenen Zelle im Raid-Raster), im Takt des Regenerationsticks des Servers. Gibst du Mana aus, wird der Funke **orange** und läuft die Fünf-Sekunden-Regel herunter; er erreicht das Ende genau dann, wenn die Willenskraft-Regeneration wieder einsetzt, also am ersten Tick nach den fünf Sekunden, nicht nach den fünf Sekunden selbst. Wer direkt nach dem Funken am Ende castet, verschenkt keine Regeneration.
+
+### Wie er arbeitet
+
+In 1.12 gibt es dafür keine API, deshalb beobachtet das Modul `UNIT\_MANA` für den Spieler. Sinkendes Mana startet die Fünf-Sekunden-Regel. Steigendes Mana ist ein Tick-Kandidat: Der erste setzt das 2-s-Raster, jeder spätere, der innerhalb der *Tick-Toleranz* um den erwarteten Zeitpunkt liegt, synchronisiert es neu. Kandidaten außerhalb der Toleranz (Manaquelle-Pulse, Anregen) werden ignoriert; erst nach drei Fehlschlägen in Folge gilt ein neues Raster. Sprünge ab 300 Mana und mehr als dem Vierfachen der gelernten Tickgröße (Tränke, Runen) zählen nie. Bei vollem Mana kommen keine Ticks, das Raster läuft dann still weiter und der Funke bleibt ausgeblendet, bis wieder Mana fehlt; am nächsten echten Tick synchronisiert er sich neu. Der Funke braucht den Manastreifen (Option *Manabalken*) und verschwindet in Bären- oder Katzengestalt.
+
+### Reiter *Extras*, Abschnitt *Mana-Ticker*
+
+|Einstellung|Wirkung|
+|-|-|
+|Mana-Ticker|Hauptschalter. Standardmäßig an|
+|Fünf-Sekunden-Regel|Orange Phase nach Manaverbrauch anzeigen. An|
+|Tick-Toleranz|0.1 bis 0.6 s. Erhöhen, wenn Ticks verpasst werden|
+|Tick-Vorlauf|0.0 bis 0.5 s. Lässt den Funken früher loslaufen, um Latenz auszugleichen, falls er später ankommt als deine Manasprünge|
+|Funkenbreite|1 bis 4 px|
+
+`/fbp ticker` schaltet den Ticker um; `/fbp` meldet, ob das Raster synchron ist, die Zeit bis zum nächsten Tick und eine laufende Fünf-Sekunden-Regel. Einstellungen liegen in `HealBox.Ticker`. Der Ticker teilt sich den Reiter *Extras* mit Smart Damage.
+
+\---
+
+## Smart Damage
+
+Rangwahl für **Angriffszauber auf jeder Aktionsleiste**, im eigenen Modul `FBHealBox_Damage.lua`, **standardmäßig aus**. Drückst du Göttliche Pein Rang 4 auf einer Bongos- oder Blizzard-Leiste (oder deren Tastenkürzel) und Rang 2 würde das Ziel noch töten, wird Rang 2 gewirkt. Nie über dem Rang auf der Leiste.
+
+### Wie es arbeitet
+
+Jede Leiste und jedes Tastenkürzel endet in `UseAction(slot)`. Das Modul hängt sich davor, liest Zauber und Rang im Slot per Tooltip-Scan und entscheidet. Der Schaden je Rang ist der **Mindestschaden** aus dem Tooltip („86 to 98 Holy damage"), angehoben durch den kleinsten Volltreffer, den du mit diesem Rang tatsächlich gelandet hast (Crits und Teilwiderstände zählen nicht). Ein Rang kommt in Frage, wenn sein Mindestschaden das Restleben des Ziels plus *Sicherheitsaufschlag* (Standard 20 %) deckt. Makros mit `/cast` bleiben unberührt.
+
+Das Restleben des Ziels liefert die erste Quelle, die antwortet:
+
+|Quelle|Wann|Genauigkeit|
+|-|-|-|
+|Server|`UnitHealthMax("target")` ist nicht 100, der Server sendet also echte Werte (Turtle WoW und andere)|exakt|
+|MobHealth3|`MobHealth3:GetUnitHealth()` kennt den Mob|so gut wie dieses Addon|
+|MobInfo-2|`MobHealth_GetTargetCurHP()` kennt den Mob|so gut wie dieses Addon|
+|Eigene Schätzung|Das Addon hat diesen Mobtyp (Name und Stufe) schon einmal bekämpft|siehe unten|
+
+**Eigene Schätzung.** Auf reinen Prozent-Servern lernt das Addon je Mobtyp die *Lebenspunkte je Prozent*: Es summiert den Schaden, den es im Combatlog sieht (deinen, den deiner Gruppe, den der Begleiter), und teilt durch den Prozentabfall des Ziels, aber erst ab 3 % Abfall, damit die Rundung auf ganze Prozent nicht stört. Von allen Messungen bleibt die **höchste**, weil Schaden von Raidmitgliedern außerhalb deiner Gruppe unsichtbar ist und die Schätzung sonst nach unten zöge; ein zu hoher Wert kostet nur einen etwas größeren Rang. Das Restleben ist dann die Obergrenze des aktuellen Prozentwerts mal diesem Faktor. Die Schätzung wird je Charakter in `HealBox.MobHP` gespeichert und wird mit jedem Kampf besser; bis ein Typ vermessen ist, lässt Smart Damage dieses Ziel in Ruhe.
+
+### Abschnitt *Smart Damage* im Reiter *Extras*
+
+|Einstellung|Wirkung|
+|-|-|
+|Smart Damage|Hauptschalter. Standardmäßig aus|
+|Sicherheitsaufschlag|0 bis 50 %, Standard 20. Deckt Teilwiderstände und Schätzfehler|
+|Lebensquelle des Ziels|Livezeile: welche der vier Quellen für dein aktuelles Ziel antwortet|
+|Zauber|Die im Zauberbuch gefundenen Angriffszauber mit Rangzahl|
+
+Zauber je Klasse: Priester Göttliche Pein, Heiliges Feuer, Gedankenschlag; Druide Zorn, Sternenfeuer, Mondfeuer; Schamane Blitzschlag, Kettenblitzschlag, Erd-/Flammen-/Frostschock; Paladin Heiliger Schock, Hammer des Zorns, Exorzismus, Heiliger Zorn; Magier Feuerball, Frostblitz, Feuerschlag, Versengen, Pyroschlag; Hexenmeister Schattenblitz, Sengender Schmerz, Feuerbrand, Seelenfeuer, Feuersbrunst; Jäger Arkaner Schuss, Gezielter Schuss (Liste `FBDamageSpells`). `/fbp damage` schaltet um, `/fbp debug` protokolliert jede Entscheidung mit der genutzten Lebensquelle.
 
 \---
 
@@ -748,6 +911,8 @@ Das Fenster hat zwei Reiter.
 
 **N Buttons anzeigen**: wie viele der zehn Buttons tatsächlich erscheinen (0 bis 10). Belegte, aber ausgeblendete Buttons behalten ihre Zuordnung.
 
+**Smart Healing / Sicherheitsaufschlag**: siehe [Die Buttons](#die-buttons). Standardmäßig aus; Aufschlag 0 bis 50 %, Standard 20.
+
 ### Reiter *Allgemein*
 
 **Skalierung**: Skalierung der Plaketten von 0.6 bis 1.5. Wirkt nicht im Party-Frame-Modus.
@@ -765,6 +930,8 @@ Das Fenster hat zwei Reiter.
 **Debuff-Icon**: Debuff-Icon mit Stackzahl neben dem Namen an/aus. Standardmäßig an.
 
 **Sichtlinie**: Augen-Abzeichen für Einheiten außerhalb der Sichtlinie an/aus (siehe [Sichtlinie](#sichtlinie)). Standardmäßig an.
+
+**Angegriffenen markieren**, **HoT- und Schild-Timer**, **Cooldowns auf den Buttons**, **Buff-Icons links am Balken**: die Anzeigen aus [Die Buttons](#die-buttons) und [Wer wird angegriffen](#wer-wird-angegriffen). Alle standardmäßig an.
 
 **Linksklick auf Plakette / Rechtsklick auf Plakette**: was ein Klick auf eine Plakette tut: Anvisieren (Standard), Einheitenmenü, Anzeige verschieben, Nichts. Siehe [Klick auf eine Plakette](#klick-auf-eine-plakette).
 
@@ -792,13 +959,13 @@ Die Geister sind so gebaut, dass jeder Anzeigezustand gleichzeitig zu sehen ist:
 
 |Geist|Zeigt|
 |-|-|
-|Brynn|Krieger: keinen Manabalken, Leben fast voll, **fehlender Buff** (oranger Rahmen, sobald eine Buff-Wache gesetzt ist)|
+|Brynn|Krieger: **tot**, kein Manabalken, **fehlender Buff** (oranger Rahmen, sobald eine Buff-Wache gesetzt ist)|
 |Cerys|Hexenmeister: Manabalken, einen **Absorb-Schild**-Anteil und das **Sichtlinien**-Abzeichen|
 |Dorn|Jäger: wenig Leben (rot) mit **eingehender Heilung** dahinter|
 |Elowen|Druide: einen **entfernbaren Debuff** (der Lebensbalken nimmt die Dispel-Farbe deiner Klasse an) und **außer Reichweite** (abgeblendet)|
-|Fang, Zorbek, Bramble|Begleiter: ein Fokus-Pet ohne Manabalken, ein Mana-Pet mit, ein Pet mit eingehender Heilung|
+|Fang, Zorbek, Bramble|Begleiter: ein Fokus-Pet ohne Manabalken, ein Mana-Pet mit, ein Pet mit eingehender Heilung und **Krankheits**-Debuff|
 
-Ihre HP wandern langsam auf und ab, damit man die gelbe und rote Schwelle kommen und gehen sieht. Zauber-Buttons auf Geistern tun nichts außer einer kurzen Chatmeldung; Tooltips funktionieren. Die Geistertabelle heißt `FBTestGhosts` und steht am Dateianfang; Namen, Werte und Extras lassen sich frei ändern.
+Ihre HP wandern langsam auf und ab, damit man die gelbe und rote Schwelle kommen und gehen sieht. Dorn trägt zusätzlich den roten Angriffsrahmen, Beispiel-Timer auf den Buttons 1 und 2 und **sechs Buff-Icons** mit unterschiedlicher Restzeit (eines ohne Uhr). Zauber-Buttons auf Geistern tun nichts außer einer kurzen Chatmeldung; Tooltips funktionieren. Die Geistertabelle heißt `FBTestGhosts` und steht am Dateianfang; Namen, Werte und Extras lassen sich frei ändern.
 
 Der Testmodus ist für die eigenen Plaketten gedacht; im Party-Frame-Modus sitzen die Geister an Blizzards (ausgeblendeten) Frames und nützen wenig.
 
@@ -898,8 +1065,11 @@ Beim Empfang werden eigene Nachrichten über den Absendernamen gefiltert, und da
 |`/fbp reset`|Verwirft alle gelernten Werte und liest die Tooltips neu ein|
 |`/fbp test`|Testmodus an/aus (wie der Haken in den Optionen)|
 |`/fbp config`|Optionsfenster auf/zu (wie der Minimap-Button)|
+|`/fbp buffs`|Listet die verfolgten Buff-Zauber, ihre Präsenz und Restzeit auf dir sowie deine rohen Buff-Texturen|
 |`/fbp raid`|Raidmodus an/aus|
 |`/fbp raidtest 20` · `40` · `off`|Raid-Test mit 20 oder 40 Geistern, oder aus|
+|`/fbp ticker`|Mana-Ticker an/aus|
+|`/fbp damage`|Smart Damage an/aus|
 
 `/fbp` ist die erste Anlaufstelle, wenn etwas nicht angezeigt wird: Steht ein Zauber dort nicht drin, hat der Tooltip-Parser ihn nicht erkannt und nicht die Anzeige versagt.
 
@@ -917,7 +1087,7 @@ Alles liegt in der Tabelle `HealBox`, gespeichert **pro Charakter**:
 |`AttachMode`|0 = eigene Plaketten, 1 = Standard-Gruppenfenster|
 |`Active`|Anzeige ein/aus (Shift + Linksklick auf die Minimap)|
 |`HealComm`|1 = Sync an, 0 = aus|
-|`Locale`|`deDE` oder `enUS`|
+|`Locale`|`deDE`, `enUS`, `esES`, `frFR` oder `itIT`|
 |`ButtonSpacing`|Abstand der Buttons in px (0 bis 20)|
 |`RowSpacing`|Abstand der Plaketten in px (0 bis 20)|
 |`ManaBar`|1 = Manastreifen an, 0 = aus|
@@ -927,11 +1097,15 @@ Alles liegt in der Tabelle `HealBox`, gespeichert **pro Charakter**:
 |`DebuffIcon`|1 = Debuff-Icon an, 0 = aus|
 |`LOSIcon`|1 = Sichtlinien-Abzeichen an, 0 = aus|
 |`PlateLeft` · `PlateRight`|Klickaktion auf einer Plakette: `target`, `menu`, `move` oder `none`|
+|`SmartRank` · `SmartMargin`|Smart Healing an/aus (Standard aus) und Sicherheitsaufschlag in Prozent|
+|`Cooldowns` · `AggroMark` · `SpellTimers` · `BuffIcons`|Cooldown-Uhr, roter Rahmen für den Angegriffenen, HoT/Schild-Timer, Buff-Icons links am Balken|
 |`ClassColors`|1 = Namen in Klassenfarbe, 0 = weiß|
 |`RangeFade`|1 = Plaketten außer Reichweite abblenden, 0 = aus|
 |`WatchBuff`|Zaubername der Buff-Wache oder nil|
 |`BuffWatchPets`|1 = Buff-Wache auch für Pets, 0 = nur Spieler (Standard)|
 |`PosX` · `PosY`|Linke obere Ecke der Spielerplakette in Bildschirmpixeln|
+|`Ticker`|Untertabelle mit den Mana-Ticker-Einstellungen (siehe [Mana-Ticker](#mana-ticker))|
+|`Damage`|Untertabelle mit den Smart-Damage-Einstellungen; `MobHP` und `DmgMemory` halten gelernte Mob-Leben und Mindestschäden (siehe [Smart Damage](#smart-damage))|
 |`Raid`|Untertabelle mit allen Raidmodus-Einstellungen (siehe [Raidmodus](#raidmodus)), einschließlich `PosX` / `PosY` des Rasters|
 |`PredictMemory`|Gelernte Heilwerte je Zauber und Rang|
 
@@ -952,12 +1126,19 @@ Alle Stellschrauben stehen als Globals oben in ihrem jeweiligen Abschnitt und la
 |`FBPET\_INDENT`|12|Einrückung (und Verschmälerung) der Pet-Plaketten|
 |`FBPET\_ICON` · `FBPET\_ICON\_SIZE`|Fußabdruck · 12|Pfoten-Icon vor Pet-Namen|
 |`FBDEBUFF\_ICON\_SIZE`|14|Kantenlänge des Debuff-Icons|
-|`FBLOS\_ICON` · `FBLOS\_ICON\_SIZE`|Blenden-Icon · 16|Sichtlinien-Abzeichen|
-|`FBLOS\_ICON\_X` · `FBLOS\_ICON\_Y`|6 · 0|Versatz des Abzeichens vom linken Plattenrand|
+|`FBLOS\_ICON` · `FBLOS\_ICON\_SIZE`|Blenden-Icon · 12|Sichtlinien-Abzeichen|
+|`FBLOS\_ICON\_X` · `FBLOS\_ICON\_Y`|-3 · 3|Versatz des Abzeichens von der linken oberen Plattenecke|
 |`FBLOS\_TIMEOUT`|8|Sekunden, die ein Sichtlinien-Fehler ohne UnitXP markiert bleibt|
 |`FBNAME\_WIDTH\_FULL` · `FBNAME\_WIDTH\_ICON`|78 · 60|Breite der Namensbox ohne / mit sichtbarem Debuff-Icon|
 |`FBRANGE\_ALPHA` · `FBRANGE\_INTERVAL`|0.5 · 0.5|Deckkraft und Prüfintervall des Reichweiten-Fadings|
 |`FBBUFF\_MISSING\_COLOR`|`{1, 0.5, 0, 1}`|Rahmenfarbe bei fehlendem Wache-Buff|
+|`FBAGGRO\_COLOR`|`{1, 0.15, 0.15, 1}`|Rahmenfarbe für den Angegriffenen|
+|`FBCD\_MIN\_DURATION`|2|Kürzere Cooldowns (globaler Cooldown) werden nicht gezeigt|
+|`FBTIMER\_COLOR\_HOT` · `\_SHIELD` · `\_WS`|grün · blau · rot|Timerfarben auf den Buttons|
+|`FBBUFFICON\_SIZE` · `FBBUFFICON\_GAP` · `FBBUFFICON\_MAX` · `FBBUFFICON\_XOFF`|8 · 1 · 6 · -2|Buff-Icons links neben der Plakette|
+|`FBBUFFICON\_GREY`|0.55|Grauton abgelaufener Quadranten, falls der Client nicht entsättigen kann|
+|`FBNAME\_HEIGHT`|12|Höhe der Namensbox (eine Zeile, vertikal zentriert)|
+|`FBWEAKENED\_SOUL\_SEC`|15|Dauer der Geschwächten Seele|
 |`FBClassColors`|(Tabelle)|Ersatz-Klassenfarben, falls der Client kein `RAID\_CLASS\_COLORS` hat|
 |`FBBuffWatchSpells` · `FBBuffAlternates`|(Tabelle)|Angebotene Buffs je Klasse und welche Gruppenversion als gleich zählt|
 |`FBPartyUnit` · `FBLayoutOrder`|(Tabelle)|Die zehn Plätze und ihre Anzeigereihenfolge|
@@ -993,6 +1174,10 @@ Alle Stellschrauben stehen als Globals oben in ihrem jeweiligen Abschnitt und la
 |`FBHealBox\_UpdateDebuffIcon(frame, tex, count)`|Debuff-Icon und Stackzahl|
 |`FBHealBox\_CastOn(button, castString)`|Wirkt den Zauber eines Buttons (links oder rechts) auf sein Ziel|
 |`FBHealBox\_DropSpell(btnIndex, side)` · `FBHealBox\_CursorSpell()`|Drag & Drop aus dem Zauberbuch|
+|`FBHealBox\_SmartRank(castString, unit)`|Wählt den zu wirkenden Rang|
+|`FBHealBox\_CheckAggroAll()` · `FBHealBox\_ApplyBorder(f)`|Roter Rahmen für den Angegriffenen; Rahmen-Vorrang|
+|`FBHealBox\_UpdateSpellTimers()` · `FBHealBox\_SpellTimerFor(...)`|HoT/Schild-Timer auf Buttons|
+|`FBHealBox\_UpdateButtonCooldown(b)` · `FBHealBox\_UpdateAllCooldowns()`|Cooldown-Uhr|
 |`FBHealBox\_ShowTab(n)` · `FBHealBox\_ApplyRightClickLayout()`|Options-Reiter; Rechtsklick-Spalte ein-/ausblenden|
 |`FBHealBox\_PlateMouseDown(f)` · `FBHealBox\_PlateMouseUp(f)` · `FBHealBox\_RunPlateAction(f, action)`|Klick und Ziehen auf einer Plakette|
 |`FBHealBox\_RefreshAllBars()`|Aktualisiert alle zehn|
@@ -1129,11 +1314,12 @@ Nicht vorhandene Einträge stören nicht: Findet der Zauberbuch-Scan sie nicht, 
 * eigenes Kaskadenmenü für Zauber- und Rangwahl, weil `UIDropDownMenu` in 1.12 keine brauchbaren Untermenüs liefert
 * Heilvorhersage für Direktheilung, HoT-Restticks und Absorb-Schilde, selbstkorrigierend über den Combatlog
 * HealComm-Sync mit Puppeteer, pfUI, Luna und Co., ohne Ace-Bibliotheken
-* Lokalisierung Deutsch / Englisch, im laufenden Spiel umschaltbar
+* Lokalisierung Deutsch, Englisch, Spanisch, Französisch und Italienisch, im laufenden Spiel umschaltbar
+* 1.4.3: Mana-Ticker-Modul (2-s-Regenerationstick und Fünf-Sekunden-Regel als Funke im Manabalken), Smart-Damage-Modul (Rangwahl für Angriffszauber auf jeder Aktionsleiste), Smart Healing (automatisches Abrangen, standardmäßig aus), Cooldown-Uhr auf den Buttons, roter Rahmen für den Angegriffenen, HoT/Schild-Timer auf den Buttons
 * 1.4.2: Raidmodus als eigenes Modul (`FBHealBox_Raid.lua`) mit kompaktem 20/40-Raster, Mini-Buttons, eigenem Options-Reiter und Raid-Test; Hook-Schnittstelle im Kern
 * 1.4.1: Begleiter-Plaketten, Manabalken im Lebensbalken, einstellbare Button- und Zeilenabstände, Testmodus mit Geisterspielern, gespeicherte Plattenposition, Klassenfarben, Buff-Wache, Reichweiten-Fading, Optionen in Reitern, Rechtsklick-Zauber, Tot/Geist/Offline-Text, Debuff-Icon. Siehe CHANGELOG.md.
 
 \---
 
-Heal Box Vanilla v1.4.2 · Original von Dourd, UI Overhauled · Vanilla-Portierung und Erweiterung 09/2026 von Mquadrat
+Heal Box Vanilla v1.4.3 · Original von Dourd, UI Overhauled · Vanilla-Portierung und Erweiterung 09/2026 von Mquadrat
 
