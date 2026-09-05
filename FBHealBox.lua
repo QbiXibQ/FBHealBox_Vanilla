@@ -99,11 +99,12 @@ FBLocale["enUS"] = {
     COL_LEFT      = "Left click",
     COL_RIGHT     = "Right click",
     RIGHTCLICK    = "Right-click spell",
-    RIGHTCLICK_TIP = "Gives every button a second spell on right click (e.g. Flash Heal left, Greater Heal right). Off by default. When on, a second column appears above and a small icon in the corner of each button shows the right-click spell.",
+    RIGHTCLICK_TIP = "Gives every button a second spell on right click (e.g. Flash Heal left, Greater Heal right). Off by default. When on, a second column appears above and a small icon in the corner of each button shows the right-click spell. Drop a spell with the right mouse button or with Shift held to fill this side.",
     TT_RIGHT      = "Right click",
     DROP_SET      = "Button %d: |cFFFFFFFF%s|r (dragged from the spellbook)",
     DROP_SET_R    = "Button %d, right click: |cFFFFFFFF%s|r (dragged from the spellbook)",
     DROP_UNKNOWN  = "Could not identify the dragged spell.",
+    DROP_HINT     = "Drag spells from the spellbook onto a button. Right mouse button or Shift while dropping fills the right-click side.",
     STATE_DEAD    = "Dead",
     STATE_GHOST   = "Ghost",
     STATE_OFFLINE = "Offline",
@@ -204,11 +205,12 @@ FBLocale["deDE"] = {
     COL_LEFT      = "Linksklick",
     COL_RIGHT     = "Rechtsklick",
     RIGHTCLICK    = "Rechtsklick-Zauber",
-    RIGHTCLICK_TIP = "Gibt jedem Button einen zweiten Zauber per Rechtsklick (z. B. Blitzheilung links, Grosse Heilung rechts). Standardmaessig aus. Eingeschaltet erscheint oben eine zweite Spalte, und ein kleines Icon in der Ecke jedes Buttons zeigt den Rechtsklick-Zauber.",
+    RIGHTCLICK_TIP = "Gibt jedem Button einen zweiten Zauber per Rechtsklick (z. B. Blitzheilung links, Grosse Heilung rechts). Standardmaessig aus. Eingeschaltet erscheint oben eine zweite Spalte, und ein kleines Icon in der Ecke jedes Buttons zeigt den Rechtsklick-Zauber. Zauber mit rechter Maustaste oder gehaltener Shift-Taste ablegen, um diese Seite zu fuellen.",
     TT_RIGHT      = "Rechtsklick",
     DROP_SET      = "Button %d: |cFFFFFFFF%s|r (aus dem Zauberbuch gezogen)",
     DROP_SET_R    = "Button %d, Rechtsklick: |cFFFFFFFF%s|r (aus dem Zauberbuch gezogen)",
     DROP_UNKNOWN  = "Der gezogene Zauber liess sich nicht erkennen.",
+    DROP_HINT     = "Zauber aus dem Zauberbuch auf einen Button ziehen. Rechte Maustaste oder Shift beim Ablegen fuellt die Rechtsklick-Seite.",
     STATE_DEAD    = "Tot",
     STATE_GHOST   = "Geist",
     STATE_OFFLINE = "Offline",
@@ -1783,21 +1785,31 @@ function FBHealBoxCreateButton(FBButtonName, FBParentFrame, xoffset, yoffset, te
         GameTooltip:Hide(); 
     end); 
     
-    button:RegisterForClicks("LeftButtonUp"); 
+    -- Beide Maustasten: Rechtsklick wird fuer Drag & Drop immer gebraucht,
+    -- fuer den Rechtsklick-Zauber prueft OnClick die Option selbst
+    button:RegisterForClicks("LeftButtonUp", "RightButtonUp"); 
     
     button:SetScript("OnClick", function()
-        -- Zauber am Cursor: belegen statt casten
+        -- Zauber am Cursor: belegen statt casten (rechts oder Shift = Rechtsklick-Seite)
         if (FBDragSpell and button.btnIndex) then
             local side = "L";
-            if (arg1 == "RightButton") then side = "R"; end
+            if (arg1 == "RightButton" or IsShiftKeyDown()) then side = "R"; end
             if (FBHealBox_DropSpell(button.btnIndex, side)) then return; end
         end
         local castString = button.spellName;
-        if (arg1 == "RightButton") then castString = button.spellNameR; end
+        if (arg1 == "RightButton") then
+            -- Rechtsklick-Zauber nur, wenn die Option an ist
+            if (HealBox.RightClick ~= 1) then return; end
+            castString = button.spellNameR;
+        end
         FBHealBox_CastOn(button, castString);
     end);
     button:SetScript("OnReceiveDrag", function()
-        if (button.btnIndex) then FBHealBox_DropSpell(button.btnIndex, "L"); end
+        if (button.btnIndex) then
+            local side = "L";
+            if (IsShiftKeyDown()) then side = "R"; end
+            FBHealBox_DropSpell(button.btnIndex, side);
+        end
     end);
     
     button:RegisterEvent("SPELL_UPDATE_USABLE"); 
@@ -2443,7 +2455,11 @@ function FBHealBoxCreateAddonOptionFrame()
             PlaySound("igMainMenuOptionCheckBoxOn"); 
             FBMenu_OpenSpellMenu(btnIndex, btn, "L"); 
         end); 
-        btn:SetScript("OnReceiveDrag", function() FBHealBox_DropSpell(btnIndex, "L"); end); 
+        btn:SetScript("OnReceiveDrag", function() 
+            local side = "L"; 
+            if (IsShiftKeyDown()) then side = "R"; end 
+            FBHealBox_DropSpell(btnIndex, side); 
+        end); 
         FBSpellBtns[i] = btn; 
         
         local btnR = FBHealBox_CreatePickButton("FBHealBoxBtnR"..i, tabButtons, xRight, yPos, fieldW, 28, 20); 
@@ -2766,11 +2782,9 @@ function FBHealBoxButtonsChanged()
                 if (rightOn) then 
                     b.spellNameR = FBDropDownButtonR[i]; 
                     b.idR = FBActiveSpellIDsR[i]; 
-                    b:RegisterForClicks("LeftButtonUp", "RightButtonUp"); 
                 else 
                     b.spellNameR = nil; 
                     b.idR = nil; 
-                    b:RegisterForClicks("LeftButtonUp"); 
                 end 
                 if (b.subIcon) then 
                     if (b.spellNameR and FBDropDownButtonIconR[i]) then 

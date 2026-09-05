@@ -13,7 +13,7 @@
 - Raid test with 20 or 40 ghosts covering every visual state. `/fbp raid`, `/fbp raidtest 20|40|off`, raid line in `/fbp`.
 - Grid position and scale are saved separately from the party plates. Party plates are hidden while the grid is up (switchable).
 
-**New: drag and drop.** Spells can be dragged from the spellbook onto any heal button, raid mini button or options field. Right mouse button fills the right-click side when that option is on. Spells outside the class list are accepted.
+**New: drag and drop.** Spells can be dragged from the spellbook onto any heal button, raid mini button or options field. Right mouse button, or Shift held while dropping, fills the right-click side when that option is on. Spells outside the class list are accepted.
 
 **Fixed**
 
@@ -37,7 +37,7 @@
 - Raid-Test mit 20 oder 40 Geistern, die jeden Anzeigezustand abdecken. `/fbp raid`, `/fbp raidtest 20|40|off`, Raid-Zeile in `/fbp`.
 - Position und Skalierung des Rasters werden getrennt von den Plaketten gespeichert. Die Gruppenplaketten sind ausgeblendet, solange das Raster steht (abschaltbar).
 
-**Neu: Drag & Drop.** Zauber lassen sich aus dem Zauberbuch auf jeden Heil-Button, Raid-Mini-Button oder jedes Optionsfeld ziehen. Die rechte Maustaste fuellt die Rechtsklick-Seite, wenn die Option an ist. Zauber ausserhalb der Klassenliste werden angenommen.
+**Neu: Drag & Drop.** Zauber lassen sich aus dem Zauberbuch auf jeden Heil-Button, Raid-Mini-Button oder jedes Optionsfeld ziehen. Die rechte Maustaste oder gehaltene Shift-Taste beim Ablegen fuellt die Rechtsklick-Seite, wenn die Option an ist. Zauber ausserhalb der Klassenliste werden angenommen.
 
 **Behoben**
 

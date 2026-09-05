@@ -481,7 +481,7 @@ function FBRaid_CreateCell(g, pos)
         b:SetScript("OnClick", function()
             if (FBDragSpell) then
                 local side = "L";
-                if (arg1 == "RightButton") then side = "R"; end
+                if (arg1 == "RightButton" or IsShiftKeyDown()) then side = "R"; end
                 if (FBHealBox_DropSpell(i, side)) then return; end
             end
             if (FBRaidTestMode > 0) then
@@ -489,7 +489,10 @@ function FBRaid_CreateCell(g, pos)
                 return;
             end
             local castString = b.spellName;
-            if (arg1 == "RightButton") then castString = b.spellNameR; end
+            if (arg1 == "RightButton") then
+                if (HealBox.RightClick ~= 1) then return; end
+                castString = b.spellNameR;
+            end
             FBHealBox_CastOn(b, castString);
         end);
         b:Hide();
@@ -845,11 +848,9 @@ function FBRaid_SyncButtons()
                         if (rightOn) then
                             b.spellNameR = FBDropDownButtonR[i];
                             b.idR = FBActiveSpellIDsR[i];
-                            b:RegisterForClicks("LeftButtonUp", "RightButtonUp");
                         else
                             b.spellNameR = nil;
                             b.idR = nil;
-                            b:RegisterForClicks("LeftButtonUp");
                         end
                         if (b.subIcon) then
                             if (b.spellNameR and FBDropDownButtonIconR[i]) then
