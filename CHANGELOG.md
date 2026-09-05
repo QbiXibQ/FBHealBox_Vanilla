@@ -1,5 +1,67 @@
 # Changelog
 
+## 1.4.3 (unreleased)
+
+### English
+
+**New**
+
+- **Languages.** Spanish, French and Italian added to all addon texts (English and German unchanged). The client locale picks the language automatically, the language button lists all five, missing keys fall back to English.
+- **Mana ticker** (module `FBHealBox_Ticker.lua`, on by default). A spark travels across your own mana strip every 2 seconds in step with the server's regeneration tick; after spending mana it turns orange and runs the five-second rule down, extended to the first tick after the five seconds. Works on the party plate and on your own raid cell, hidden while mana is full. Detection via `UNIT_MANA` only: grid from observed ticks, re-sync within a tolerance, foreign pulses (totems, Innervate) ignored, potions and runes filtered by size. Own options tab *Ticker*: master switch, five-second rule, tick tolerance, tick offset, spark width. `/fbp ticker` toggles, `/fbp` reports sync state.
+- **Smart Healing** (off by default). When on, a click casts the lowest rank of the assigned spell whose expected heal covers the target's missing health (minus incoming healing) plus a safety margin (default 20 %). Never above the assigned rank, direct heals only, always the assigned rank below 30 % health. Learned heal values are used where available. Downsides (no crits in the estimate, burst damage, deliberate overhealing) are explained in the tooltip. Options on the *Buttons* tab; `/fbp debug` logs each decision, `/fbp` shows the state.
+- **Cooldown sweep on buttons**, global cooldown excluded. Option *Cooldowns on buttons*.
+- **Red border for the attacked member**: the plate or raid cell of the unit your hostile target is targeting. Takes precedence over the buff-watch border. Option *Mark who is attacked*.
+- **HoT and shield timers on buttons**: each spell's button shows the remaining seconds of your own HoT (green) or shield (blue) on that unit; after Power Word: Shield the button shows Weakened Soul in red. Option *HoT and shield timers*.
+- **Smart Damage** (module `FBHealBox_Damage.lua`, off by default). Attack spells pressed on any action bar or key binding are cast in the lowest rank that still kills the target, never above the rank on the bar. Target health from the server (real values), MobHealth3, MobInfo-2, or the addon's own per-mob-type estimate learned from combat-log damage and percent drops (highest measurement kept). Minimum damage per rank from the tooltip, raised by observed full hits. Section on the *Extras* tab (shared with the ticker) with switch, safety margin, live health-source line and spell list; `/fbp damage`, decisions in `/fbp debug`.
+- **Buff icons in the health bar**: buffs with a duration that sit on your buttons (Fortitude, Divine Spirit, Fear Ward, Inner Fire) appear as small 8 px icons on the outer left side of the plate. The icon is a clock: it turns black and white clockwise from twelve o'clock as the time runs out (half left = right half grey). Exact on yourself, counted from your own cast on others, fully coloured when cast by someone else. Raid cells show them outside their left edge; the grid reserves the room. Line-of-sight badge moved to the plate's top-left corner. Units are scanned once after login and group changes so existing buffs appear immediately. `/fbp buffs` for diagnostics. Option *Buff icons in the health bar*.
+- Test-mode ghost Dorn demonstrates the red border and the timers.
+
+**Fixed**
+
+- Own buffs were only read at login and on group changes: Vanilla fires `PLAYER_AURAS_CHANGED` for the player instead of `UNIT_AURA`. The addon now listens to it and re-reads your remaining time on every change, so recasting a buff on yourself resets its clock and cancelling it removes the icon. Also fixes confirmation of your own HoTs and shields on yourself.
+- Raid cell names and percentages were hidden behind the health bar since the bar levels became relative; the texts now live on their own layer above the bars.
+- Buff icons stack two high left of the plate; elapsed clock quadrants are drawn dark on a layer above the icon so the split shows on every client. Raid cells use a 3 by 4 grid of 6 px icons (twelve slots); the new raid option *Show buffs* removes icons and strip together. `/fbp buffs` reports the grey count per icon.
+- Test modes extended: party ghost Brynn is dead, pet Bramble carries a disease, Dorn carries six and raid ghost 12 twelve buffs, raid ghost 27 a disease. Up to six buff icons per plate.
+- Plate names could sit too low on some rows (the name box grew to two lines internally). Name, paw icon and debuff icon are now vertically centred with a fixed one-line height.
+
+- Tooltip parser took durations ("for 30 min", "again for 15 sec") for direct heal amounts, so buffs such as Power Word: Fortitude and the shield reported a tiny "heal" and Smart Healing downranked them. Durations are ignored now, and Smart Healing only touches spells whose tooltip describes a heal and that carry no absorb.
+
+**Changed**
+
+- Option tab buttons are 100 px wide (was 110) so that four tabs fit in the window; class icon shrunk so it no longer overlaps the tabs. Checkbox labels have a fixed width and end with an ellipsis when a translation is long; the tooltip carries the full text. The fourth tab is called *Extras* and holds the ticker and Smart Damage sections.
+- Tooltip parser: only `hr`/`hour` count as hours; `Holy` no longer looks like a time unit.
+- New core hooks `Loaded`, `Aggro`, `SpellTimers`, `Cooldowns` for modules.
+
+### Deutsch
+
+**Neu**
+
+- **Sprachen.** Spanisch, Franzoesisch und Italienisch fuer alle Addon-Texte hinzugefuegt (Englisch und Deutsch unveraendert). Die Client-Sprache waehlt automatisch, der Sprachknopf listet alle fuenf, fehlende Schluessel fallen auf Englisch zurueck.
+- **Mana-Ticker** (Modul `FBHealBox_Ticker.lua`, standardmaessig an). Ein Funke wandert alle 2 Sekunden im Takt des Regenerationsticks ueber deinen eigenen Manastreifen; nach Manaverbrauch wird er orange und laeuft die Fuenf-Sekunden-Regel herunter, verlaengert bis zum ersten Tick nach den fuenf Sekunden. Auf der Gruppenplakette und der eigenen Raid-Zelle, bei vollem Mana ausgeblendet. Erkennung nur ueber `UNIT_MANA`: Raster aus beobachteten Ticks, Neusynchronisation innerhalb einer Toleranz, fremde Pulse (Totems, Anregen) ignoriert, Traenke und Runen nach Groesse gefiltert. Eigener Options-Reiter *Ticker*: Hauptschalter, Fuenf-Sekunden-Regel, Tick-Toleranz, Tick-Vorlauf, Funkenbreite. `/fbp ticker` schaltet um, `/fbp` meldet den Synchronzustand.
+- **Smart Healing** (standardmaessig aus). Eingeschaltet wirkt ein Klick den niedrigsten Rang des belegten Zaubers, dessen erwartete Heilung das fehlende Leben des Ziels (abzueglich eingehender Heilung) plus Sicherheitsaufschlag (Standard 20 %) deckt. Nie ueber dem belegten Rang, nur Direktheilungen, unter 30 % Leben immer der belegte Rang. Gelernte Heilwerte werden genutzt, wo vorhanden. Nachteile (keine Crits in der Schaetzung, Schadensspitzen, gewolltes Ueberheilen) erklaert der Tooltip. Optionen im Reiter *Buttons*; `/fbp debug` protokolliert jede Entscheidung, `/fbp` zeigt den Zustand.
+- **Cooldown-Uhr auf den Buttons**, globaler Cooldown ausgenommen. Option *Cooldowns auf den Buttons*.
+- **Roter Rahmen fuer den Angegriffenen**: Plakette oder Raid-Zelle der Einheit, die dein feindliches Ziel im Ziel hat. Hat Vorrang vor dem Buff-Wache-Rahmen. Option *Angegriffenen markieren*.
+- **HoT- und Schild-Timer auf den Buttons**: Der Button jedes Zaubers zeigt die Restsekunden deines eigenen HoTs (gruen) oder Schilds (blau) auf dieser Einheit; nach Machtwort: Schild zeigt der Button rot die Geschwaechte Seele. Option *HoT- und Schild-Timer*.
+- **Smart Damage** (Modul `FBHealBox_Damage.lua`, standardmaessig aus). Angriffszauber auf jeder Aktionsleiste oder Taste werden im niedrigsten Rang gewirkt, der das Ziel noch toetet, nie ueber dem Rang auf der Leiste. Ziel-Leben vom Server (echte Werte), MobHealth3, MobInfo-2 oder aus der eigenen Schaetzung je Mobtyp, gelernt aus Combatlog-Schaden und Prozentabfall (hoechste Messung zaehlt). Mindestschaden je Rang aus dem Tooltip, angehoben durch beobachtete Volltreffer. Abschnitt im Reiter *Extras* (gemeinsam mit dem Ticker) mit Schalter, Sicherheitsaufschlag, Live-Zeile zur Lebensquelle und Zauberliste; `/fbp damage`, Entscheidungen in `/fbp debug`.
+- **Buff-Icons im Lebensbalken**: Buffs mit Laufzeit, die auf deinen Buttons liegen (Seelenstaerke, Goettlicher Willen, Furchtzauberschutz, Inneres Feuer), erscheinen als kleine 8-px-Icons aussen links neben der Plakette. Das Icon ist eine Uhr: Es wird im Uhrzeigersinn ab zwoelf Uhr schwarz-weiss, je weiter die Zeit ablaeuft (halbe Zeit = rechte Haelfte grau). Exakt bei dir selbst, ab deinem eigenen Cast bei anderen, ganz farbig bei fremdem Cast. Raid-Zellen zeigen sie aussen an ihrer linken Kante; das Raster haelt den Platz frei. Sichtlinien-Abzeichen in die linke obere Plattenecke verlegt. Nach Login und Gruppenwechsel werden alle Einheiten einmal gescannt, damit vorhandene Buffs sofort erscheinen. `/fbp buffs` zur Diagnose. Option *Buff-Icons im Lebensbalken*.
+- Testmodus-Geist Dorn zeigt roten Rahmen und Timer.
+
+**Behoben**
+
+- Eigene Buffs wurden nur beim Login und bei Gruppenwechseln gelesen: Vanilla feuert fuer den Spieler `PLAYER_AURAS_CHANGED` statt `UNIT_AURA`. Das Addon hoert jetzt darauf und liest die eigene Restzeit bei jeder Aenderung neu, sodass ein Neucast auf dich selbst die Uhr zuruecksetzt und ein Wegklicken das Icon entfernt. Behebt auch die Bestaetigung eigener HoTs und Schilde auf dir selbst.
+- Namen und Prozente der Raid-Zellen lagen seit den relativen Balken-Ebenen hinter dem Lebensbalken; die Texte liegen jetzt auf einer eigenen Ebene ueber den Balken.
+- Buff-Icons stapeln sich zu zweit links neben der Plakette; abgelaufene Uhr-Quadranten werden dunkel auf einer Ebene ueber dem Icon gezeichnet, damit die Teilung auf jedem Client sichtbar ist. Raid-Zellen nutzen ein 3-mal-4-Raster aus 6-px-Icons (zwoelf Plaetze); die neue Raid-Option *Buffs anzeigen* entfernt Icons und Streifen gemeinsam. `/fbp buffs` nennt je Icon die Zahl grauer Quadranten.
+- Testmodi erweitert: Partygeist Brynn ist tot, Pet Bramble traegt eine Krankheit, Dorn traegt sechs und Raid-Geist 12 zwoelf Buffs, Raid-Geist 27 eine Krankheit. Bis zu sechs Buff-Icons je Plakette.
+- Plakettennamen sassen in manchen Zeilen zu tief (die Namensbox wuchs intern auf zwei Zeilen). Name, Pfoten-Icon und Debuff-Icon sind jetzt mit fester Einzeilenhoehe vertikal zentriert.
+
+- Der Tooltip-Leser hielt Zeitangaben ("for 30 min", "again for 15 sec") fuer Heilbetraege, wodurch Buffs wie Machtwort: Seelenstaerke und der Schild eine winzige "Heilung" meldeten und Smart Healing sie abgerangt hat. Zeitangaben werden jetzt uebersprungen, und Smart Healing fasst nur Zauber an, deren Tooltip eine Heilung beschreibt und die keinen Absorb haben.
+
+**Geaendert**
+
+- Reiterknoepfe der Optionen sind 100 px breit (vorher 110), damit vier Reiter ins Fenster passen; Klassen-Icon verkleinert, damit es die Reiter nicht mehr ueberlagert. Schalterbeschriftungen haben eine feste Breite und enden bei langen Uebersetzungen mit Auslassungspunkten; der Tooltip traegt den vollen Text. Der vierte Reiter heisst *Extras* und enthaelt Ticker und Smart Damage.
+- Tooltip-Leser: Nur `hr`/`hour` zaehlen als Stunden; `Holy` sieht nicht mehr wie eine Zeiteinheit aus.
+- Neue Kern-Hooks `Loaded`, `Aggro`, `SpellTimers`, `Cooldowns` fuer Module.
+
 ## 1.4.2 (2026-09-05)
 
 ### English
