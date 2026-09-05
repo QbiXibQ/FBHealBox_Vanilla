@@ -33,6 +33,10 @@ FBRAID_MANA_H     = 3;       -- px Manastreifen in der Zelle
 FBRAID_LOS_SIZE   = 10;      -- px Sichtlinien-Auge in der Zelle
 FBRAID_HEADER_H   = 12;      -- px Gruppenkopf
 FBRAID_TITLE_H    = 14;      -- px Titelleiste (Griff zum Verschieben)
+FBRAID_BUFFICON_SIZE = 6;    -- px Buff-Icons aussen links an der Zelle
+FBRAID_BUFFICON_ROWS = 3;    -- Stapelhoehe (3 x 4 = 12 Plaetze)
+FBRAID_BUFFICON_COLS = 4;    -- so viele Spalten bekommen Platz zwischen den Gruppen
+FBRAID_BUFFICON_MAX  = 12;
 
 -- Vorgaben aller Raid-Einstellungen. Leben in HealBox.Raid.
 FBRaidDefaults = {
@@ -52,6 +56,7 @@ FBRaidDefaults = {
     HPText       = "percent",-- none | percent | deficit
     HideEmpty    = 1,        -- leere Gruppen ausblenden
     ShowTitle    = 1,        -- Titelleiste anzeigen
+    BuffIcons    = 1,        -- Buff-Icons links an den Zellen (aus: kein Platz reserviert)
     PosX = nil, PosY = nil,  -- Position der linken oberen Ecke (Bildschirmpixel)
 };
 
@@ -74,6 +79,8 @@ FBLocale["enUS"].RAID_HIDEEMPTY    = "Hide empty groups";
 FBLocale["enUS"].RAID_HIDEEMPTY_TIP = "Groups without members take no space. A 20-player raid then fills a single row.";
 FBLocale["enUS"].RAID_SHOWTITLE    = "Title bar";
 FBLocale["enUS"].RAID_SHOWTITLE_TIP = "A thin title bar above the grid that can be dragged. Without it, hold Shift and drag any cell.";
+FBLocale["enUS"].RAID_BUFFICONS    = "Show buffs";
+FBLocale["enUS"].RAID_BUFFICONS_TIP = "Buff icons with clock on the left of each cell, as on the party plates. Off: no icons and no room reserved for them, the groups move closer together.";
 FBLocale["enUS"].RAID_HPTEXT       = "HP text";
 FBLocale["enUS"].RAID_HPTEXT_TIP   = "What the right side of a cell shows: nothing, the health percentage, or the missing health (deficit).";
 FBLocale["enUS"].RAID_HP_NONE      = "none";
@@ -114,6 +121,8 @@ FBLocale["deDE"].RAID_HIDEEMPTY    = "Leere Gruppen ausblenden";
 FBLocale["deDE"].RAID_HIDEEMPTY_TIP = "Gruppen ohne Mitglieder brauchen keinen Platz. Ein 20er-Raid fuellt dann eine einzige Zeile.";
 FBLocale["deDE"].RAID_SHOWTITLE    = "Titelleiste";
 FBLocale["deDE"].RAID_SHOWTITLE_TIP = "Eine schmale Titelleiste ueber dem Raster, an der man ziehen kann. Ohne sie: Shift halten und eine beliebige Zelle ziehen.";
+FBLocale["deDE"].RAID_BUFFICONS    = "Buffs anzeigen";
+FBLocale["deDE"].RAID_BUFFICONS_TIP = "Buff-Icons mit Uhr links an jeder Zelle, wie auf den Gruppenplaketten. Aus: keine Icons und kein reservierter Platz, die Gruppen ruecken enger zusammen.";
 FBLocale["deDE"].RAID_HPTEXT       = "HP-Text";
 FBLocale["deDE"].RAID_HPTEXT_TIP   = "Was die rechte Seite einer Zelle zeigt: nichts, die Lebensprozente oder die fehlenden Lebenspunkte (Defizit).";
 FBLocale["deDE"].RAID_HP_NONE      = "keiner";
@@ -137,6 +146,134 @@ FBLocale["deDE"].RAID_INFO         = "Die Mini-Buttons nutzen die Zauber von But
 FBLocale["deDE"].RAID_MOVE_TIP     = "Ziehen verschiebt das Raid-Raster.";
 FBLocale["deDE"].FBP_RAID          = "Raidmodus: %s, %d Mitglieder in %d Gruppen";
 FBLocale["deDE"].FBP_RAID_CMDS     = "Raid: /fbp raid (an/aus), /fbp raidtest 20|40|off";
+
+-- Weitere Sprachen (Spanisch, Franzoesisch, Italienisch)
+
+FBLocale["esES"].TAB_RAID          = "Modo banda";
+FBLocale["esES"].RAID_TITLE        = "Banda";
+FBLocale["esES"].RAID_ENABLED      = "Modo banda";
+FBLocale["esES"].RAID_ENABLED_TIP  = "Interruptor principal de la rejilla de banda compacta: una celda por miembro, agrupadas por grupo de banda, con minibotones de curación. La rejilla aparece sola cuando tu banda tiene al menos el número de jugadores fijado abajo; las bandas más pequeñas conservan la vista de grupo.";
+FBLocale["esES"].RAID_MINPLAYERS   = "Vista de banda a partir de |cFFFFFFFF%s|r jugadores";
+FBLocale["esES"].RAID_HIDEPARTY    = "Ocultar placas de grupo";
+FBLocale["esES"].RAID_HIDEPARTY_TIP = "Mientras se muestra la rejilla de banda, las cinco placas de grupo se ocultan. Desactívalo para conservar ambas.";
+FBLocale["esES"].RAID_HEADERS      = "Cabeceras de grupo";
+FBLocale["esES"].RAID_HEADERS_TIP  = "Un pequeño número de grupo sobre cada bloque.";
+FBLocale["esES"].RAID_MANABAR      = "Franja de maná";
+FBLocale["esES"].RAID_MANABAR_TIP  = "Una franja de maná de 3 px en la parte inferior de cada celda, solo para usuarios de maná.";
+FBLocale["esES"].RAID_HIDEEMPTY    = "Ocultar grupos vacíos";
+FBLocale["esES"].RAID_HIDEEMPTY_TIP = "Los grupos sin miembros no ocupan espacio. Una banda de 20 llena entonces una sola fila.";
+FBLocale["esES"].RAID_SHOWTITLE    = "Barra de título";
+FBLocale["esES"].RAID_SHOWTITLE_TIP = "Una fina barra de título sobre la rejilla que se puede arrastrar. Sin ella, mantén Mayús y arrastra cualquier celda.";
+FBLocale["esES"].RAID_BUFFICONS    = "Mostrar beneficios";
+FBLocale["esES"].RAID_BUFFICONS_TIP = "Iconos de beneficios con reloj a la izquierda de cada celda, como en las placas de grupo. Desactivado: sin iconos ni espacio reservado, los grupos se juntan más.";
+FBLocale["esES"].RAID_HPTEXT       = "Texto de vida";
+FBLocale["esES"].RAID_HPTEXT_TIP   = "Qué muestra el lado derecho de una celda: nada, el porcentaje de vida o la vida que falta (déficit).";
+FBLocale["esES"].RAID_HP_NONE      = "nada";
+FBLocale["esES"].RAID_HP_PERCENT   = "porcentaje";
+FBLocale["esES"].RAID_HP_DEFICIT   = "déficit";
+FBLocale["esES"].RAID_GROUPSPERROW = "Grupos por fila: |cFFFFFFFF%s";
+FBLocale["esES"].RAID_SCALE        = "Escala de banda: |cFFFFFFFF%s";
+FBLocale["esES"].RAID_CELLW        = "Ancho de celda: |cFFFFFFFF%s px";
+FBLocale["esES"].RAID_CELLH        = "Alto de celda: |cFFFFFFFF%s px";
+FBLocale["esES"].RAID_BUTTONS      = "Botones por unidad: |cFFFFFFFF%s";
+FBLocale["esES"].RAID_BTNSIZE      = "Tamaño de botón: |cFFFFFFFF%s px";
+FBLocale["esES"].RAID_CELLGAP      = "Separación de celdas: |cFFFFFFFF%s px";
+FBLocale["esES"].RAID_GROUPGAP     = "Separación de grupos: |cFFFFFFFF%s px";
+FBLocale["esES"].RAID_TEST         = "Prueba de banda";
+FBLocale["esES"].RAID_TEST_TIP     = "Rellena la rejilla de banda con 20 o 40 jugadores fantasma para organizarla sin banda. No se guarda.";
+FBLocale["esES"].RAID_TEST_OFF     = "desactivada";
+FBLocale["esES"].RAID_TEST_20      = "20 jugadores";
+FBLocale["esES"].RAID_TEST_40      = "40 jugadores";
+FBLocale["esES"].RAID_TEST_CLICK   = "Prueba de banda: sin lanzamiento sobre un jugador fantasma.";
+FBLocale["esES"].RAID_INFO         = "Los minibotones usan los hechizos de los botones 1 a N de la pestaña Botones, incluidos los del clic derecho.";
+FBLocale["esES"].RAID_MOVE_TIP     = "Arrastra para mover la rejilla de banda.";
+FBLocale["esES"].FBP_RAID          = "Modo banda: %s, %d miembros en %d grupos";
+FBLocale["esES"].FBP_RAID_CMDS     = "Banda: /fbp raid (alternar), /fbp raidtest 20|40|off";
+FBLocale["esES"].RAID_LOADED       = "Módulo de modo banda cargado: pestaña |cFFFFFFFFModo banda|r en las opciones, /fbp raid, /fbp raidtest 20|40";
+
+FBLocale["frFR"].TAB_RAID          = "Mode raid";
+FBLocale["frFR"].RAID_TITLE        = "Raid";
+FBLocale["frFR"].RAID_ENABLED      = "Mode raid";
+FBLocale["frFR"].RAID_ENABLED_TIP  = "Interrupteur principal de la grille de raid compacte : une cellule par membre, regroupées par groupe de raid, avec des mini-boutons de soins. La grille apparaît d'elle-même dès que votre raid compte au moins le nombre de joueurs réglé ci-dessous ; les raids plus petits gardent l'affichage de groupe.";
+FBLocale["frFR"].RAID_MINPLAYERS   = "Vue raid à partir de |cFFFFFFFF%s|r joueurs";
+FBLocale["frFR"].RAID_HIDEPARTY    = "Masquer les plaques de groupe";
+FBLocale["frFR"].RAID_HIDEPARTY_TIP = "Tant que la grille de raid est affichée, les cinq plaques de groupe sont masquées. Désactivez pour garder les deux.";
+FBLocale["frFR"].RAID_HEADERS      = "En-têtes de groupe";
+FBLocale["frFR"].RAID_HEADERS_TIP  = "Un petit numéro de groupe au-dessus de chaque bloc.";
+FBLocale["frFR"].RAID_MANABAR      = "Bande de mana";
+FBLocale["frFR"].RAID_MANABAR_TIP  = "Une bande de mana de 3 px en bas de chaque cellule, uniquement pour les utilisateurs de mana.";
+FBLocale["frFR"].RAID_HIDEEMPTY    = "Masquer les groupes vides";
+FBLocale["frFR"].RAID_HIDEEMPTY_TIP = "Les groupes sans membres ne prennent pas de place. Un raid de 20 tient alors sur une seule ligne.";
+FBLocale["frFR"].RAID_SHOWTITLE    = "Barre de titre";
+FBLocale["frFR"].RAID_SHOWTITLE_TIP = "Une fine barre de titre au-dessus de la grille, que l'on peut faire glisser. Sans elle, maintenez Maj et faites glisser n'importe quelle cellule.";
+FBLocale["frFR"].RAID_BUFFICONS    = "Afficher les buffs";
+FBLocale["frFR"].RAID_BUFFICONS_TIP = "Icônes de buffs avec horloge à gauche de chaque cellule, comme sur les plaques de groupe. Désactivé : pas d'icônes ni d'espace réservé, les groupes se rapprochent.";
+FBLocale["frFR"].RAID_HPTEXT       = "Texte de vie";
+FBLocale["frFR"].RAID_HPTEXT_TIP   = "Ce qu'affiche le côté droit d'une cellule : rien, le pourcentage de vie ou la vie manquante (déficit).";
+FBLocale["frFR"].RAID_HP_NONE      = "rien";
+FBLocale["frFR"].RAID_HP_PERCENT   = "pourcentage";
+FBLocale["frFR"].RAID_HP_DEFICIT   = "déficit";
+FBLocale["frFR"].RAID_GROUPSPERROW = "Groupes par ligne : |cFFFFFFFF%s";
+FBLocale["frFR"].RAID_SCALE        = "Échelle du raid : |cFFFFFFFF%s";
+FBLocale["frFR"].RAID_CELLW        = "Largeur de cellule : |cFFFFFFFF%s px";
+FBLocale["frFR"].RAID_CELLH        = "Hauteur de cellule : |cFFFFFFFF%s px";
+FBLocale["frFR"].RAID_BUTTONS      = "Boutons par unité : |cFFFFFFFF%s";
+FBLocale["frFR"].RAID_BTNSIZE      = "Taille des boutons : |cFFFFFFFF%s px";
+FBLocale["frFR"].RAID_CELLGAP      = "Espacement des cellules : |cFFFFFFFF%s px";
+FBLocale["frFR"].RAID_GROUPGAP     = "Espacement des groupes : |cFFFFFFFF%s px";
+FBLocale["frFR"].RAID_TEST         = "Test de raid";
+FBLocale["frFR"].RAID_TEST_TIP     = "Remplit la grille de raid avec 20 ou 40 joueurs fantômes pour la disposer sans raid. Non sauvegardé.";
+FBLocale["frFR"].RAID_TEST_OFF     = "désactivé";
+FBLocale["frFR"].RAID_TEST_20      = "20 joueurs";
+FBLocale["frFR"].RAID_TEST_40      = "40 joueurs";
+FBLocale["frFR"].RAID_TEST_CLICK   = "Test de raid : aucun lancement sur un joueur fantôme.";
+FBLocale["frFR"].RAID_INFO         = "Les mini-boutons utilisent les sorts des boutons 1 à N de l'onglet Boutons, sorts du clic droit compris.";
+FBLocale["frFR"].RAID_MOVE_TIP     = "Faites glisser pour déplacer la grille de raid.";
+FBLocale["frFR"].FBP_RAID          = "Mode raid : %s, %d membres dans %d groupes";
+FBLocale["frFR"].FBP_RAID_CMDS     = "Raid : /fbp raid (basculer), /fbp raidtest 20|40|off";
+FBLocale["frFR"].RAID_LOADED       = "Module mode raid chargé : onglet |cFFFFFFFFMode raid|r dans les options, /fbp raid, /fbp raidtest 20|40";
+
+FBLocale["itIT"].TAB_RAID          = "Incursione";
+FBLocale["itIT"].RAID_TITLE        = "Incursione";
+FBLocale["itIT"].RAID_ENABLED      = "Modalità incursione";
+FBLocale["itIT"].RAID_ENABLED_TIP  = "Interruttore principale della griglia compatta d'incursione: una cella per membro, raggruppate per gruppo, con mini pulsanti di cura. La griglia compare da sola quando l'incursione ha almeno il numero di giocatori impostato sotto; le incursioni più piccole mantengono la vista di gruppo.";
+FBLocale["itIT"].RAID_MINPLAYERS   = "Vista incursione da |cFFFFFFFF%s|r giocatori";
+FBLocale["itIT"].RAID_HIDEPARTY    = "Nascondi targhette di gruppo";
+FBLocale["itIT"].RAID_HIDEPARTY_TIP = "Finché la griglia d'incursione è visibile, le cinque targhette di gruppo sono nascoste. Disattiva per tenerle entrambe.";
+FBLocale["itIT"].RAID_HEADERS      = "Intestazioni di gruppo";
+FBLocale["itIT"].RAID_HEADERS_TIP  = "Un piccolo numero di gruppo sopra ogni blocco.";
+FBLocale["itIT"].RAID_MANABAR      = "Striscia del mana";
+FBLocale["itIT"].RAID_MANABAR_TIP  = "Una striscia del mana di 3 px in fondo a ogni cella, solo per chi usa mana.";
+FBLocale["itIT"].RAID_HIDEEMPTY    = "Nascondi gruppi vuoti";
+FBLocale["itIT"].RAID_HIDEEMPTY_TIP = "I gruppi senza membri non occupano spazio. Un'incursione da 20 riempie allora una sola riga.";
+FBLocale["itIT"].RAID_SHOWTITLE    = "Barra del titolo";
+FBLocale["itIT"].RAID_SHOWTITLE_TIP = "Una sottile barra del titolo sopra la griglia che si può trascinare. Senza, tieni premuto Maiusc e trascina una cella qualsiasi.";
+FBLocale["itIT"].RAID_BUFFICONS    = "Mostra benefici";
+FBLocale["itIT"].RAID_BUFFICONS_TIP = "Icone dei benefici con orologio a sinistra di ogni cella, come sulle targhette di gruppo. Disattivato: niente icone né spazio riservato, i gruppi si avvicinano.";
+FBLocale["itIT"].RAID_HPTEXT       = "Testo salute";
+FBLocale["itIT"].RAID_HPTEXT_TIP   = "Cosa mostra il lato destro di una cella: niente, la percentuale di salute o la salute mancante (deficit).";
+FBLocale["itIT"].RAID_HP_NONE      = "niente";
+FBLocale["itIT"].RAID_HP_PERCENT   = "percentuale";
+FBLocale["itIT"].RAID_HP_DEFICIT   = "deficit";
+FBLocale["itIT"].RAID_GROUPSPERROW = "Gruppi per riga: |cFFFFFFFF%s";
+FBLocale["itIT"].RAID_SCALE        = "Scala dell'incursione: |cFFFFFFFF%s";
+FBLocale["itIT"].RAID_CELLW        = "Larghezza cella: |cFFFFFFFF%s px";
+FBLocale["itIT"].RAID_CELLH        = "Altezza cella: |cFFFFFFFF%s px";
+FBLocale["itIT"].RAID_BUTTONS      = "Pulsanti per unità: |cFFFFFFFF%s";
+FBLocale["itIT"].RAID_BTNSIZE      = "Dimensione pulsanti: |cFFFFFFFF%s px";
+FBLocale["itIT"].RAID_CELLGAP      = "Spaziatura celle: |cFFFFFFFF%s px";
+FBLocale["itIT"].RAID_GROUPGAP     = "Spaziatura gruppi: |cFFFFFFFF%s px";
+FBLocale["itIT"].RAID_TEST         = "Test incursione";
+FBLocale["itIT"].RAID_TEST_TIP     = "Riempie la griglia d'incursione con 20 o 40 giocatori fantasma per sistemarla senza incursione. Non viene salvato.";
+FBLocale["itIT"].RAID_TEST_OFF     = "disattivato";
+FBLocale["itIT"].RAID_TEST_20      = "20 giocatori";
+FBLocale["itIT"].RAID_TEST_40      = "40 giocatori";
+FBLocale["itIT"].RAID_TEST_CLICK   = "Test incursione: nessun lancio su un giocatore fantasma.";
+FBLocale["itIT"].RAID_INFO         = "I mini pulsanti usano gli incantesimi dei pulsanti da 1 a N della scheda Pulsanti, compresi quelli del clic destro.";
+FBLocale["itIT"].RAID_MOVE_TIP     = "Trascina per spostare la griglia d'incursione.";
+FBLocale["itIT"].FBP_RAID          = "Modalità incursione: %s, %d membri in %d gruppi";
+FBLocale["itIT"].FBP_RAID_CMDS     = "Incursione: /fbp raid (attiva/disattiva), /fbp raidtest 20|40|off";
+FBLocale["itIT"].RAID_LOADED       = "Modulo modalità incursione caricato: scheda |cFFFFFFFFModalità incursione|r nelle opzioni, /fbp raid, /fbp raidtest 20|40";
 FBLocale["deDE"].RAID_LOADED       = "Raidmodus-Modul geladen: Reiter |cFFFFFFFFRaidmodus|r in den Optionen, /fbp raid, /fbp raidtest 20|40";
 
 -- ==========================================================================
@@ -206,11 +343,38 @@ function FBRaid_BuildTestGhosts(count)
         if (i == 13) then g.state = "offline"; end
         if (i == 18) then g.state = "ghost"; end
         if (i == 4 or i == 22) then g.debuff = true; end
+        if (i == 27) then g.debuffType = "Disease"; end
         if (i == 9 or i == 31) then g.outOfRange = true; end
         if (i == 11) then g.los = true; end
         if (i == 2 or i == 26) then g.buffMissing = true; end
         if (i == 15) then g.shield = 500; end
         if (i == 16 or i == 33) then g.inc = 800; end
+        if (i == 16) then g.aggro = true; g.hotLeft = 7; end
+        if (i == 15) then g.shieldLeft = 18; end
+        -- Buff-Icons: jeder dritte Geist traegt Seelenstaerke mit anderer Restzeit,
+        -- einer davon dazu Goettlichen Willen, einer einen fremden Buff ohne Zeit
+        if (math.mod(i, 3) == 0) then
+            local left = math.mod(i * 7, 18) * 100;   -- 0..1700 s von 1800
+            if (left < 60) then left = 60; end
+            g.buffs = { { tex = "Interface\\Icons\\Spell_Holy_WordFortitude", left = left, dur = 1800 } };
+            if (i == 6) then table.insert(g.buffs, { tex = "Interface\\Icons\\Spell_Holy_DivineSpirit", left = 1500, dur = 1800 }); end
+            if (i == 9) then g.buffs[1].left = nil; end
+            if (i == 12) then
+                -- zwoelf Buffs auf einem Geist (3 x 4), um die Darstellung zu pruefen
+                g.buffs = { { tex = "Interface\\Icons\\Spell_Holy_WordFortitude", left = 540, dur = 1800 },
+                            { tex = "Interface\\Icons\\Spell_Holy_DivineSpirit", left = 1500, dur = 1800 },
+                            { tex = "Interface\\Icons\\Spell_Shadow_AntiShadow", left = 300, dur = 600 },
+                            { tex = "Interface\\Icons\\Spell_Holy_Excorcism", left = 45, dur = 180 },
+                            { tex = "Interface\\Icons\\Spell_Nature_Regeneration", dur = 1800 },
+                            { tex = "Interface\\Icons\\Spell_Magic_MageArmor", left = 1750, dur = 1800 },
+                            { tex = "Interface\\Icons\\Spell_Holy_SealOfWisdom", left = 200, dur = 300 },
+                            { tex = "Interface\\Icons\\Spell_Holy_FistOfJustice", left = 100, dur = 300 },
+                            { tex = "Interface\\Icons\\Spell_Nature_Thorns", left = 500, dur = 600 },
+                            { tex = "Interface\\Icons\\Spell_Holy_InnerFire", left = 1200, dur = 600 },
+                            { tex = "Interface\\Icons\\Spell_Holy_SealOfSalvation", left = 900, dur = 1800 },
+                            { tex = "Interface\\Icons\\Spell_Fire_FireArmor", dur = 1800 } };
+            end
+        end
         FBRaidTestGhosts[i] = g;
     end
 end
@@ -287,6 +451,10 @@ end
 function FBRaid_Dispel(cell)
     local g = cell.ghost;
     if (g) then
+        if (g.debuffType) then
+            if (FBDispelColors[g.debuffType]) then return g.debuffType; end
+            return nil;
+        end
         if (g.debuff) then
             for _, dtype in ipairs({ "Magic", "Poison", "Disease", "Curse" }) do
                 if (FBDispelColors[dtype]) then return dtype; end
@@ -449,17 +617,24 @@ function FBRaid_CreateCell(g, pos)
     c.ManaBar.bg:SetTexture(0, 0, 0, FBMANA_BG_ALPHA);
     c.ManaBar:Hide();
 
-    -- Texte
-    c.NameText = c:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall");
+    -- Texte liegen auf einer eigenen Ebene ueber den Balken (die Balken sind
+    -- Kind-Frames mit hoeherer Ebene und wuerden Texte der Zelle verdecken)
+    c.Overlay = CreateFrame("Frame", nil, c);
+    c.Overlay:SetAllPoints(c);
+    c.Overlay:SetFrameStrata("MEDIUM");
+    c.Overlay:SetFrameLevel(base + 6);
+    c.NameText = c.Overlay:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall");
     c.NameText:SetPoint("LEFT", c, "LEFT", 4, 0);
+    c.NameText:SetHeight(FBNAME_HEIGHT);
     c.NameText:SetJustifyH("LEFT");
-    c.HPText = c:CreateFontString(nil, "OVERLAY", "NumberFontNormalSmall");
+    c.NameText:SetJustifyV("MIDDLE");
+    c.HPText = c.Overlay:CreateFontString(nil, "OVERLAY", "NumberFontNormalSmall");
     c.HPText:SetPoint("RIGHT", c, "RIGHT", -3, 0);
     c.HPText:SetJustifyH("RIGHT");
     c.HPText:SetTextColor(1, 1, 1, 1);
 
     -- Sichtlinie: kleines Auge oben links
-    c.LOSIcon = c:CreateTexture(nil, "OVERLAY");
+    c.LOSIcon = c.Overlay:CreateTexture(nil, "OVERLAY");
     c.LOSIcon:SetWidth(FBRAID_LOS_SIZE);
     c.LOSIcon:SetHeight(FBRAID_LOS_SIZE);
     c.LOSIcon:SetPoint("TOPLEFT", c, "TOPLEFT", -3, 3);
@@ -605,9 +780,9 @@ end
 -- [ Layout ]
 -- ==========================================================================
 
--- Breite einer Zelle samt ihrer Buttons
+-- Breite einer Zelle samt Buff-Streifen links und Buttons rechts
 function FBRaid_RowWidth(cfg)
-    local w = cfg.CellW;
+    local w = FBRaid_BuffStrip(cfg) + cfg.CellW;
     if (cfg.Buttons > 0) then w = w + cfg.Buttons * (cfg.ButtonSize + 1); end
     return w;
 end
@@ -668,12 +843,13 @@ function FBRaid_LayoutAll()
                 col * (rowW + cfg.GroupGap),
                 -(titleH + row * (blockH + cfg.GroupGap)));
             if (cfg.Headers == 1) then f.header:Show(); else f.header:Hide(); end
-            -- Zellen im Block
+            -- Zellen im Block, links davon der Streifen fuer die Buff-Icons
+            local strip = FBRaid_BuffStrip(cfg);
             for pos = 1, FBRAID_PER_GROUP do
                 local c = FBRaid_GetCell(g, pos);
                 FBRaid_ApplyCellSize(c, cfg);
                 c:ClearAllPoints();
-                c:SetPoint("TOPLEFT", f, "TOPLEFT", 0, -(headH + (pos - 1) * (cfg.CellH + cfg.CellGap)));
+                c:SetPoint("TOPLEFT", f, "TOPLEFT", strip, -(headH + (pos - 1) * (cfg.CellH + cfg.CellGap)));
             end
             f:Show();
             col = col + 1;
@@ -789,7 +965,14 @@ function FBRaid_UpdateCell(c)
     end
 end
 
--- Rahmen: Buff-Wache (orange) oder normal
+-- Rahmen: Angegriffener (rot) vor Buff-Wache (orange) vor normal
+function FBRaid_ApplyBorder(c)
+    local col = FBBUFF_NORMAL_COLOR;
+    if (c.buffMissing) then col = FBBUFF_MISSING_COLOR; end
+    if (c.underAttack) then col = FBAGGRO_COLOR; end
+    c:SetBackdropBorderColor(col[1], col[2], col[3], col[4]);
+end
+
 function FBRaid_UpdateBuffBorder(c)
     if (not c) or (not c.unit) then return; end
     local missing = false;
@@ -798,9 +981,96 @@ function FBRaid_UpdateBuffBorder(c)
     end
     if (c.buffMissing ~= missing) then
         c.buffMissing = missing;
-        local col = FBBUFF_NORMAL_COLOR;
-        if (missing) then col = FBBUFF_MISSING_COLOR; end
-        c:SetBackdropBorderColor(col[1], col[2], col[3], col[4]);
+        FBRaid_ApplyBorder(c);
+    end
+end
+
+-- Wer wird angegriffen (Hook "Aggro" des Kerns, tt = "targettarget" oder nil)
+function FBRaid_CheckAggro(tt)
+    if (not FBRaid_IsActive()) then return; end
+    for g = 1, FBRAID_GROUPS do
+        if (FBRaidCells[g]) then
+            for pos = 1, FBRAID_PER_GROUP do
+                local c = FBRaidCells[g][pos];
+                if (c and c.unit) then
+                    local flag = false;
+                    if (HealBox.AggroMark == 1 and c:IsShown()) then
+                        if (c.ghost) then flag = (c.ghost.aggro == true);
+                        elseif (tt) then flag = FBHealBox_UnitIsAggro(c.unit, tt); end
+                    end
+                    if (c.underAttack ~= flag) then
+                        c.underAttack = flag;
+                        FBRaid_ApplyBorder(c);
+                    end
+                end
+            end
+        end
+    end
+end
+
+-- Platz links neben jeder Zelle fuer die Buff-Icons (aussen links)
+function FBRaid_BuffStrip(cfg)
+    if (HealBox.BuffIcons ~= 1) or (cfg.BuffIcons ~= 1) then return 0; end
+    return -FBBUFFICON_XOFF + FBRAID_BUFFICON_COLS * (FBRAID_BUFFICON_SIZE + FBBUFFICON_GAP);
+end
+
+-- Buff-Icons mit Uhr aussen links an den Zellen (Hook "BuffIcons")
+function FBRaid_UpdateBuffIcons()
+    if (not FBRaid_IsActive()) then return; end
+    local on = (FBRaid_Cfg().BuffIcons == 1);
+    for g = 1, FBRAID_GROUPS do
+        if (FBRaidCells[g]) then
+            for pos = 1, FBRAID_PER_GROUP do
+                local c = FBRaidCells[g][pos];
+                if (c) then
+                    if (on and c.unit and c:IsShown()) then
+                        FBHealBox_UpdateBuffIcons(c, c.name, c.ghost, FBRAID_BUFFICON_SIZE, FBRAID_BUFFICON_ROWS, FBRAID_BUFFICON_MAX);
+                    else
+                        FBHealBox_UpdateBuffIcons(c, nil, nil, FBRAID_BUFFICON_SIZE, FBRAID_BUFFICON_ROWS, FBRAID_BUFFICON_MAX);
+                    end
+                end
+            end
+        end
+    end
+end
+
+-- HoT-/Schild-Timer auf den Mini-Buttons (Hook "SpellTimers")
+function FBRaid_UpdateSpellTimers(now)
+    local on = (HealBox.SpellTimers == 1) and FBRaid_IsActive();
+    for g = 1, FBRAID_GROUPS do
+        if (FBRaidCells[g]) then
+            for pos = 1, FBRAID_PER_GROUP do
+                local c = FBRaidCells[g][pos];
+                if (c) then
+                    local shown = on and c.unit and c:IsShown();
+                    for i = 1, FBRAID_MAX_BUTTONS do
+                        local b = c.buttons[i];
+                        if (shown and b:IsShown()) then
+                            local text, color = FBHealBox_SpellTimerFor(b.spellName, c.name, now, c.ghost, i);
+                            if (not text and b.spellNameR) then
+                                text, color = FBHealBox_SpellTimerFor(b.spellNameR, c.name, now, nil, i);
+                            end
+                            FBHealBox_SetButtonTimer(b, text, color);
+                        else
+                            FBHealBox_SetButtonTimer(b, nil);
+                        end
+                    end
+                end
+            end
+        end
+    end
+end
+
+function FBRaid_UpdateCooldowns()
+    for g = 1, FBRAID_GROUPS do
+        if (FBRaidCells[g]) then
+            for pos = 1, FBRAID_PER_GROUP do
+                local c = FBRaidCells[g][pos];
+                if (c) then
+                    for i = 1, FBRAID_MAX_BUTTONS do FBHealBox_UpdateButtonCooldown(c.buttons[i]); end
+                end
+            end
+        end
     end
 end
 
@@ -860,6 +1130,7 @@ function FBRaid_SyncButtons()
                                 b.subIcon:Hide();
                             end
                         end
+                        FBHealBox_UpdateButtonCooldown(b);
                     end
                 end
             end
@@ -1053,9 +1324,14 @@ function FBRaid_BuildOptions()
         FBRaid_Cfg().ShowTitle = FBRaidTitleCheck:GetChecked() and 1 or 0;
         FBRaid_LayoutAll();
     end);
+    FBRaidBuffIconsCheck = FBHealBox_CreateCheck("FBHealBoxRaidBuffIconsCheck", tab, 40, y - 90, "RAID_BUFFICONS", "RAID_BUFFICONS_TIP", function()
+        FBRaid_Cfg().BuffIcons = FBRaidBuffIconsCheck:GetChecked() and 1 or 0;
+        FBRaid_LayoutAll();
+        FBRaid_UpdateBuffIcons();
+    end);
 
     -- HP-Text: Auswahlknopf mit Kaskadenmenue
-    FBRaidHPTextBtn = FBHealBox_CreatePickButton("FBHealBoxRaidHPTextBtn", tab, 35, y - 96, 180, 26, 18);
+    FBRaidHPTextBtn = FBHealBox_CreatePickButton("FBHealBoxRaidHPTextBtn", tab, 35, y - 126, 180, 26, 18);
     FBRaidHPTextBtn.icon:SetTexture("Interface\\Icons\\INV_Misc_Note_01");
     FBRaidHPTextBtn:SetScript("OnEnter", function()
         GameTooltip:SetOwner(this, "ANCHOR_RIGHT");
@@ -1085,7 +1361,7 @@ function FBRaid_BuildOptions()
     end);
 
     -- Raid-Test: aus / 20 / 40
-    FBRaidTestBtn = FBHealBox_CreatePickButton("FBHealBoxRaidTestBtn", tab, 245, y - 96, 180, 26, 18);
+    FBRaidTestBtn = FBHealBox_CreatePickButton("FBHealBoxRaidTestBtn", tab, 245, y - 126, 180, 26, 18);
     FBRaidTestBtn.icon:SetTexture("Interface\\Icons\\Spell_Shadow_Twilight");
     FBRaidTestBtn:SetScript("OnEnter", function()
         GameTooltip:SetOwner(this, "ANCHOR_RIGHT");
@@ -1112,7 +1388,7 @@ function FBRaid_BuildOptions()
     end);
 
     -- Schieberegler (Beschriftung sitzt ueber dem Regler)
-    local sy = y - 150;
+    local sy = y - 180;
     FBRaid_CreateSlider("FBRaidGroupsPerRowSlider", tab, 75, sy, "RAID_GROUPSPERROW", "GroupsPerRow", 1, 8, 1, false, FBRaid_LayoutAll);
     FBRaid_CreateSlider("FBRaidScaleSlider", tab, 260, sy, "RAID_SCALE", "Scale", 0.5, 1.5, 0.1, true, FBRaid_LayoutAll);
     FBRaid_CreateSlider("FBRaidCellWSlider", tab, 75, sy - 50, "RAID_CELLW", "CellW", 50, 120, 1, false, FBRaid_LayoutAll);
@@ -1142,6 +1418,7 @@ function FBRaid_SyncOptions()
     if (FBRaidManaCheck) then FBRaidManaCheck:SetChecked(cfg.ManaBar == 1); end
     if (FBRaidHideEmptyCheck) then FBRaidHideEmptyCheck:SetChecked(cfg.HideEmpty == 1); end
     if (FBRaidTitleCheck) then FBRaidTitleCheck:SetChecked(cfg.ShowTitle == 1); end
+    if (FBRaidBuffIconsCheck) then FBRaidBuffIconsCheck:SetChecked(cfg.BuffIcons == 1); end
     for key, s in pairs(FBRaidSliders) do
         if (cfg[key] ~= nil) then s:SetValue(cfg[key]); end
     end
@@ -1157,6 +1434,7 @@ function FBRaid_ApplyLocale()
     if (FBRaidManaCheck) then FBRaidManaCheck.Text:SetText(FBT("RAID_MANABAR")); FBRaidManaCheck.tooltipText = FBT("RAID_MANABAR_TIP"); end
     if (FBRaidHideEmptyCheck) then FBRaidHideEmptyCheck.Text:SetText(FBT("RAID_HIDEEMPTY")); FBRaidHideEmptyCheck.tooltipText = FBT("RAID_HIDEEMPTY_TIP"); end
     if (FBRaidTitleCheck) then FBRaidTitleCheck.Text:SetText(FBT("RAID_SHOWTITLE")); FBRaidTitleCheck.tooltipText = FBT("RAID_SHOWTITLE_TIP"); end
+    if (FBRaidBuffIconsCheck) then FBRaidBuffIconsCheck.Text:SetText(FBT("RAID_BUFFICONS")); FBRaidBuffIconsCheck.tooltipText = FBT("RAID_BUFFICONS_TIP"); end
     if (FBRaidInfoText) then FBRaidInfoText:SetText(FBT("RAID_INFO")); end
     for _, s in pairs(FBRaidSliders) do FBRaid_SliderText(s); end
     FBRaid_UpdateHPTextLabel();
@@ -1198,6 +1476,10 @@ FBHealBox_RegisterHook("ButtonsChanged", function()
     FBRaid_SyncButtons();
     return true;
 end);
+FBHealBox_RegisterHook("Aggro", function(tt) FBRaid_CheckAggro(tt); return true; end);
+FBHealBox_RegisterHook("SpellTimers", function(now) FBRaid_UpdateSpellTimers(now); return true; end);
+FBHealBox_RegisterHook("Cooldowns", function() FBRaid_UpdateCooldowns(); return true; end);
+FBHealBox_RegisterHook("BuffIcons", function() FBRaid_UpdateBuffIcons(); return true; end);
 FBHealBox_RegisterHook("Status", function()
     local cfg = FBRaid_Cfg();
     local state = FBT("FBP_STATE_OFF");
