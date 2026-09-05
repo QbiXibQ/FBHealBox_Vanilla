@@ -6,6 +6,12 @@ Party, pet and self heal display with quick-cast buttons for healers. One name p
 
 **The short version:** click the minimap button (or type `/fbp config`) → options window → pick a spell for each button → done. Everything else happens on its own. `/fbp` tells you at any time what the prediction currently believes. **New in 1.4.1:** tick *Test mode* to fill the display with ghost players and arrange everything without a group.
 
+<img width="770" height="479" alt="Screenshot 2026-09-05 210211" src="https://github.com/user-attachments/assets/83d85071-4482-4762-be24-f9eda1578ef6" />
+
+<img width="956" height="847" alt="Screenshot 2026-09-05 210241" src="https://github.com/user-attachments/assets/d7508232-eb56-47ef-8f7e-c39ab0c2b434" />
+
+<img width="837" height="1101" alt="Screenshot 2026-09-05 210331" src="https://github.com/user-attachments/assets/6a460c04-3a82-4c65-8ea6-3f128be51c33" />
+
 \---
 
 ## Installation
