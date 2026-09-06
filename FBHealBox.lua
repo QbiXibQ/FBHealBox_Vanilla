@@ -5426,8 +5426,8 @@ SlashCmdList["FBHEALPREDICT"] = function(msg)
             for k, ic in ipairs(FBHealBox1.buffIcons) do
                 DEFAULT_CHAT_FRAME:AddMessage("|cFF00FFFF[FBP]|r icon "..k..": shown="..tostring(ic:IsShown() and true or false)
                     .." name="..tostring(ic.buffName).." left="..tostring(ic.buffLeft and math.floor(ic.buffLeft))
-                    .." grey="..tostring(ic.greyCount).." q1shown="..tostring(ic.q[1]:IsShown() and true or false)
-                    .." desat="..tostring(ic.q[1].fbDesat));
+                    .." grey="..tostring(ic.greyCount).." q1shown="..tostring(ic.qTex and ic.qTex:IsShown() and true or false)
+                    .." desat="..tostring(ic.qTex and ic.qTex.fbDesat));
             end
         end
         local i = 1;
@@ -5597,13 +5597,7 @@ end
 -- (fremder Cast): Icon ohne Uhr. Der Name macht Platz.
 -- ==========================================================================
 
--- Quadranten der Uhr im Uhrzeigersinn ab 12 Uhr: Ecke, Texturausschnitt
-FBBUFFICON_QUADS = {
-    { corner = "TOPRIGHT",    u1 = 0.50, u2 = 0.93, v1 = 0.07, v2 = 0.50 },
-    { corner = "BOTTOMRIGHT", u1 = 0.50, u2 = 0.93, v1 = 0.50, v2 = 0.93 },
-    { corner = "BOTTOMLEFT",  u1 = 0.07, u2 = 0.50, v1 = 0.50, v2 = 0.93 },
-    { corner = "TOPLEFT",     u1 = 0.07, u2 = 0.50, v1 = 0.07, v2 = 0.50 },
-};
+FBBUFFICON_STEPS = 32;
 
 -- Icon Nr. k anlegen, aussen links neben der Plakette, in Zweierstapeln:
 -- Icon 1 oben an der Kante, Icon 2 darunter, Icon 3 oben in der naechsten
@@ -5631,28 +5625,23 @@ function FBHealBox_GetBuffIcon(frame, k, size, rows)
     -- Reihenfolge, Textur-Layer innerhalb eines Frames nicht in jedem Fall.
     ic.grey = CreateFrame("Frame", nil, ic);
     ic.grey:SetAllPoints(ic);
-    if (ic.grey.SetFrameLevel and ic.GetFrameLevel) then ic.grey:SetFrameLevel((ic:GetFrameLevel() or 0) + 1); end
-    ic.q = {};
-    ic.w = {};
-    local half = size / 2;
-    for i, qd in ipairs(FBBUFFICON_QUADS) do
-        -- schwarz-weisser Ausschnitt des Icons ...
-        local t = ic.grey:CreateTexture(nil, "ARTWORK");
-        t:SetWidth(half);
-        t:SetHeight(half);
-        t:SetPoint(qd.corner, ic, qd.corner, 0, 0);
-        t:SetTexCoord(qd.u1, qd.u2, qd.v1, qd.v2);
-        t:Hide();
-        ic.q[i] = t;
-        -- ... plus dunkle Waesche darueber, damit der Unterschied auf jedem Client sichtbar ist
-        local wsh = ic.grey:CreateTexture(nil, "OVERLAY");
-        wsh:SetWidth(half);
-        wsh:SetHeight(half);
-        wsh:SetPoint(qd.corner, ic, qd.corner, 0, 0);
-        wsh:SetTexture(FBBUFFICON_WASH[1], FBBUFFICON_WASH[2], FBBUFFICON_WASH[3], FBBUFFICON_WASH[4]);
-        wsh:Hide();
-        ic.w[i] = wsh;
-    end
+    if (ic.grey.SetFrameLevel and frame.GetFrameLevel) then ic.grey:SetFrameLevel((ic:GetFrameLevel() or 0) + 1); end
+
+    -- Schwarz-weißes Icon-Overlay (wächst von oben nach unten)
+    ic.qTex = ic.grey:CreateTexture(nil, "ARTWORK");
+    ic.qTex:SetPoint("TOPLEFT", ic, "TOPLEFT", 0, 0);
+    ic.qTex:SetPoint("TOPRIGHT", ic, "TOPRIGHT", 0, 0);
+    ic.qTex:SetHeight(0);
+    ic.qTex:Hide();
+
+    -- Dunkle Schattierung über dem abgelaufenen Bereich
+    ic.wTex = ic.grey:CreateTexture(nil, "OVERLAY");
+    ic.wTex:SetPoint("TOPLEFT", ic, "TOPLEFT", 0, 0);
+    ic.wTex:SetPoint("TOPRIGHT", ic, "TOPRIGHT", 0, 0);
+    ic.wTex:SetTexture(FBBUFFICON_WASH[1], FBBUFFICON_WASH[2], FBBUFFICON_WASH[3], FBBUFFICON_WASH[4]);
+    ic.wTex:SetHeight(0);
+    ic.wTex:Hide();
+
     -- Tooltip: Buffname und Restzeit (auch zur Diagnose)
     ic:EnableMouse(true);
     ic:SetScript("OnEnter", function()
@@ -5686,19 +5675,37 @@ function FBHealBox_GreyTexture(t)
     end
 end
 
--- Uhrstand setzen: remaining = Restanteil 0..1, nil = unbekannt (alles farbig)
 function FBHealBox_SetBuffIconProgress(ic, remaining)
     local grey = 0;
     if (remaining) then
         if (remaining < 0) then remaining = 0; end
         if (remaining > 1) then remaining = 1; end
-        grey = math.floor((1 - remaining) * 4 + 0.5);   -- 0..4 Quadranten grau, ab 12 Uhr im Uhrzeigersinn
-        if (grey > 4) then grey = 4; end
+        grey = math.floor((1 - remaining) * FBBUFFICON_STEPS + 0.5);
+        if (grey > FBBUFFICON_STEPS) then grey = FBBUFFICON_STEPS; end
     end
+
     if (ic.greyCount == grey) then return; end
     ic.greyCount = grey;
-    for i = 1, 4 do
-        if (i <= grey) then ic.q[i]:Show(); ic.w[i]:Show(); else ic.q[i]:Hide(); ic.w[i]:Hide(); end
+
+    if (grey == 0) then
+        if (ic.qTex) then ic.qTex:Hide(); end
+        if (ic.wTex) then ic.wTex:Hide(); end
+    else
+        local size = ic:GetHeight() or FBBUFFICON_SIZE;
+        local frac = grey / FBBUFFICON_STEPS;
+        local h = size * frac;
+
+        if (ic.qTex) then
+            ic.qTex:SetHeight(h);
+            -- Standard-Icon-Beschnitt (0.07 bis 0.93) anteilig anpassen:
+            local vBottom = 0.07 + (0.93 - 0.07) * frac;
+            ic.qTex:SetTexCoord(0.07, 0.93, 0.07, vBottom);
+            ic.qTex:Show();
+        end
+        if (ic.wTex) then
+            ic.wTex:SetHeight(h);
+            ic.wTex:Show();
+        end
     end
 end
 
@@ -5757,13 +5764,13 @@ function FBHealBox_UpdateBuffIcons(frame, unitName, g, size, rows, maxIcons)
                 if (ic.lastTex ~= b.tex) then
                     ic.lastTex = b.tex;
                     ic.tex:SetTexture(b.tex);
-                    for i = 1, 4 do
-                        ic.q[i]:SetTexture(b.tex);
-                        FBHealBox_GreyTexture(ic.q[i]);
+                    if (ic.qTex) then
+                        ic.qTex:SetTexture(b.tex);
+                        FBHealBox_GreyTexture(ic.qTex);
                     end
                     ic.greyCount = nil;
                 end
-                -- Uhr: Restanteil bekannt -> Quadranten; unbekannt -> alles farbig
+
                 local remaining = nil;
                 ic.buffName = b.name;
                 ic.buffLeft = nil;
