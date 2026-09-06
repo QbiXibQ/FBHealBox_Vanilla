@@ -1,6 +1,47 @@
 # Changelog
 
-## 1.4.3 (unreleased)
+## 1.4.4 (unreleased)
+
+Performance pass. No feature was added or changed; every visible behaviour is meant to be identical. A simulated five-second raid fight (40 players, aura and health events, mana changes, combat log, 60 frames per second) went from about 63,900 API and widget calls to about 14,450, a reduction of 77 %.
+
+### English
+
+**Changed (internals)**
+
+- **Button states centralised.** The up to 260 heal buttons (10 plates x 10, 40 raid cells x 4) no longer carry their own `SPELL_UPDATE_USABLE` / `SPELL_UPDATE_COOLDOWN` handlers. One pass over the *visible* buttons queries usability and cooldown once per spell id and range once per button, and sets colours and cooldown sweeps only when the state changes. Several such events within one frame are merged into one pass.
+- **Display caches.** Health text, bar maxima, bar values, bar colour and mana strip visibility are only written when they change. Dispellable debuffs are searched on `UNIT_AURA` only; `UNIT_HEALTH` and the prediction tick reuse the last result.
+- **Aura scans shared.** A unit's buff textures are read once per frame and shared between the heal prediction and the buff watch. Buff names resolved through tooltip scans are remembered per texture, so a unit missing the watched buff no longer costs up to 32 tooltip scans per aura event. Raid units are only scanned when something depends on them (own cast pending, tracked HoT or shield, or a visible cell).
+- **Cheaper ticks.** Spell timers use precomputed base spell names instead of string parsing per button per tick and skip units without tracked HoTs or shields. Buff icons reuse their work tables, iterate a presorted list instead of sorting per tick, and update on change or once a second instead of five times a second. The attacked-member check skips entirely while there is no hostile target and nothing is marked, and compares names before calling `UnitIsUnit`.
+- **Event bursts coalesced.** `PARTY_MEMBERS_CHANGED`, `UNIT_PET` and `RAID_ROSTER_UPDATE` set a flag that is processed once in the next frame instead of rebuilding plates and grid for every event of a burst.
+- **Mana ticker.** Enabled/mana/full checks moved from every frame to mana events and option changes; the spark is re-anchored only when it has moved at least half a pixel; sizes and visibility are cached.
+- **Combat log.** Heal patterns run only for buff events, the absorb pattern only for hit events that contain the word absorbed. Smart Damage parses damage lines only while enabled and while there is a target being measured or an own cast waiting; its live target line is refreshed only while the options window is open.
+- Raid test ghost animation frame is hidden outside the raid test instead of running an empty update every frame.
+- **Client API compatibility.** `IsSpellInRange` and `IsUsableSpell` do not exist in the 1.12 client (they came with 2.0). All range and usability checks now go through wrappers that use them when a client offers them and otherwise fall back to 1.12 means: spell range from the tooltip against `UnitXP("distanceBetween")` where available, else `CheckInteractDistance` (28 m, beyond that undecided rather than red); mana cost from the tooltip against your current mana. Because clients differ (2.0 style `(id, "spell", unit)` versus the Turtle client's `(name, unit)`), the addon probes both signatures once at login with `pcall` and uses the one the client understands; a function that keeps throwing is switched off in favour of the fallback. `/fbp` reports the detected form. Without this the new central button pass crashed at login.
+
+**Fixed**
+
+- The old per-button event handler declared `this`, `event` and `arg1` as parameters, which shadowed the 1.12 globals; range colouring and cooldown sweeps on the buttons never worked in the game. They do now.
+
+### Deutsch
+
+**Geaendert (intern)**
+
+- **Button-Zustaende zentral.** Die bis zu 260 Heil-Buttons (10 Plaketten x 10, 40 Raid-Zellen x 4) tragen keine eigenen `SPELL_UPDATE_USABLE`/`SPELL_UPDATE_COOLDOWN`-Handler mehr. Ein Durchgang ueber die *sichtbaren* Buttons fragt Nutzbarkeit und Cooldown je Zauber-ID einmal und die Reichweite je Button ab und setzt Farben und Cooldown-Uhren nur bei Zustandswechsel. Mehrere solche Events in einem Frame werden zu einem Durchgang zusammengefasst.
+- **Anzeige-Zwischenspeicher.** Lebenstext, Balkenmaxima, Balkenwerte, Balkenfarbe und Sichtbarkeit des Manastreifens werden nur geschrieben, wenn sie sich aendern. Entfernbare Debuffs werden nur bei `UNIT_AURA` gesucht; `UNIT_HEALTH` und der Vorhersage-Tick nutzen den letzten Befund.
+- **Aura-Scans gemeinsam.** Die Buff-Texturen einer Einheit werden je Frame einmal gelesen und von Heilvorhersage und Buff-Wache geteilt. Per Tooltip ermittelte Buffnamen werden je Textur gemerkt, sodass eine Einheit ohne den ueberwachten Buff nicht mehr bis zu 32 Tooltip-Scans je Aura-Event kostet. Raid-Einheiten werden nur gescannt, wenn etwas davon abhaengt (eigener Cast wartet, HoT oder Schild verfolgt, sichtbare Zelle).
+- **Guenstigere Ticks.** Zauber-Timer nutzen vorberechnete Basisnamen statt String-Parsing je Button und Tick und ueberspringen Einheiten ohne verfolgten HoT oder Schild. Buff-Icons verwenden ihre Arbeitstabellen wieder, laufen ueber eine vorsortierte Liste statt je Tick zu sortieren und aktualisieren bei Aenderung oder einmal je Sekunde statt fuenfmal. Der Angegriffenen-Abgleich entfaellt ganz, solange kein feindliches Ziel besteht und nichts markiert ist, und vergleicht Namen, bevor `UnitIsUnit` gerufen wird.
+- **Event-Salven zusammengefasst.** `PARTY_MEMBERS_CHANGED`, `UNIT_PET` und `RAID_ROSTER_UPDATE` setzen ein Kennzeichen, das im naechsten Frame einmal abgearbeitet wird, statt Plaketten und Raster bei jedem Event einer Salve neu aufzubauen.
+- **Mana-Ticker.** Die Pruefungen an/Mana/voll laufen bei Mana-Events und Optionswechseln statt jeden Frame; der Funke wird nur neu verankert, wenn er sich mindestens einen halben Pixel bewegt hat; Groessen und Sichtbarkeit sind zwischengespeichert.
+- **Combatlog.** Heilmuster laufen nur bei Buff-Events, das Absorb-Muster nur bei Treffer-Events, die das Wort absorbed enthalten. Smart Damage liest Schadenszeilen nur, solange es an ist und ein Ziel vermessen wird oder ein eigener Cast wartet; die Live-Zielzeile wird nur bei offenem Optionsfenster aktualisiert.
+- Der Animationsframe der Raid-Testgeister ist ausserhalb des Raid-Tests ausgeblendet, statt jeden Frame leer zu laufen.
+- **Client-API-Kompatibilitaet.** `IsSpellInRange` und `IsUsableSpell` gibt es im 1.12-Client nicht (sie kamen mit 2.0). Alle Reichweiten- und Nutzbarkeitspruefungen laufen jetzt ueber Wrapper, die sie nutzen, wenn ein Client sie anbietet, und sonst auf 1.12-Mittel zurueckfallen: Zauberreichweite aus dem Tooltip gegen `UnitXP("distanceBetween")`, wo vorhanden, sonst `CheckInteractDistance` (28 m, jenseits davon unentschieden statt rot); Manapreis aus dem Tooltip gegen das eigene Mana. Weil Clients sich unterscheiden (2.0-Form `(id, "spell", unit)` gegenueber der Turtle-Form `(name, unit)`), probiert das Addon beide Signaturen beim Login einmal per `pcall` aus und nutzt die verstandene; eine Funktion, die weiter Fehler wirft, wird zugunsten des Rueckfalls abgeschaltet. `/fbp` meldet die erkannte Form. Ohne das brach der neue zentrale Button-Durchgang beim Login ab.
+
+**Behoben**
+
+- Der alte Button-Handler deklarierte `this`, `event` und `arg1` als Parameter und verdeckte damit die 1.12-Globals; Reichweitenfaerbung und Cooldown-Uhr auf den Buttons haben im Spiel nie gearbeitet. Jetzt tun sie es.
+
+
+## 1.4.3 (2026-09-05)
 
 ### English
 
@@ -18,7 +59,7 @@
 
 **Fixed**
 
-- Own buffs were only read at login and on group changes: Vanilla fires `PLAYER_AURAS_CHANGED` for the player instead of `UNIT_AURA`. The addon now listens to it and re-reads your remaining time on every change, so recasting a buff on yourself resets its clock and cancelling it removes the icon. Also fixes confirmation of your own HoTs and shields on yourself.
+- Own buffs were only read at login and on group changes: Vanilla fires `PLAYER_AURAS_CHANGED` for the player instead of `UNIT_AURA`. The addon now listens to it and re-reads your remaining time on every change, and once a second in between (a refresh of a running buff fires no aura event at all), so recasting a buff on yourself resets its clock and cancelling it removes the icon. Refreshing a buff on someone else through a HealBox button is confirmed by the completed cast. Also fixes confirmation of your own HoTs and shields on yourself.
 - Raid cell names and percentages were hidden behind the health bar since the bar levels became relative; the texts now live on their own layer above the bars.
 - Buff icons stack two high left of the plate; elapsed clock quadrants are drawn dark on a layer above the icon so the split shows on every client. Raid cells use a 3 by 4 grid of 6 px icons (twelve slots); the new raid option *Show buffs* removes icons and strip together. `/fbp buffs` reports the grey count per icon.
 - Test modes extended: party ghost Brynn is dead, pet Bramble carries a disease, Dorn carries six and raid ghost 12 twelve buffs, raid ghost 27 a disease. Up to six buff icons per plate.
@@ -48,7 +89,7 @@
 
 **Behoben**
 
-- Eigene Buffs wurden nur beim Login und bei Gruppenwechseln gelesen: Vanilla feuert fuer den Spieler `PLAYER_AURAS_CHANGED` statt `UNIT_AURA`. Das Addon hoert jetzt darauf und liest die eigene Restzeit bei jeder Aenderung neu, sodass ein Neucast auf dich selbst die Uhr zuruecksetzt und ein Wegklicken das Icon entfernt. Behebt auch die Bestaetigung eigener HoTs und Schilde auf dir selbst.
+- Eigene Buffs wurden nur beim Login und bei Gruppenwechseln gelesen: Vanilla feuert fuer den Spieler `PLAYER_AURAS_CHANGED` statt `UNIT_AURA`. Das Addon hoert jetzt darauf und liest die eigene Restzeit bei jeder Aenderung neu, und dazwischen einmal je Sekunde (ein Refresh eines laufenden Buffs feuert gar kein Aura-Event), sodass ein Neucast auf dich selbst die Uhr zuruecksetzt und ein Wegklicken das Icon entfernt. Ein Refresh auf jemand anderen ueber einen HealBox-Button gilt mit dem abgeschlossenen Cast als bestaetigt. Behebt auch die Bestaetigung eigener HoTs und Schilde auf dir selbst.
 - Namen und Prozente der Raid-Zellen lagen seit den relativen Balken-Ebenen hinter dem Lebensbalken; die Texte liegen jetzt auf einer eigenen Ebene ueber den Balken.
 - Buff-Icons stapeln sich zu zweit links neben der Plakette; abgelaufene Uhr-Quadranten werden dunkel auf einer Ebene ueber dem Icon gezeichnet, damit die Teilung auf jedem Client sichtbar ist. Raid-Zellen nutzen ein 3-mal-4-Raster aus 6-px-Icons (zwoelf Plaetze); die neue Raid-Option *Buffs anzeigen* entfernt Icons und Streifen gemeinsam. `/fbp buffs` nennt je Icon die Zahl grauer Quadranten.
 - Testmodi erweitert: Partygeist Brynn ist tot, Pet Bramble traegt eine Krankheit, Dorn traegt sechs und Raid-Geist 12 zwoelf Buffs, Raid-Geist 27 eine Krankheit. Bis zu sechs Buff-Icons je Plakette.

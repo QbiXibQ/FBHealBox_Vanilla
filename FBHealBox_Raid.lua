@@ -725,6 +725,7 @@ end
 -- ==========================================================================
 
 function FBRaid_UpdateRoster()
+    FBRaidRosterDirty = false;
     local cfg = FBRaid_Cfg();
     FBRaidUnitCell = {};
     FBRaidMembers = 0;
@@ -737,6 +738,8 @@ function FBRaid_UpdateRoster()
             if (FBRaidCells[g] and FBRaidCells[g][pos]) then
                 local c = FBRaidCells[g][pos];
                 c.unit = nil; c.name = nil; c.ghost = nil; c.index = nil;
+                c.dispelKnown = nil; c.lastText = nil; c.lastMax = nil; c.colorKey = nil; c.manaShown = nil; c.lastMpMax = nil;
+                c.vHp = nil; c.vShield = nil; c.vInc = nil; c.vMp = nil;
                 c:Hide();
             end
         end
@@ -897,7 +900,35 @@ end
 -- [ Zelleninhalt ]
 -- ==========================================================================
 
-function FBRaid_UpdateCell(c)
+-- Zellenfarbe / Maxima / Text nur bei Aenderung setzen
+function FBRaid_SetColor(c, key, r, g, b, a)
+    if (c.colorKey == key) then return; end
+    c.colorKey = key;
+    c.HealthBar:SetStatusBarColor(r, g, b, a);
+end
+
+function FBRaid_SetValues(c, hp, shieldTop, incTop)
+    if (c.vHp ~= hp) then c.vHp = hp; c.HealthBar:SetValue(hp); end
+    if (c.vShield ~= shieldTop) then c.vShield = shieldTop; c.ShieldBar:SetValue(shieldTop); end
+    if (c.vInc ~= incTop) then c.vInc = incTop; c.IncHealBar:SetValue(incTop); end
+end
+
+function FBRaid_SetMax(c, hpMax)
+    if (c.lastMax == hpMax) then return; end
+    c.lastMax = hpMax;
+    c.HealthBar:SetMinMaxValues(0, hpMax);
+    c.ShieldBar:SetMinMaxValues(0, hpMax);
+    c.IncHealBar:SetMinMaxValues(0, hpMax);
+end
+
+function FBRaid_SetText(c, text)
+    if (c.lastText == text) then return; end
+    c.lastText = text;
+    if (text == false) then c.HPText:Hide(); else c.HPText:SetText(text); c.HPText:Show(); end
+end
+
+-- auraChanged: true bei UNIT_AURA, nur dann wird der Debuff neu gesucht
+function FBRaid_UpdateCell(c, auraChanged)
     if (not c) or (not c.unit) or (not c:IsShown()) then return; end
     local cfg = FBRaid_Cfg();
     local hp, hpMax = FBRaid_Health(c);
@@ -908,60 +939,59 @@ function FBRaid_UpdateCell(c)
         local key = "STATE_DEAD";
         if (state == "ghost") then key = "STATE_GHOST"; end
         if (state == "offline") then key = "STATE_OFFLINE"; end
-        c.HPText:SetText(FBT(key));
-        c.HPText:Show();
-        c.HealthBar:SetMinMaxValues(0, hpMax); c.HealthBar:SetValue(0);
-        c.HealthBar:SetStatusBarColor(0.5, 0.5, 0.5, 1);
-        c.ShieldBar:SetMinMaxValues(0, hpMax); c.ShieldBar:SetValue(0);
-        c.IncHealBar:SetMinMaxValues(0, hpMax); c.IncHealBar:SetValue(0);
-        c.ManaBar:Hide();
+        FBRaid_SetText(c, FBT(key));
+        FBRaid_SetMax(c, hpMax);
+        FBRaid_SetValues(c, 0, 0, 0);
+        FBRaid_SetColor(c, "state", 0.5, 0.5, 0.5, 1);
+        if (c.manaShown ~= false) then c.manaShown = false; c.ManaBar:Hide(); end
         return;
     end
 
     -- Leben und Schichten
-    c.HealthBar:SetMinMaxValues(0, hpMax);
-    c.HealthBar:SetValue(hp);
+    FBRaid_SetMax(c, hpMax);
     local inc, shield = FBRaid_Incoming(c);
-    local shieldTop = math.min(hpMax, hp + shield);
-    c.ShieldBar:SetMinMaxValues(0, hpMax);
-    c.ShieldBar:SetValue(shieldTop);
-    c.IncHealBar:SetMinMaxValues(0, hpMax);
-    c.IncHealBar:SetValue(math.min(hpMax, shieldTop + inc));
+    local shieldTop = hp + shield;
+    if (shieldTop > hpMax) then shieldTop = hpMax; end
+    local incTop = shieldTop + inc;
+    if (incTop > hpMax) then incTop = hpMax; end
+    FBRaid_SetValues(c, hp, shieldTop, incTop);
 
     -- HP-Text
     if (cfg.HPText == "percent") then
-        c.HPText:SetText(format("%d%%", math.floor(hp / hpMax * 100)));
-        c.HPText:Show();
+        FBRaid_SetText(c, math.floor(hp / hpMax * 100).."%");
     elseif (cfg.HPText == "deficit") then
         local def = hpMax - hp;
-        if (def > 0) then c.HPText:SetText("-"..def); else c.HPText:SetText(""); end
-        c.HPText:Show();
+        if (def > 0) then FBRaid_SetText(c, "-"..def); else FBRaid_SetText(c, ""); end
     else
-        c.HPText:Hide();
+        FBRaid_SetText(c, false);
     end
 
     -- Mana
     local mp, mpMax, hasMana = FBRaid_Mana(c);
     if (cfg.ManaBar == 1 and hasMana and mpMax > 0) then
-        c.ManaBar:SetMinMaxValues(0, mpMax);
-        c.ManaBar:SetValue(mp);
-        c.ManaBar:Show();
-    else
-        c.ManaBar:Hide();
+        if (c.lastMpMax ~= mpMax) then c.lastMpMax = mpMax; c.ManaBar:SetMinMaxValues(0, mpMax); end
+        if (c.vMp ~= mp) then c.vMp = mp; c.ManaBar:SetValue(mp); end
+        if (c.manaShown ~= true) then c.manaShown = true; c.ManaBar:Show(); end
+    elseif (c.manaShown ~= false) then
+        c.manaShown = false; c.ManaBar:Hide();
     end
 
-    -- Farbe: Dispel schlaegt HP-Stand
+    -- Farbe: Dispel schlaegt HP-Stand (Debuff nur bei Aura-Aenderung neu suchen)
+    if (auraChanged or (not c.dispelKnown) or c.ghost) then
+        c.dispelType = FBRaid_Dispel(c);
+        c.dispelKnown = true;
+    end
     local frac = hp / hpMax;
-    local dtype = FBRaid_Dispel(c);
+    local dtype = c.dispelType;
     if (dtype and FBDispelColors[dtype]) then
         local col = FBDispelColors[dtype];
-        c.HealthBar:SetStatusBarColor(col[1], col[2], col[3], col[4]);
+        FBRaid_SetColor(c, dtype, col[1], col[2], col[3], col[4]);
     elseif (frac > LowHP) then
-        c.HealthBar:SetStatusBarColor(0, 1, 0, 1);
+        FBRaid_SetColor(c, "green", 0, 1, 0, 1);
     elseif (frac > VeryLowHP) then
-        c.HealthBar:SetStatusBarColor(1, 0.9, 0, 1);
+        FBRaid_SetColor(c, "yellow", 1, 0.9, 0, 1);
     else
-        c.HealthBar:SetStatusBarColor(1, 0, 0, 1);
+        FBRaid_SetColor(c, "red", 1, 0, 0, 1);
     end
 end
 
@@ -987,7 +1017,8 @@ end
 
 -- Wer wird angegriffen (Hook "Aggro" des Kerns, tt = "targettarget" oder nil)
 function FBRaid_CheckAggro(tt)
-    if (not FBRaid_IsActive()) then return; end
+    if (not FBRaid_IsActive()) then return false; end
+    local any = false;
     for g = 1, FBRAID_GROUPS do
         if (FBRaidCells[g]) then
             for pos = 1, FBRAID_PER_GROUP do
@@ -996,16 +1027,18 @@ function FBRaid_CheckAggro(tt)
                     local flag = false;
                     if (HealBox.AggroMark == 1 and c:IsShown()) then
                         if (c.ghost) then flag = (c.ghost.aggro == true);
-                        elseif (tt) then flag = FBHealBox_UnitIsAggro(c.unit, tt); end
+                        elseif (tt) then flag = FBHealBox_UnitIsAggroFast(c.unit, c.name, tt); end
                     end
                     if (c.underAttack ~= flag) then
                         c.underAttack = flag;
                         FBRaid_ApplyBorder(c);
                     end
+                    if (flag) then any = true; end
                 end
             end
         end
     end
+    return any;
 end
 
 -- Platz links neben jeder Zelle fuer die Buff-Icons (aussen links)
@@ -1042,13 +1075,17 @@ function FBRaid_UpdateSpellTimers(now)
             for pos = 1, FBRAID_PER_GROUP do
                 local c = FBRaidCells[g][pos];
                 if (c) then
-                    local shown = on and c.unit and c:IsShown();
+                    -- ohne verfolgten HoT/Schild auf der Einheit nur einmal ausblenden
+                    local shown = on and c.unit and c:IsShown() and (c.ghost or FBHoTs[c.name] or FBShields[c.name]);
+                    if (not shown and not c.timersShown) then shown = nil; end
+                    c.timersShown = shown and true or false;
+                    if (shown == nil) then shown = false; end
                     for i = 1, FBRAID_MAX_BUTTONS do
                         local b = c.buttons[i];
                         if (shown and b:IsShown()) then
-                            local text, color = FBHealBox_SpellTimerFor(b.spellName, c.name, now, c.ghost, i);
-                            if (not text and b.spellNameR) then
-                                text, color = FBHealBox_SpellTimerFor(b.spellNameR, c.name, now, nil, i);
+                            local text, color = FBHealBox_SpellTimerFor(b.spellBase, c.name, now, c.ghost, i);
+                            if (not text and b.spellBaseR) then
+                                text, color = FBHealBox_SpellTimerFor(b.spellBaseR, c.name, now, nil, i);
                             end
                             FBHealBox_SetButtonTimer(b, text, color);
                         else
@@ -1067,7 +1104,27 @@ function FBRaid_UpdateCooldowns()
             for pos = 1, FBRAID_PER_GROUP do
                 local c = FBRaidCells[g][pos];
                 if (c) then
-                    for i = 1, FBRAID_MAX_BUTTONS do FBHealBox_UpdateButtonCooldown(c.buttons[i]); end
+                    for i = 1, FBRAID_MAX_BUTTONS do
+                        local b = c.buttons[i];
+                        b.cdKey = nil;
+                        FBHealBox_UpdateButtonState(b, "SPELL_UPDATE_COOLDOWN");
+                    end
+                end
+            end
+        end
+    end
+end
+
+-- Button-Zustaende der sichtbaren Zellen (Hook "ButtonStates")
+function FBRaid_UpdateButtonStates(event)
+    if (not FBRaid_IsActive()) then return; end
+    local nBtn = FBRaid_Cfg().Buttons or 0;
+    for g = 1, FBRAID_GROUPS do
+        if (FBRaidCells[g]) then
+            for pos = 1, FBRAID_PER_GROUP do
+                local c = FBRaidCells[g][pos];
+                if (c and c.unit and c:IsShown()) then
+                    for i = 1, nBtn do FBHealBox_UpdateButtonState(c.buttons[i], event); end
                 end
             end
         end
@@ -1130,7 +1187,10 @@ function FBRaid_SyncButtons()
                                 b.subIcon:Hide();
                             end
                         end
-                        FBHealBox_UpdateButtonCooldown(b);
+                        b.cdKey = nil;
+                        b.colorState = nil;
+                        if (b.spellName) then b.spellBase = FBPredict_SplitCast(b.spellName); else b.spellBase = nil; end
+                        if (b.spellNameR) then b.spellBaseR = FBPredict_SplitCast(b.spellNameR); else b.spellBaseR = nil; end
                     end
                 end
             end
@@ -1179,21 +1239,28 @@ FBRaidEventFrame:RegisterEvent("UNIT_MAXMANA");
 FBRaidEventFrame:RegisterEvent("UNIT_DISPLAYPOWER");
 FBRaidEventFrame:RegisterEvent("UNIT_AURA");
 
+FBRaidRosterDirty = false;
+
 FBRaidEventFrame:SetScript("OnEvent", function()
     if (event == "RAID_ROSTER_UPDATE" or event == "PARTY_MEMBERS_CHANGED" or event == "PLAYER_ENTERING_WORLD") then
-        FBRaid_UpdateRoster();
-        FBRaid_SyncButtons();
-        FBRaid_RefreshBuffBorders();
+        -- Salven (mehrere Roster-Events je Frame beim Zonen) auf einen
+        -- Durchlauf im naechsten Frame zusammenfassen
+        FBRaidRosterDirty = true;
         return;
     end
     if (FBRaidTestMode > 0) then return; end
     local c = FBRaidUnitCell[arg1];
     if (not c) then return; end
-    FBRaid_UpdateCell(c);
+    FBRaid_UpdateCell(c, (event == "UNIT_AURA"));
     if (event == "UNIT_AURA") then FBRaid_UpdateBuffBorder(c); end
 end);
 
 FBRaidEventFrame:SetScript("OnUpdate", function()
+    if (FBRaidRosterDirty) then
+        FBRaidRosterDirty = false;
+        FBRaid_UpdateRoster();
+        FBRaid_RefreshBuffBorders();
+    end
     FBRaidTickAccum = FBRaidTickAccum + (arg1 or 0);
     if (FBRaidTickAccum < FBRAID_TICK) then return; end
     FBRaidTickAccum = 0;
@@ -1204,8 +1271,8 @@ end);
 -- fuer den Raid-Test haengen wir uns an denselben Takt und fordern ihn an.
 FBRaidGhostAccum = 0;
 FBRaidEventFrame.ghostTicker = CreateFrame("Frame", nil, UIParent);
+FBRaidEventFrame.ghostTicker:Hide();   -- laeuft nur im Raid-Test (siehe FBRaid_SetTest)
 FBRaidEventFrame.ghostTicker:SetScript("OnUpdate", function()
-    if (FBRaidTestMode == 0) then return; end
     FBRaidGhostAccum = FBRaidGhostAccum + (arg1 or 0);
     if (FBRaidGhostAccum < 0.2) then return; end
     FBRaidGhostAccum = 0;
@@ -1223,6 +1290,8 @@ function FBRaid_SetTest(mode)
     mode = tonumber(mode) or 0;
     if (mode ~= 20 and mode ~= 40) then mode = 0; end
     FBRaidTestMode = mode;
+    -- Geister-Atmung nur im Test rechnen lassen
+    if (mode > 0) then FBRaidEventFrame.ghostTicker:Show(); else FBRaidEventFrame.ghostTicker:Hide(); end
     if (mode > 0) then
         FBRaid_BuildTestGhosts(mode);
         if (HealBox.Active ~= 1) then HealBox.Active = 1; end
@@ -1476,9 +1545,10 @@ FBHealBox_RegisterHook("ButtonsChanged", function()
     FBRaid_SyncButtons();
     return true;
 end);
-FBHealBox_RegisterHook("Aggro", function(tt) FBRaid_CheckAggro(tt); return true; end);
+FBHealBox_RegisterHook("Aggro", function(tt) return FBRaid_CheckAggro(tt); end);
 FBHealBox_RegisterHook("SpellTimers", function(now) FBRaid_UpdateSpellTimers(now); return true; end);
 FBHealBox_RegisterHook("Cooldowns", function() FBRaid_UpdateCooldowns(); return true; end);
+FBHealBox_RegisterHook("ButtonStates", function(ev) FBRaid_UpdateButtonStates(ev); return true; end);
 FBHealBox_RegisterHook("BuffIcons", function() FBRaid_UpdateBuffIcons(); return true; end);
 FBHealBox_RegisterHook("Status", function()
     local cfg = FBRaid_Cfg();

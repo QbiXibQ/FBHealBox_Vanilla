@@ -317,6 +317,8 @@ end
 
 -- Balken einsammeln: eigene Plakette und, falls vorhanden, eigene Raid-Zelle
 function FBTicker_CollectBars()
+    -- alte Funken verstecken, Zwischenspeicher neu
+    FBTicker_HideAll();
     FBTicker.sparks = {};
     if (FBHealBox1 and FBHealBox1.ManaBar) then
         table.insert(FBTicker.sparks, { bar = FBHealBox1.ManaBar, spark = FBTicker_SparkFor(FBHealBox1.ManaBar) });
@@ -333,21 +335,22 @@ end
 
 function FBTicker_HideAll()
     for _, e in ipairs(FBTicker.sparks) do
-        if (e.spark) then e.spark:Hide(); end
+        if (e.spark and e.shown ~= false) then e.shown = false; e.spark:Hide(); end
     end
 end
 
-function FBTicker_Draw()
+-- Torwaechter fuer das Zeichnen: wird nur bei Events und Optionswechseln
+-- neu bewertet (Mana-Events, Gestaltwechsel, Schalter), nicht jeden Frame.
+FBTicker.gate = false;
+function FBTicker_UpdateGate()
     local cfg = FBTicker_Cfg();
-    if (cfg.Enabled ~= 1) or (HealBox.Active ~= 1) or (not FBTicker_PlayerHasMana()) then
-        FBTicker_HideAll();
-        return;
-    end
-    -- Volles Mana: nichts zu regenerieren, Funke aus
-    if (FBTicker_ManaFull()) then
-        FBTicker_HideAll();
-        return;
-    end
+    FBTicker.gate = (cfg.Enabled == 1) and (HealBox.Active == 1)
+        and FBTicker_PlayerHasMana() and (not FBTicker_ManaFull());
+    if (not FBTicker.gate) then FBTicker_HideAll(); end
+end
+
+function FBTicker_Draw()
+    if (not FBTicker.gate) then return; end
     local frac, mode = FBTicker_Progress(GetTime());
     if (not frac) then
         FBTicker_HideAll();
@@ -355,7 +358,7 @@ function FBTicker_Draw()
     end
     local col = FBTICK_COLOR_TICK;
     if (mode == "fsr") then col = FBTICK_COLOR_FSR; end
-    local w = cfg.SparkW or 2;
+    local w = FBTicker_Cfg().SparkW or 2;
 
     for _, e in ipairs(FBTicker.sparks) do
         local bar, s = e.bar, e.spark;
@@ -364,20 +367,29 @@ function FBTicker_Draw()
                 local bw = bar:GetWidth() or 0;
                 local bh = bar:GetHeight() or 0;
                 if (bw > w and bh > 0) then
-                    s:SetWidth(w);
-                    s:SetHeight(bh);
+                    if (e.w ~= w or e.h ~= bh) then
+                        e.w = w; e.h = bh;
+                        s:SetWidth(w);
+                        s:SetHeight(bh);
+                    end
                     if (e.mode ~= mode) then
                         e.mode = mode;
                         s:SetTexture(col[1], col[2], col[3], col[4]);
                     end
-                    s:ClearAllPoints();
-                    s:SetPoint("LEFT", bar, "LEFT", frac * (bw - w), 0);
-                    s:Show();
+                    -- Anker nur setzen, wenn der Funke mindestens einen halben
+                    -- Pixel weitergewandert ist
+                    local x = frac * (bw - w);
+                    if (not e.x) or (math.abs(x - e.x) >= 0.5) then
+                        e.x = x;
+                        s:ClearAllPoints();
+                        s:SetPoint("LEFT", bar, "LEFT", x, 0);
+                    end
+                    if (not e.shown) then e.shown = true; s:Show(); end
                 else
-                    s:Hide();
+                    if (e.shown) then e.shown = false; s:Hide(); end
                 end
-            else
-                s:Hide();
+            elseif (e.shown) then
+                e.shown = false; s:Hide();
             end
         end
     end
@@ -396,17 +408,18 @@ FBTickerFrame:SetScript("OnEvent", function()
     if (event == "PLAYER_ENTERING_WORLD") then
         FBTicker_Reset();
         FBTicker_CollectBars();
+        FBTicker_UpdateGate();
         return;
     end
     if (arg1 ~= "player") then return; end
     if (event == "UNIT_MANA") then
         FBTicker_OnManaChanged();
-        if (FBTicker_ManaFull()) then FBTicker_HideAll(); end
     elseif (event == "UNIT_DISPLAYPOWER") then
         FBTicker_Reset();
     else
         FBTicker.lastMana = UnitMana("player");
     end
+    FBTicker_UpdateGate();
 end);
 FBTickerFrame:SetScript("OnUpdate", function()
     FBTicker_Draw();
@@ -463,6 +476,7 @@ function FBTicker_BuildOptions()
 
     FBTickerEnabledCheck = FBHealBox_CreateCheck("FBHealBoxTickerEnabledCheck", tab, 40, y, "TICK_ENABLED", "TICK_ENABLED_TIP", function()
         FBTicker_Cfg().Enabled = FBTickerEnabledCheck:GetChecked() and 1 or 0;
+        FBTicker_UpdateGate();
         FBTicker_Draw();
     end);
     FBTickerFSRCheck = FBHealBox_CreateCheck("FBHealBoxTickerFSRCheck", tab, 250, y, "TICK_FSR", "TICK_FSR_TIP", function()
@@ -514,8 +528,8 @@ end);
 FBHealBox_RegisterHook("Defaults", function() return FBTicker_ApplyDefaults(); end);
 FBHealBox_RegisterHook("SyncOptions", function() return FBTicker_SyncOptions(); end);
 FBHealBox_RegisterHook("ApplyLocale", function() return FBTicker_ApplyLocale(); end);
-FBHealBox_RegisterHook("UpdateNames", function() FBTicker_CollectBars(); return true; end);
-FBHealBox_RegisterHook("ActiveToggle", function() FBTicker_Draw(); return true; end);
+FBHealBox_RegisterHook("UpdateNames", function() FBTicker_CollectBars(); FBTicker_UpdateGate(); return true; end);
+FBHealBox_RegisterHook("ActiveToggle", function() FBTicker_UpdateGate(); FBTicker_Draw(); return true; end);
 FBHealBox_RegisterHook("Status", function()
     local state = FBT("TICK_UNSYNCED");
     local nextIn = 0;
@@ -535,6 +549,7 @@ FBHealBox_RegisterHook("Slash", function(msg)
         local cfg = FBTicker_Cfg();
         if (cfg.Enabled == 1) then cfg.Enabled = 0; else cfg.Enabled = 1; end
         FBTicker_SyncOptions();
+        FBTicker_UpdateGate();
         FBTicker_Draw();
         local key = "TICK_OFF";
         if (cfg.Enabled == 1) then key = "TICK_ON"; end

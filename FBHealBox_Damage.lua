@@ -338,6 +338,10 @@ function FBDmg_ParseLine(msg)
 end
 
 function FBDmg_OnCombatLog(msg)
+    -- Nur arbeiten, wenn Smart Damage an ist und es etwas zu lernen gibt
+    -- (Prozentziel wird vermessen oder ein eigener Cast wartet auf Treffer).
+    if (FBDmg_Cfg().Enabled ~= 1) then return; end
+    if (not FBDmgTargetName) and (not FBDmgLastCast) then return; end
     local victim, amount, spell, who = FBDmg_ParseLine(msg);
     if (not victim) then return; end
     FBDmg_NoteDamage(victim, amount);
@@ -494,7 +498,10 @@ function FBDmg_SourceText()
 end
 
 function FBDmg_UpdateSourceText()
-    if (FBDmgSourceText) then FBDmgSourceText:SetText(format(FBT("DMG_SRC"), FBDmg_SourceText())); end
+    -- nur, wenn das Optionsfenster offen ist (sonst je UNIT_HEALTH des Ziels umsonst)
+    if (FBDmgSourceText and panel and panel:IsVisible()) then
+        FBDmgSourceText:SetText(format(FBT("DMG_SRC"), FBDmg_SourceText()));
+    end
 end
 
 function FBDmg_UpdateSpellText()
@@ -562,6 +569,12 @@ function FBDmg_BuildOptions()
     FBDmg_UpdateSourceText();
     FBDmg_UpdateSpellText();
     FBDmg_SyncOptions();
+    -- beim Oeffnen des Fensters die Zielzeile auffrischen (Vor-Hook auf OnShow)
+    local prevShow = panel:GetScript("OnShow");
+    panel:SetScript("OnShow", function()
+        if (prevShow) then prevShow(); end
+        FBDmg_UpdateSourceText();
+    end);
 end
 
 function FBDmg_SyncOptions()

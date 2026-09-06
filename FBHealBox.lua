@@ -17,6 +17,10 @@
 --     Anzeige, Debuff-Icon mit Stackzahl
 --   * v1.4.2: Hook-Schnittstelle fuer Module (FBHealBox_RegisterHook,
 --     FBHealBox_AddOptionsTab). Der Raidmodus lebt in FBHealBox_Raid.lua.
+--   * v1.4.4: Leistungsdurchgang ohne Funktionsaenderung: zentrale Button-
+--     Zustaende statt 260 Event-Handler, Anzeige-Zwischenspeicher, Aura-Scan
+--     je Frame nur einmal, Event-Salven zusammengefasst, Ticker per Event
+--     gesteuert, Combatlog-Parser nach Eventklasse. Details im CHANGELOG.
 --   * v1.4.3: Mana-Ticker-Modul (FBHealBox_Ticker.lua), Smart-Damage-Modul
 --     (FBHealBox_Damage.lua, Abrangen von Angriffszaubern), Reiterknoepfe
 --     schmaler, damit vier Reiter ins Optionsfenster passen, Smart Healing
@@ -73,7 +77,7 @@ HealBox = {
 -- feuert ADDON_LOADED fuer uns.
 FBADDON_NAME   = "Heal Box Vanilla";
 FBADDON_FOLDER = "FBHealBox";
-HealBoxVersion = "|cFFFFFF00v1.4.3|r"; 
+HealBoxVersion = "|cFFFFFF00v1.4.4|r"; 
 
 -- ==========================================================================
 -- [ Lokalisierung / Localization ]
@@ -1090,6 +1094,7 @@ function FBHealBox_OnLoad()
     this:RegisterEvent("UNIT_HEALTH"); 
     this:RegisterEvent("UNIT_MAXHEALTH"); 
     this:RegisterEvent("SPELL_UPDATE_COOLDOWN"); 
+    this:RegisterEvent("SPELL_UPDATE_USABLE"); 
     this:RegisterEvent("VARIABLES_LOADED"); 
     this:RegisterEvent("UNIT_AURA"); 
     -- Begleiter kommen und gehen (Beschwoerung, Wegschicken, Tod)
@@ -1216,6 +1221,8 @@ function FBLoadSpellData()
     
     -- Tooltips auswerten: welche dieser Zauber sind HoTs bzw. Absorb-Schilde?
     FBPredict_BuildWatch();
+    FBSpellNameCache = {};
+    FBHealBox_ProbeAPIs();
     -- Doppelt gezaehlte Absorb-Lernwerte (Versionen vor 1.4.2) verwerfen
     FBPredict_SanitizeMemory();
     -- Watch ist neu: vorhandene Buffs sofort einlesen
@@ -1755,9 +1762,20 @@ function FBHealBox_OnEvent(event, arg1)
         FBUpdateNames(); 
     end 
     
-    -- Gruppe oder Begleiter geaendert -> Plaketten neu belegen und anordnen
+    -- Button-Farben und Cooldowns: ein zentraler Durchgang statt 260 Handler.
+    -- Mehrere dieser Events je Frame (jede Manaaenderung feuert USABLE)
+    -- werden im naechsten OnUpdate zu einem Durchgang zusammengefasst.
+    if (event == "SPELL_UPDATE_USABLE") then 
+        FBBtnStatesDirty = "SPELL_UPDATE_USABLE"; 
+    elseif (event == "SPELL_UPDATE_COOLDOWN") then 
+        if (FBBtnStatesDirty ~= "SPELL_UPDATE_USABLE") then FBBtnStatesDirty = "SPELL_UPDATE_COOLDOWN"; end 
+    end 
+    
+    -- Gruppe oder Begleiter geaendert -> Plaketten neu belegen und anordnen.
+    -- Salven (mehrere Events je Frame beim Zonen) werden auf einen Durchlauf
+    -- im naechsten Frame zusammengefasst.
     if (event == "PARTY_MEMBERS_CHANGED" or event == "UNIT_PET") then 
-        FBUpdateNames(); 
+        FBNamesDirty = true; 
     end 
     
     if (event == "UNIT_NAME_UPDATE") then 
@@ -1774,7 +1792,7 @@ function FBHealBox_OnEvent(event, arg1)
         or event == "UNIT_MANA" or event == "UNIT_MAXMANA" or event == "UNIT_DISPLAYPOWER") then 
         local p = FBUnitSlot[arg1]; 
         if (p and FBPartyFrame[p]) then 
-            FBHealBox_UpdateUnit(arg1, FBPartyFrame[p]); 
+            FBHealBox_UpdateUnit(arg1, FBPartyFrame[p], (event == "UNIT_AURA")); 
             if (event == "UNIT_AURA") then FBHealBox_CheckWatchBuff(arg1, FBPartyFrame[p]); end 
         end 
     end 
@@ -2315,9 +2333,9 @@ function FBHealBoxCreateButton(FBButtonName, FBParentFrame, xoffset, yoffset, te
         end
     end);
     
-    button:RegisterEvent("SPELL_UPDATE_USABLE"); 
-    button:RegisterEvent("SPELL_UPDATE_COOLDOWN"); 
-    button:SetScript("OnEvent", HealBoxButton_OnEvent); 
+    -- Kein eigener Event-Handler je Button mehr: der Kern aktualisiert alle
+    -- sichtbaren Buttons zentral in FBHealBox_UpdateButtonStates (ein
+    -- IsUsableSpell/GetSpellCooldown je Zauber statt je Button).
     return button; 
 end 
 
@@ -2386,7 +2404,13 @@ end
 
 function FBUpdateNames() 
     if (not FBHealBox1) then return; end 
-    for p = 1, FBSlotCount do FBPartyFrame[p]:Hide(); end 
+    for p = 1, FBSlotCount do 
+        local f = FBPartyFrame[p]; 
+        f:Hide(); 
+        -- Einheit kann gewechselt haben: Zwischenspeicher der Anzeige leeren
+        f.dispelKnown = nil; f.lastText = nil; f.lastMax = nil; f.colorKey = nil; f.manaShown = nil; 
+        f.vHp = nil; f.vShield = nil; f.vInc = nil; f.vMp = nil; 
+    end 
     
     if (HealBox.Active == 1) then FBHealBox1:Show(); end 
     FBHealBox1.NameText:SetText(strupper(FBUnitName("player") or "")); 
@@ -2408,6 +2432,7 @@ function FBUpdateNames()
     FBHealBox_CheckLOSAll(); 
     FBHealBox_RefreshAllBars(); 
     FBHealBox_RunHook("UpdateNames"); 
+    FBHealBox_UpdateButtonStates("SPELL_UPDATE_USABLE"); 
 end 
 
 -- Name in Klassenfarbe (Spieler) bzw. Pet-Farbe (Begleiter)
@@ -2470,6 +2495,33 @@ function FBHealBox_UpdatePlateActionLabels()
     end 
 end 
 
+-- Buff-Texturen einer Einheit, je Frame nur einmal gelesen: Vorhersage-Scan
+-- und Buff-Wache brauchen dieselbe Liste im selben Event.
+FBBuffScanMemo = {};   -- [unit] = { t, tex = {}, list = {}, n }
+function FBHealBox_UnitBuffs(unit)
+    local now = GetTime();
+    local m = FBBuffScanMemo[unit];
+    if (m and m.t == now) then return m.tex, m.list, m.n; end
+    if (not m) then m = { tex = {}, list = {}, n = 0 }; FBBuffScanMemo[unit] = m; end
+    for k in pairs(m.tex) do m.tex[k] = nil; end
+    local i = 1;
+    while (i <= 32) do
+        local tex = UnitBuff(unit, i);
+        if (not tex) then break; end
+        tex = strupper(tex);
+        m.tex[tex] = true;
+        m.list[i] = tex;
+        i = i + 1;
+    end
+    m.n = i - 1;
+    m.t = now;
+    return m.tex, m.list, m.n;
+end
+
+-- Buffname je Textur, einmal per Tooltip gelesen und dann gemerkt: erspart
+-- bis zu 32 Tooltip-Scans je UNIT_AURA bei Einheiten ohne den Buff.
+FBBuffNameByTex = {};
+
 -- Name eines Buffs ueber den Scan-Tooltip lesen
 function FBHealBox_BuffName(unit, index) 
     if (not FBPredictTip) or (not FBPredictTip.SetUnitBuff) then return nil; end 
@@ -2492,23 +2544,19 @@ function FBHealBox_HasWatchBuff(unit)
     local wantTex = FBBuffSpells[want] and strupper(FBBuffSpells[want].icon or ""); 
     local altTex  = alt and FBBuffSpells[alt] and strupper(FBBuffSpells[alt].icon or ""); 
     
-    local i = 1; 
-    while (i <= 32) do 
-        local tex = UnitBuff(unit, i); 
-        if (not tex) then break; end 
-        tex = strupper(tex); 
-        if (wantTex and tex == wantTex) then return true; end 
-        if (altTex and tex == altTex) then return true; end 
-        i = i + 1; 
-    end 
-    -- Textur nicht dabei: Namen pruefen (faengt fremde Gruppenversionen)
-    i = 1; 
-    while (i <= 32) do 
-        local tex = UnitBuff(unit, i); 
-        if (not tex) then break; end 
-        local name = FBHealBox_BuffName(unit, i); 
+    local texSet, list, n = FBHealBox_UnitBuffs(unit); 
+    if (wantTex and texSet[wantTex]) then return true; end 
+    if (altTex and texSet[altTex]) then return true; end 
+    -- Textur nicht dabei: Namen pruefen (faengt fremde Gruppenversionen).
+    -- Je Textur nur einmal per Tooltip, danach aus dem Speicher.
+    for i = 1, n do 
+        local tex = list[i]; 
+        local name = FBBuffNameByTex[tex]; 
+        if (name == nil) then 
+            name = FBHealBox_BuffName(unit, i) or false; 
+            FBBuffNameByTex[tex] = name; 
+        end 
         if (name and (name == want or name == alt)) then return true; end 
-        i = i + 1; 
     end 
     return false; 
 end 
@@ -2554,12 +2602,31 @@ end
 
 function FBHealBox_UnitIsAggro(unit, tt) 
     if (not tt) or (not unit) then return false; end 
-    if (UnitIsUnit) then return (UnitIsUnit(tt, unit) == 1) or (UnitIsUnit(tt, unit) == true); end 
+    if (UnitIsUnit) then 
+        local r = UnitIsUnit(tt, unit); 
+        return (r == 1) or (r == true); 
+    end 
     return (UnitName(tt) == UnitName(unit)); 
+end 
+
+FBAggroAny = false;   -- ist irgendwo ein roter Rahmen gesetzt?
+
+-- Name des Angegriffenen je Tick einmal lesen; UnitIsUnit nur noch zur
+-- Bestaetigung bei Namensgleichheit (statt je Plakette und Zelle)
+FBAggroName = nil;
+
+function FBHealBox_UnitIsAggroFast(unit, unitName, tt) 
+    if (not tt) or (not unitName) then return false; end 
+    if (FBAggroName ~= unitName) then return false; end 
+    return FBHealBox_UnitIsAggro(unit, tt); 
 end 
 
 function FBHealBox_CheckAggroAll() 
     local tt = FBHealBox_AggroUnit(); 
+    -- Kein feindliches Ziel und nichts markiert: nichts zu tun (haeufigster Fall)
+    if (not tt) and (not FBAggroAny) and (not FBTestMode) then return; end 
+    FBAggroName = tt and UnitName(tt); 
+    local any = false; 
     for p = 1, FBSlotCount do 
         local f = FBPartyFrame[p]; 
         if (f) then 
@@ -2568,15 +2635,18 @@ function FBHealBox_CheckAggroAll()
             local g = FBTest_Ghost(unit); 
             if (HealBox.AggroMark == 1 and f:IsShown()) then 
                 if (g) then flag = (g.aggro == true); 
-                elseif (tt and FBUnitExists(unit)) then flag = FBHealBox_UnitIsAggro(unit, tt); end 
+                elseif (tt and FBUnitExists(unit)) then flag = FBHealBox_UnitIsAggroFast(unit, FBUnitName(unit), tt); end 
             end 
             if (f.underAttack ~= flag) then 
                 f.underAttack = flag; 
                 FBHealBox_ApplyBorder(f); 
             end 
+            if (flag) then any = true; end 
         end 
     end 
-    FBHealBox_RunHook("Aggro", tt); 
+    -- Module (Raid-Zellen) melden ueber den Rueckgabewert, ob sie noch markieren
+    if (FBHealBox_RunHook("Aggro", tt)) then any = true; end 
+    FBAggroAny = any; 
 end 
 
 -- ==========================================================================
@@ -2588,15 +2658,15 @@ end
 -- werden. Module: Hook "SpellTimers".
 -- ==========================================================================
 
--- Text und Farbe fuer einen Button, oder nil
-function FBHealBox_SpellTimerFor(castString, unitName, now, g, btnIndex) 
+-- Text und Farbe fuer einen Button, oder nil. base ist der Zaubername ohne
+-- Rang (einmal in ButtonsChanged berechnet, nicht je Tick).
+function FBHealBox_SpellTimerFor(base, unitName, now, g, btnIndex) 
     if (g) then 
         if (btnIndex == 1 and g.hotLeft) then return tostring(g.hotLeft), FBTIMER_COLOR_HOT; end 
         if (btnIndex == 2 and g.shieldLeft) then return tostring(g.shieldLeft), FBTIMER_COLOR_SHIELD; end 
         return nil; 
     end 
-    if (not castString) or (not unitName) then return nil; end 
-    local base = FBPredict_SplitCast(castString); 
+    if (not base) or (not unitName) then return nil; end 
     local hots = FBHoTs[unitName]; 
     local e = hots and hots[base]; 
     if (e and e.expires > now) then 
@@ -2624,10 +2694,11 @@ end
 function FBHealBox_SetButtonTimer(b, text, color) 
     if (not b) or (not b.timer) then return; end 
     if (text) then 
-        b.timer:SetText(text); 
-        b.timer:SetTextColor(color[1], color[2], color[3], 1); 
-        b.timer:Show(); 
-    else 
+        if (b.timerText ~= text) then b.timerText = text; b.timer:SetText(text); end 
+        if (b.timerColor ~= color) then b.timerColor = color; b.timer:SetTextColor(color[1], color[2], color[3], 1); end 
+        if (not b.timerOn) then b.timerOn = true; b.timer:Show(); end 
+    elseif (b.timerOn) then 
+        b.timerOn = false; b.timerText = nil; 
         b.timer:Hide(); 
     end 
 end 
@@ -2642,19 +2713,28 @@ function FBHealBox_UpdateSpellTimers()
             local shown = on and f:IsShown() and FBUnitExists(unit); 
             local name = shown and FBUnitName(unit); 
             local g = shown and FBTest_Ghost(unit); 
-            for i = 1, MaxButtonCount do 
-                local b = FBPartyTable[p][i]; 
-                if (b) then 
-                    if (shown and b:IsShown()) then 
-                        local text, color = FBHealBox_SpellTimerFor(b.spellName, name, now, g, i); 
-                        if (not text and b.spellNameR) then 
-                            text, color = FBHealBox_SpellTimerFor(b.spellNameR, name, now, nil, i); 
+            -- Ohne eigenen HoT oder Schild auf dieser Einheit gibt es nichts
+            -- anzuzeigen: dann nur einmal alle Timer ausblenden und weiter.
+            local active = shown and (g or FBHoTs[name] or FBShields[name]); 
+            if (active) then 
+                f.timersShown = true; 
+                for i = 1, MaxButtonCount do 
+                    local b = FBPartyTable[p][i]; 
+                    if (b) then 
+                        if (b:IsShown()) then 
+                            local text, color = FBHealBox_SpellTimerFor(b.spellBase, name, now, g, i); 
+                            if (not text and b.spellBaseR) then 
+                                text, color = FBHealBox_SpellTimerFor(b.spellBaseR, name, now, nil, i); 
+                            end 
+                            FBHealBox_SetButtonTimer(b, text, color); 
+                        else 
+                            FBHealBox_SetButtonTimer(b, nil); 
                         end 
-                        FBHealBox_SetButtonTimer(b, text, color); 
-                    else 
-                        FBHealBox_SetButtonTimer(b, nil); 
                     end 
                 end 
+            elseif (f.timersShown) then 
+                f.timersShown = false; 
+                for i = 1, MaxButtonCount do FBHealBox_SetButtonTimer(FBPartyTable[p][i], nil); end 
             end 
         end 
     end 
@@ -2665,25 +2745,25 @@ end
 -- [ Cooldown-Uhr ]
 -- ==========================================================================
 
+-- Cooldown eines Buttons frisch setzen (nach Umbelegung)
 function FBHealBox_UpdateButtonCooldown(b) 
     if (not b) or (not b.cooldown) or (not CooldownFrame_SetTimer) then return; end 
-    if (HealBox.Cooldowns ~= 1) or (not b.id) then 
+    b.cdKey = nil; 
+    if (not b.id) then 
         CooldownFrame_SetTimer(b.cooldown, 0, 0, 0); 
+        b.cdKey = "off"; 
         return; 
     end 
-    local start, duration, enable = GetSpellCooldown(b.id, BOOKTYPE_SPELL); 
-    if (start and duration and duration > FBCD_MIN_DURATION) then 
-        CooldownFrame_SetTimer(b.cooldown, start, duration, enable); 
-    else 
-        CooldownFrame_SetTimer(b.cooldown, 0, 0, 0); 
-    end 
+    FBBtnPass = FBBtnPass + 1; 
+    FBHealBox_UpdateButtonState(b, "SPELL_UPDATE_COOLDOWN"); 
 end 
 
 function FBHealBox_UpdateAllCooldowns() 
+    FBBtnPass = FBBtnPass + 1; 
     for p = 1, FBSlotCount do 
         for i = 1, MaxButtonCount do 
             local b = FBPartyTable[p] and FBPartyTable[p][i]; 
-            if (b) then FBHealBox_UpdateButtonCooldown(b); end 
+            if (b) then b.cdKey = nil; FBHealBox_UpdateButtonState(b, "SPELL_UPDATE_COOLDOWN"); end 
         end 
     end 
     FBHealBox_RunHook("Cooldowns"); 
@@ -2772,6 +2852,145 @@ function FBHealBox_CheckLOSAll()
 end
 
 -- ==========================================================================
+-- [ API-Fähigkeiten des Clients ]
+--
+-- IsSpellInRange und IsUsableSpell gibt es erst seit TBC (2.0). Der
+-- 1.12-Client hat sie nicht; ein Aufruf bricht mit "attempt to call global"
+-- ab. Diese Wrapper nutzen sie, wenn vorhanden (SuperWoW-artige Clients),
+-- und fallen sonst auf 1.12-Mittel zurueck:
+--   Reichweite: UnitXP("distanceBetween") gegen die Tooltip-Reichweite
+--               ("40 yd range"), sonst CheckInteractDistance (28 m). Was
+--               jenseits von 28 m nicht entscheidbar ist, gilt als unbekannt
+--               (kein Rot), nicht als ausser Reichweite.
+--   Nutzbarkeit: Manapreis aus dem Tooltip ("175 Mana") gegen das eigene Mana.
+-- ==========================================================================
+
+-- Signaturen unterscheiden sich je Client: 2.0 kennt (id, "spell", unit),
+-- der Turtle-Client (name_oder_id, unit). Beim Einstieg wird mit pcall
+-- ausprobiert, welche Form der Client versteht; keine -> 1.12-Rueckfall.
+FBAPI_SpellRange  = false;   -- wird in FBHealBox_ProbeAPIs gesetzt
+FBAPI_RangeForm   = nil;     -- 3 = (id, "spell", unit), 2 = (name, unit)
+FBAPI_UsableSpell = false;
+FBAPI_UsableForm  = nil;     -- 2 = (id, "spell"), 1 = (name)
+FBAPI_Probed      = false;
+FBSpellRangeCache = {};   -- [bookID] = Reichweite in Metern oder false
+FBSpellCostCache  = {};   -- [bookID] = Manapreis oder false
+FBSpellNameCache  = {};   -- [bookID] = Zaubername (fuer die Namensformen)
+
+function FBHealBox_SpellNameOf(id)
+    local n = FBSpellNameCache[id];
+    if (n) then return n; end
+    n = GetSpellName(id, BOOKTYPE_SPELL) or "";
+    FBSpellNameCache[id] = n;
+    return n;
+end
+
+-- Einmalig pruefen, welche Reichweiten-/Nutzbarkeitsfunktionen der Client
+-- in welcher Form anbietet. Braucht ein gefuelltes Zauberbuch (Index 1).
+function FBHealBox_ProbeAPIs()
+    FBAPI_Probed = true;
+    FBAPI_SpellRange = false; FBAPI_RangeForm = nil;
+    FBAPI_UsableSpell = false; FBAPI_UsableForm = nil;
+    if (type(IsSpellInRange) == "function") then
+        local ok = pcall(IsSpellInRange, 1, BOOKTYPE_SPELL, "player");
+        if (ok) then
+            FBAPI_SpellRange = true; FBAPI_RangeForm = 3;
+        else
+            ok = pcall(IsSpellInRange, FBHealBox_SpellNameOf(1), "player");
+            if (ok) then FBAPI_SpellRange = true; FBAPI_RangeForm = 2; end
+        end
+    end
+    if (type(IsUsableSpell) == "function") then
+        local ok = pcall(IsUsableSpell, 1, BOOKTYPE_SPELL);
+        if (ok) then
+            FBAPI_UsableSpell = true; FBAPI_UsableForm = 2;
+        else
+            ok = pcall(IsUsableSpell, FBHealBox_SpellNameOf(1));
+            if (ok) then FBAPI_UsableSpell = true; FBAPI_UsableForm = 1; end
+        end
+    end
+end
+
+-- Reichweite eines Zaubers aus dem Tooltip (Meter) oder nil
+function FBHealBox_SpellRangeYards(id)
+    local c = FBSpellRangeCache[id];
+    if (c ~= nil) then return c or nil; end
+    local txt = FBPredict_TooltipText and FBPredict_TooltipText(id) or "";
+    local _, _, yd = string.find(txt, "(%d+)%s+[Yy]d");
+    if (not yd) then _, _, yd = string.find(txt, "(%d+)%s+[Mm]eter"); end
+    c = yd and tonumber(yd) or false;
+    FBSpellRangeCache[id] = c;
+    return c or nil;
+end
+
+-- Manapreis eines Zaubers aus dem Tooltip oder nil (Prozentkosten: nil)
+function FBHealBox_SpellManaCost(id)
+    local c = FBSpellCostCache[id];
+    if (c ~= nil) then return c or nil; end
+    local txt = FBPredict_TooltipText and FBPredict_TooltipText(id) or "";
+    local _, _, cost = string.find(txt, "(%d+)%s+Mana");
+    c = cost and tonumber(cost) or false;
+    FBSpellCostCache[id] = c;
+    return c or nil;
+end
+
+-- 1 = in Reichweite, 0 = ausserhalb, nil = nicht entscheidbar
+function FBHealBox_SpellInRange(id, unit)
+    if (not id) or (not unit) then return nil; end
+    if (not FBAPI_Probed) then FBHealBox_ProbeAPIs(); end
+    if (FBAPI_SpellRange) then
+        local ok, r;
+        if (FBAPI_RangeForm == 3) then
+            ok, r = pcall(IsSpellInRange, id, BOOKTYPE_SPELL, unit);
+        else
+            ok, r = pcall(IsSpellInRange, FBHealBox_SpellNameOf(id), unit);
+        end
+        if (ok) then
+            if (r == 1 or r == true) then return 1; end
+            if (r == 0 or r == false) then return 0; end
+            return nil;
+        end
+        -- Client wirft doch: Funktion abschalten, Rueckfall nutzen
+        FBAPI_SpellRange = false;
+    end
+    local range = FBHealBox_SpellRangeYards(id);
+    if (UnitXP and range) then
+        local ok, d = pcall(UnitXP, "distanceBetween", "player", unit);
+        if (ok and type(d) == "number") then
+            if (d <= range) then return 1; else return 0; end
+        end
+    end
+    if (CheckInteractDistance) then
+        if (CheckInteractDistance(unit, 4)) then return 1; end      -- naeher als 28 m
+        if (range and range <= 28) then return 0; end               -- Nahzauber: sicher ausserhalb
+        return nil;                                                  -- 28 bis 40 m: unbekannt
+    end
+    return nil;
+end
+
+-- isUsable, noMana (wie IsUsableSpell)
+function FBHealBox_SpellUsable(id)
+    if (not id) then return 1, nil; end
+    if (not FBAPI_Probed) then FBHealBox_ProbeAPIs(); end
+    if (FBAPI_UsableSpell) then
+        local ok, u, nm;
+        if (FBAPI_UsableForm == 2) then
+            ok, u, nm = pcall(IsUsableSpell, id, BOOKTYPE_SPELL);
+        else
+            ok, u, nm = pcall(IsUsableSpell, FBHealBox_SpellNameOf(id));
+        end
+        if (ok) then return u, nm; end
+        FBAPI_UsableSpell = false;
+    end
+    local cost = FBHealBox_SpellManaCost(id);
+    if (cost) then
+        local mp = UnitMana("player") or 0;
+        if (UnitPowerType and UnitPowerType("player") == 0 and mp < cost) then return nil, 1; end
+    end
+    return 1, nil;
+end
+
+-- ==========================================================================
 -- [ Reichweiten-Fading ]
 --
 -- Reichweite ist kein Event, also alle FBRANGE_INTERVAL Sekunden pruefen:
@@ -2796,7 +3015,7 @@ function FBHealBox_UnitInRange(unit)
     if (not UnitExists(unit)) then return true; end 
     local id = FBHealBox_RangeSpellID(); 
     if (id) then 
-        local r = IsSpellInRange(id, BOOKTYPE_SPELL, unit); 
+        local r = FBHealBox_SpellInRange(id, unit); 
         if (r == 0) then return false; end 
         if (r == 1) then return true; end 
     end 
@@ -3345,6 +3564,7 @@ function FBHealBoxCreateAddonOptionFrame()
     
     DebuffIconCheck = FBHealBox_CreateCheck("FBHealBoxDebuffIconCheck", tabGeneral, 40, cy - 90, "DEBUFFICON", "DEBUFFICON_TIP", function() 
         HealBox.DebuffIcon = DebuffIconCheck:GetChecked() and 1 or 0; 
+        FBHealBox_InvalidateUnitCaches(); 
         FBHealBox_RefreshAllBars(); 
     end); 
     DebuffIconCheck:SetChecked(1); 
@@ -3568,11 +3788,16 @@ function FBHealBoxButtonsChanged()
                     end 
                 end 
                 if (i <= (HealBox.MaxButtons or 0)) then b:Show(); end 
-                FBHealBox_UpdateButtonCooldown(b); 
+                b.cdKey = nil; 
+                b.colorState = nil; 
+                -- Basisnamen fuer die Timer einmal berechnen statt je Tick
+                if (b.spellName) then b.spellBase = FBPredict_SplitCast(b.spellName); else b.spellBase = nil; end 
+                if (b.spellNameR) then b.spellBaseR = FBPredict_SplitCast(b.spellNameR); else b.spellBaseR = nil; end 
             end 
         end 
     end 
     FBHealBox_RunHook("ButtonsChanged"); 
+    FBHealBox_UpdateButtonStates("SPELL_UPDATE_USABLE"); 
 end 
 
 -- Buttons neu verketten: erster Button haengt an der Plakette, jeder weitere
@@ -3708,28 +3933,92 @@ function FBGetSpellID(spell, rank, debug)
     return spellID, highestRank; 
 end 
 
-function HealBoxButton_OnEvent(this, event, arg1) 
-    if (HealBox.Active == 0) then return 0; end 
-    if (event == "SPELL_UPDATE_COOLDOWN" or event == "SPELL_UPDATE_USABLE") then 
-        FBHealBox_UpdateButtonCooldown(this); 
-    end 
-    if event=="SPELL_UPDATE_USABLE" then 
-        if (this.id) then 
-            local isUsable, noMana = IsUsableSpell(this.id, BOOKTYPE_SPELL); 
-            icon = getglobal(this:GetName()); 
-            if isUsable then 
-                this.icon:SetVertexColor(1.0, 1.0, 1.0); 
-            elseif noMana then 
-                this.icon:SetVertexColor(0.5, 0.5, 1.0); 
-            else 
-                this.icon:SetVertexColor(0.3, 0.3, 0.3); 
-            end 
-            local inRange = IsSpellInRange(this.id, BOOKTYPE_SPELL, this.TargetUnit); 
-            if (inRange == 0) then  
-                this.icon:SetVertexColor(1.0, 0.3, 0.3); 
-            end 
-        end 
-    end 
+-- ==========================================================================
+-- [ Button-Zustaende zentral ]
+--
+-- Frueher hatte jeder der bis zu 260 Buttons einen eigenen Event-Handler
+-- fuer SPELL_UPDATE_USABLE/COOLDOWN (der zudem "this"/"event" als Parameter
+-- deklarierte und damit die 1.12-Globals verdeckte, also nie etwas tat).
+-- Jetzt laeuft ein Durchgang ueber die sichtbaren Buttons; Nutzbarkeit und
+-- Cooldown werden je Zauber-ID nur einmal abgefragt, die Reichweite je
+-- Button (haengt vom Ziel ab). Farben werden nur gesetzt, wenn sich der
+-- Zustand aendert.
+-- ==========================================================================
+
+FBBtnUsableCache = {};   -- [id] = { pass, st }   st = "ok" | "mana" | "no"
+FBBtnCdCache     = {};   -- [id] = { pass, start, duration, enable }
+FBBtnPass        = 0;    -- Durchgangszaehler: Eintraege eines aelteren Durchgangs gelten als leer
+
+function FBHealBox_ButtonUsable(id)
+    local e = FBBtnUsableCache[id];
+    if (e and e.pass == FBBtnPass) then return e.st; end
+    if (not e) then e = {}; FBBtnUsableCache[id] = e; end
+    local isUsable, noMana = FBHealBox_SpellUsable(id);
+    if (isUsable) then e.st = "ok"; elseif (noMana) then e.st = "mana"; else e.st = "no"; end
+    e.pass = FBBtnPass;
+    return e.st;
+end
+
+function FBHealBox_ButtonCooldown(id)
+    local cd = FBBtnCdCache[id];
+    if (cd and cd.pass == FBBtnPass) then return cd; end
+    if (not cd) then cd = {}; FBBtnCdCache[id] = cd; end
+    local start, duration, enable = GetSpellCooldown(id, BOOKTYPE_SPELL);
+    cd[1] = start or 0; cd[2] = duration or 0; cd[3] = enable or 0;
+    cd.pass = FBBtnPass;
+    return cd;
+end
+
+-- Einen sichtbaren Button nachfuehren. Nutzbarkeit/Reichweite nur bei USABLE.
+function FBHealBox_UpdateButtonState(b, event)
+    if (not b) or (not b.id) then return; end
+    if (b.cooldown and CooldownFrame_SetTimer) then
+        local key = "off";
+        local cd = nil;
+        if (HealBox.Cooldowns == 1) then
+            cd = FBHealBox_ButtonCooldown(b.id);
+            if (cd[2] > FBCD_MIN_DURATION) then key = cd[1].."|"..cd[2]; end
+        end
+        if (b.cdKey ~= key) then
+            b.cdKey = key;
+            if (key == "off") then CooldownFrame_SetTimer(b.cooldown, 0, 0, 0);
+            else CooldownFrame_SetTimer(b.cooldown, cd[1], cd[2], cd[3]); end
+        end
+    end
+    if (event ~= "SPELL_UPDATE_USABLE") then return; end
+    local st = FBHealBox_ButtonUsable(b.id);
+    local inRange = FBHealBox_SpellInRange(b.id, b.TargetUnit);
+    if (inRange == 0) then st = "range"; end
+    if (b.colorState == st) then return; end
+    b.colorState = st;
+    if (st == "ok") then b.icon:SetVertexColor(1.0, 1.0, 1.0);
+    elseif (st == "mana") then b.icon:SetVertexColor(0.5, 0.5, 1.0);
+    elseif (st == "range") then b.icon:SetVertexColor(1.0, 0.3, 0.3);
+    else b.icon:SetVertexColor(0.3, 0.3, 0.3); end
+end
+
+-- Alle sichtbaren Buttons (Plaketten; Module ueber Hook "ButtonStates")
+function FBHealBox_UpdateButtonStates(event)
+    if (HealBox.Active == 0) then return; end
+    FBBtnPass = FBBtnPass + 1;
+    local maxB = HealBox.MaxButtons or 0;
+    for p = 1, FBSlotCount do
+        local f = FBPartyFrame[p];
+        if (f and f:IsShown() and FBPartyTable[p]) then
+            for i = 1, maxB do
+                local b = FBPartyTable[p][i];
+                if (b and b:IsShown()) then FBHealBox_UpdateButtonState(b, event); end
+            end
+        end
+    end
+    FBHealBox_RunHook("ButtonStates", event);
+end
+
+-- Kompatibilitaet fuer aeltere Aufrufer
+function HealBoxButton_OnEvent(this, event, arg1)
+    if (HealBox.Active == 0) then return 0; end
+    FBBtnPass = FBBtnPass + 1;
+    FBHealBox_UpdateButtonState(this, event);
 end 
 
 function HealBoxScale(this, scale) 
@@ -4050,9 +4339,12 @@ function FBPredict_GetSpellInfo(bookID, spellName)
 end
 
 -- Nach jedem Zauberbuch-Scan: was koennen die gelernten Zauber ueberhaupt?
+FBPredictWatchBuffOrder = {};   -- Buff-Zauber alphabetisch (fuer die Icon-Reihenfolge)
+
 function FBPredict_BuildWatch()
     FBPredictWatch = {};
     FBPredictInfo  = {};
+    FBPredictWatchBuffOrder = {};
 
     for spellName, ranks in pairs(FBPlayerSpells) do
         local top  = ranks[table.getn(ranks)];
@@ -4069,7 +4361,24 @@ function FBPredict_BuildWatch()
                 buffSecs  = info.buff and info.buff.duration,
                 icon      = top.icon,
             };
+            if (info.buff) then table.insert(FBPredictWatchBuffOrder, spellName); end
         end
+    end
+    table.sort(FBPredictWatchBuffOrder);
+end
+
+-- Buff per eigenem Button auf ein Ziel neu gewirkt, das ihn schon traegt:
+-- ein Refresh loest kein Aura-Event aus, also gilt der erfolgreiche Cast
+-- (SPELLCAST_STOP) als Bestaetigung und stellt die Uhr auf voll.
+function FBPredict_ConfirmBuffRefresh()
+    local p = FBPredictPending;
+    if (not p) or (not p.spell) or (not p.target) then return; end
+    local w = FBPredictWatch[p.spell];
+    if (not w) or (not w.hasBuff) then return; end
+    if (p.target == UnitName("player")) then return; end   -- eigene Buffs liest die Buff-API
+    if (FBBuffPresent[p.target] and FBBuffPresent[p.target][p.spell]) then
+        FBPredict_StartBuff(p.target, p.spell, w.buffSecs);
+        FBPredictPending = nil;
     end
 end
 
@@ -4077,7 +4386,9 @@ end
 function FBPredict_StartBuff(unitName, spellName, secs)
     if (not unitName) or (not spellName) or (not secs) then return; end
     if (not FBBuffTimers[unitName]) then FBBuffTimers[unitName] = {}; end
-    FBBuffTimers[unitName][spellName] = { expires = GetTime() + secs };
+    local t = FBBuffTimers[unitName][spellName];
+    if (t) then t.expires = GetTime() + secs; else FBBuffTimers[unitName][spellName] = { expires = GetTime() + secs }; end
+    FBBuffIconsDirty = true;
 end
 
 -- Restlaufzeit eines eigenen Buffs (Textur) ueber die Spielerbuff-API
@@ -4352,14 +4663,19 @@ function FBPredict_ScanUnit(unit)
     local name = UnitName(unit);
     if (not name) then return; end
 
-    local textures = {};
-    local i = 1;
-    while (i <= 32) do
-        local tex = UnitBuff(unit, i);
-        if (not tex) then break; end
-        textures[strupper(tex)] = true;
-        i = i + 1;
+    -- Raid-Einheiten: nur scannen, wenn etwas davon abhaengt (eigener Cast
+    -- wartet, HoT/Schild wird verfolgt, oder die Zelle ist zu sehen). Sonst
+    -- kosten 40 Raider mit staendig wechselnden Auren nur CPU.
+    if (string.sub(unit, 1, 4) == "raid") then
+        local needed = (FBPredictPending and FBPredictPending.target == name)
+            or FBHoTs[name] or FBShields[name];
+        if (not needed) then
+            local c = FBRaidUnitCell and FBRaidUnitCell[unit];
+            if (not c) or (not c:IsShown()) then return; end
+        end
     end
+
+    local textures = FBHealBox_UnitBuffs(unit);
 
     local dirty = false;
 
@@ -4390,6 +4706,7 @@ function FBPredict_ScanUnit(unit)
     for spellName, w in pairs(FBPredictWatch) do
         if (w.hasBuff) then
             local present = textures[w.tex];
+            if (FBBuffPresent[name][spellName] ~= present) then FBBuffIconsDirty = true; end
             FBBuffPresent[name][spellName] = present;
             local tracked = FBBuffTimers[name] and FBBuffTimers[name][spellName];
             if (present and unit == "player") then
@@ -4569,8 +4886,32 @@ function FBPredict_OnAbsorb(unitName, amount)
     FBHealBox_RefreshAllBars();
 end
 
+-- Eventklasse je Eventname einmal bestimmen: Heil-/Tick-Zeilen kommen nur
+-- ueber *_BUFF(S)-Events, Absorb-Zeilen nur ueber Treffer-Events. So laufen
+-- je Zeile hoechstens die passenden Muster statt aller fuenf.
+FBPredictEventClass = {};
+function FBPredict_EventClass(event)
+    local c = FBPredictEventClass[event];
+    if (c) then return c; end
+    if (string.find(event, "_BUFF")) then c = "heal"; else c = "hit"; end
+    FBPredictEventClass[event] = c;
+    return c;
+end
+
 function FBPredict_ParseCombat(event, msg)
     if (not msg) then return; end
+
+    if (FBPredict_EventClass(event) == "hit") then
+        -- Absorb-Anteil: "... hits Bob for 120. (80 absorbed)" (billiger Vortest)
+        if (string.find(msg, "absorbed", 1, true)) then
+            local _, _, abs = string.find(msg, FBPredictPatAbsorb);
+            if (abs) then
+                local victim = FBPredict_ResolveVictim(event, msg);
+                if (victim) then FBPredict_OnAbsorb(victim, tonumber(abs)); end
+            end
+        end
+        return;
+    end
 
     -- Direktheilung auf jemand anderen: "Your Flash Heal heals Bob for 1240."
     local _, _, spell, who, amt = string.find(msg, FBPredictPatHealOther);
@@ -4598,13 +4939,6 @@ function FBPredict_ParseCombat(event, msg)
     if (amt4 and spell4) then
         FBPredict_OnTick(UnitName("player"), tonumber(amt4), spell4);
         return;
-    end
-
-    -- Absorb-Anteil: "... hits Bob for 120. (80 absorbed)"
-    local _, _, abs = string.find(msg, FBPredictPatAbsorb);
-    if (abs) then
-        local victim = FBPredict_ResolveVictim(event, msg);
-        if (victim) then FBPredict_OnAbsorb(victim, tonumber(abs)); end
     end
 end
 
@@ -4667,6 +5001,7 @@ FBPredictFrame:SetScript("OnEvent", function()
     elseif (event == "SPELLCAST_STOP") then
         -- Erfolgreich beendet: HealComm-Empfaenger lassen den Eintrag
         -- selbst auslaufen, hier wird bewusst kein Healstop gefunkt.
+        FBPredict_ConfirmBuffRefresh();
         FBPredict_CastEnd();
 
     elseif (event == "SPELLCAST_FAILED" or event == "SPELLCAST_INTERRUPTED") then
@@ -4688,7 +5023,24 @@ FBPredictFrame:SetScript("OnUpdate", function()
     FBPredict_OnUpdate(arg1);
 end);
 
+FBNamesDirty = false;
+FBBtnStatesDirty = nil;
+FBBuffIconsDirty = true;
+FBBuffIconsAccum = 0;
+
 function FBPredict_OnUpdate(elapsed)
+    -- Aufgeschobene Gruppen-Aktualisierung (Event-Salven zusammengefasst)
+    if (FBNamesDirty) then
+        FBNamesDirty = false;
+        FBUpdateNames();
+    end
+    -- Aufgeschobene Button-Zustaende (USABLE schlaegt COOLDOWN, da es beides tut)
+    if (FBBtnStatesDirty) then
+        local ev = FBBtnStatesDirty;
+        FBBtnStatesDirty = nil;
+        FBHealBox_UpdateButtonStates(ev);
+    end
+
     -- Reichweiten-Fading laeuft im eigenen Takt mit
     FBRangeAccum = FBRangeAccum + (elapsed or 0);
     if (FBRangeAccum >= FBRANGE_INTERVAL) then
@@ -4701,10 +5053,18 @@ function FBPredict_OnUpdate(elapsed)
     if (FBPredictAccum < FBPREDICT_THROTTLE) then return; end
     FBPredictAccum = 0;
 
-    -- Angegriffenen markieren, Button-Timer und Buff-Icons nachfuehren (0.2-s-Takt)
+    -- Angegriffenen markieren, Button-Timer und Buff-Icons nachfuehren (0.2-s-Takt).
+    -- Die Uhr-Quadranten aendern sich langsam: Buff-Icons nur bei Aenderung
+    -- (Scan hat etwas gemeldet) oder einmal je Sekunde.
     FBHealBox_CheckAggroAll();
     FBHealBox_UpdateSpellTimers();
-    FBHealBox_UpdateAllBuffIcons();
+    FBPredict_RefreshPlayerBuffs(FBPREDICT_THROTTLE);
+    FBBuffIconsAccum = FBBuffIconsAccum + FBPREDICT_THROTTLE;
+    if (FBBuffIconsDirty or FBBuffIconsAccum >= 1.0 or FBTestMode) then
+        FBBuffIconsDirty = false;
+        FBBuffIconsAccum = 0;
+        FBHealBox_UpdateAllBuffIcons();
+    end
 
     local now   = GetTime();
     local dirty = false;
@@ -5069,6 +5429,11 @@ SlashCmdList["FBHEALPREDICT"] = function(msg)
     else
         DEFAULT_CHAT_FRAME:AddMessage("|cFF00FFFF[FBP]|r LoS: UI_ERROR_MESSAGE ("..FBLOS_TIMEOUT.."s)");
     end
+    local rangeApi = "CheckInteractDistance (28m)";
+    if (FBAPI_SpellRange) then rangeApi = "IsSpellInRange ("..tostring(FBAPI_RangeForm).." args)"; elseif (UnitXP) then rangeApi = "UnitXP distance + tooltip"; end
+    local usableApi = "tooltip mana cost";
+    if (FBAPI_UsableSpell) then usableApi = "IsUsableSpell ("..tostring(FBAPI_UsableForm).." args)"; end
+    DEFAULT_CHAT_FRAME:AddMessage("|cFF00FFFF[FBP]|r Range: "..rangeApi..", usable: "..usableApi);
 
     local state = FBT("FBP_STATE_OFF");
     if (FBComm_Enabled()) then state = FBT("FBP_STATE_ON"); end
@@ -5105,6 +5470,8 @@ elseif (FBClass == "Druid") then
     FBDispelColors["Poison"]  = {0, 0.6, 0, 1};
 end
 
+FBDISPEL_ORDER = { "Magic", "Poison", "Disease", "Curse" };
+
 -- Erster von der eigenen Klasse entfernbarer Debuff: Typ, Textur, Stacks (sonst nil)
 function FBHealBox_DispelType(unit)
     local g = FBTest_Ghost(unit);
@@ -5116,7 +5483,7 @@ function FBHealBox_DispelType(unit)
         end
         -- Geist mit Debuff: irgendein Typ, den die eigene Klasse entfernen kann
         if (g.debuff) then
-            for _, dtype in ipairs({ "Magic", "Poison", "Disease", "Curse" }) do
+            for _, dtype in ipairs(FBDISPEL_ORDER) do
                 if (FBDispelColors[dtype]) then return dtype, g.debuffTex, g.debuffCount; end
             end
         end
@@ -5275,29 +5642,33 @@ function FBHealBox_SetBuffIconProgress(ic, remaining)
     end
 end
 
--- Liste der zu zeigenden Buffs einer Einheit: { tex, expires, duration }
-function FBHealBox_BuffIconList(unitName, g)
-    local list = {};
+-- Zu zeigende Buffs einer Einheit in die Arbeits-Tabelle out schreiben
+-- (wiederverwendet, keine neuen Tabellen je Tick). Liefert die Anzahl.
+-- Reihenfolge: FBPredictWatchBuffOrder (einmal in BuildWatch sortiert).
+function FBHealBox_BuffIconList(unitName, g, out)
+    local n = 0;
     if (g) then
         for _, b in ipairs(g.buffs or {}) do
-            table.insert(list, { tex = b.tex, expires = b.left and (GetTime() + b.left), duration = b.dur, name = "Test" });
+            n = n + 1;
+            local e = out[n] or {}; out[n] = e;
+            e.tex = b.tex; e.expires = b.left and (GetTime() + b.left); e.duration = b.dur; e.name = "Test";
         end
-        return list;
+        return n;
     end
-    if (not unitName) then return list; end
+    if (not unitName) then return 0; end
     local present = FBBuffPresent[unitName];
-    if (not present) then return list; end
-    local names = {};
-    for spellName, w in pairs(FBPredictWatch) do
-        if (w.hasBuff and present[spellName]) then table.insert(names, spellName); end
+    if (not present) then return 0; end
+    local timers = FBBuffTimers[unitName];
+    for _, spellName in ipairs(FBPredictWatchBuffOrder) do
+        if (present[spellName]) then
+            local w = FBPredictWatch[spellName];
+            local bt = timers and timers[spellName];
+            n = n + 1;
+            local e = out[n] or {}; out[n] = e;
+            e.tex = w.icon; e.expires = bt and bt.expires; e.duration = w.buffSecs; e.name = spellName;
+        end
     end
-    table.sort(names);
-    for _, spellName in ipairs(names) do
-        local w = FBPredictWatch[spellName];
-        local bt = FBBuffTimers[unitName] and FBBuffTimers[unitName][spellName];
-        table.insert(list, { tex = w.icon, expires = bt and bt.expires, duration = w.buffSecs, name = spellName });
-    end
-    return list;
+    return n;
 end
 
 -- Icons einer Plakette (oder Raid-Zelle) nachfuehren. Liefert die Anzahl.
@@ -5306,14 +5677,19 @@ end
 function FBHealBox_UpdateBuffIcons(frame, unitName, g, size, rows, maxIcons)
     if (not frame) or (not frame.HPText) then return 0; end
     maxIcons = maxIcons or FBBUFFICON_MAX;
-    local list = {};
+    if (not frame.buffList) then frame.buffList = {}; end
+    local list = frame.buffList;
+    local count = 0;
     if (HealBox.BuffIcons == 1 and not frame.plateHidden) then
-        list = FBHealBox_BuffIconList(unitName, g);
+        count = FBHealBox_BuffIconList(unitName, g, list);
     end
+    -- nichts zu tun, wenn weder etwas angezeigt wird noch angezeigt war
+    if (count == 0 and (frame.buffIconCount or 0) == 0) then return 0; end
     local now = GetTime();
     local n = 0;
     for k = 1, maxIcons do
-        local b = list[k];
+        local b = nil;
+        if (k <= count) then b = list[k]; end
         local ic = (frame.buffIcons and frame.buffIcons[k]) or (b and FBHealBox_GetBuffIcon(frame, k, size, rows));
         if (ic) then
             if (b and b.tex) then
@@ -5348,6 +5724,33 @@ function FBHealBox_UpdateBuffIcons(frame, unitName, g, size, rows, maxIcons)
     return n;
 end
 
+-- Eigene Buffs regelmaessig neu aus der Buff-API lesen: Ein Neucast auf
+-- einen noch laufenden Buff (Refresh) loest im 1.12-Client kein Aura-Event
+-- aus, die Restzeit springt aber trotzdem auf voll.
+FBBuffRefreshAccum = 0;
+function FBPredict_RefreshPlayerBuffs(elapsed)
+    FBBuffRefreshAccum = FBBuffRefreshAccum + (elapsed or 0);
+    if (FBBuffRefreshAccum < 1.0) then return; end
+    FBBuffRefreshAccum = 0;
+    local me = UnitName("player");
+    if (not me) or (not FBBuffPresent[me]) then return; end
+    local timers = FBBuffTimers[me];
+    for _, spellName in ipairs(FBPredictWatchBuffOrder) do
+        if (FBBuffPresent[me][spellName]) then
+            local w = FBPredictWatch[spellName];
+            local left = FBPredict_PlayerBuffTimeLeft(w.tex);
+            if (left) then
+                -- nur uebernehmen, wenn die API mehr als eine Sekunde von der
+                -- eigenen Uhr abweicht (Refresh); sonst kein Dirty-Flag
+                local t = timers and timers[spellName];
+                if (not t) or (math.abs((t.expires - GetTime()) - left) > 1.0) then
+                    FBPredict_StartBuff(me, spellName, left);
+                end
+            end
+        end
+    end
+end
+
 function FBHealBox_UpdateAllBuffIcons()
     for p = 1, FBSlotCount do
         local f = FBPartyFrame[p];
@@ -5368,21 +5771,56 @@ end
 -- wieder auf voller Hoehe zu sehen.
 function FBHealBox_UpdateMana(unit, frame)
     if (not frame.ManaBar) then return; end
-    if (HealBox.ManaBar ~= 1) or frame.plateHidden then
-        frame.ManaBar:Hide();
-        return;
+    local mp, mpMax, hasMana = 0, 0, false;
+    if (HealBox.ManaBar == 1) and (not frame.plateHidden) then
+        mp, mpMax, hasMana = FBUnitMana(unit);
     end
-    local mp, mpMax, hasMana = FBUnitMana(unit);
     if (not hasMana) then
-        frame.ManaBar:Hide();
+        if (frame.manaShown ~= false) then frame.manaShown = false; frame.ManaBar:Hide(); end
         return;
     end
-    frame.ManaBar:SetMinMaxValues(0, mpMax);
-    frame.ManaBar:SetValue(mp);
-    frame.ManaBar:Show();
+    if (frame.lastMpMax ~= mpMax) then
+        frame.lastMpMax = mpMax;
+        frame.ManaBar:SetMinMaxValues(0, mpMax);
+    end
+    if (frame.vMp ~= mp) then frame.vMp = mp; frame.ManaBar:SetValue(mp); end
+    if (frame.manaShown ~= true) then frame.manaShown = true; frame.ManaBar:Show(); end
 end
 
-function FBHealBox_UpdateUnit(unit, frame) 
+-- Anzeige-Zwischenspeicher aller Plaketten leeren (nach Optionswechsel)
+function FBHealBox_InvalidateUnitCaches()
+    for p = 1, FBSlotCount do
+        local f = FBPartyFrame[p];
+        if (f) then f.dispelKnown = nil; f.lastText = nil; f.lastMax = nil; f.colorKey = nil; f.manaShown = nil; f.lastMpMax = nil; f.vHp = nil; f.vShield = nil; f.vInc = nil; f.vMp = nil; end
+    end
+end
+
+-- Balkenfarbe nur setzen, wenn sie sich aendert (Schluessel merken)
+function FBHealBox_SetBarColor(frame, key, r, g, b, a)
+    if (frame.colorKey == key) then return; end
+    frame.colorKey = key;
+    frame.HealthBar:SetStatusBarColor(r, g, b, a);
+end
+
+-- Werte der drei Balken nur setzen, wenn sie sich geaendert haben
+function FBHealBox_SetBarValues(frame, hp, shieldTop, incTop)
+    if (frame.vHp ~= hp) then frame.vHp = hp; frame.HealthBar:SetValue(hp); end
+    if (frame.vShield ~= shieldTop) then frame.vShield = shieldTop; frame.ShieldBar:SetValue(shieldTop); end
+    if (frame.vInc ~= incTop) then frame.vInc = incTop; frame.IncHealBar:SetValue(incTop); end
+end
+
+-- Maximalwerte der drei Balken nur bei geaendertem hpMax setzen
+function FBHealBox_SetBarMax(frame, hpMax)
+    if (frame.lastMax == hpMax) then return; end
+    frame.lastMax = hpMax;
+    frame.HealthBar:SetMinMaxValues(0, hpMax);
+    frame.ShieldBar:SetMinMaxValues(0, hpMax);
+    frame.IncHealBar:SetMinMaxValues(0, hpMax);
+end
+
+-- auraChanged: true bei UNIT_AURA. Nur dann wird der Debuff neu gesucht
+-- (UnitDebuff-Scan); UNIT_HEALTH und der Vorhersage-Tick nutzen den Cache.
+function FBHealBox_UpdateUnit(unit, frame, auraChanged) 
     if (not frame) or (not frame.HealthBar) then return; end 
     if (not FBUnitExists(unit)) then return; end 
     
@@ -5395,22 +5833,24 @@ function FBHealBox_UpdateUnit(unit, frame)
         local label = "STATE_DEAD"; 
         if (state == "ghost") then label = "STATE_GHOST"; end 
         if (state == "offline") then label = "STATE_OFFLINE"; end 
-        frame.HPText:SetText(FBT(label)); 
-        frame.HealthBar:SetMinMaxValues(0, hpMax); 
-        frame.HealthBar:SetValue(0); 
-        frame.HealthBar:SetStatusBarColor(0.5, 0.5, 0.5, 1); 
-        frame.ShieldBar:SetMinMaxValues(0, hpMax); 
-        frame.ShieldBar:SetValue(0); 
-        frame.IncHealBar:SetMinMaxValues(0, hpMax); 
-        frame.IncHealBar:SetValue(0); 
-        frame.ManaBar:Hide(); 
+        if (frame.lastText ~= label) then 
+            frame.lastText = label; 
+            frame.HPText:SetText(FBT(label)); 
+        end 
+        FBHealBox_SetBarMax(frame, hpMax); 
+        FBHealBox_SetBarValues(frame, 0, 0, 0); 
+        FBHealBox_SetBarColor(frame, "state", 0.5, 0.5, 0.5, 1); 
+        if (frame.manaShown ~= false) then frame.manaShown = false; frame.ManaBar:Hide(); end 
         FBHealBox_UpdateDebuffIcon(frame, nil, nil); 
         return; 
     end 
     
-    frame.HPText:SetText(format("%d%%", math.floor(hpPercent * 100))); 
-    frame.HealthBar:SetMinMaxValues(0, hpMax); 
-    frame.HealthBar:SetValue(hp); 
+    local pct = math.floor(hpPercent * 100); 
+    if (frame.lastText ~= pct) then 
+        frame.lastText = pct; 
+        frame.HPText:SetText(pct.."%"); 
+    end 
+    FBHealBox_SetBarMax(frame, hpMax); 
     
     local name = FBUnitName(unit);
     local g    = FBTest_Ghost(unit);
@@ -5425,30 +5865,34 @@ function FBHealBox_UpdateUnit(unit, frame)
         shield  = FBGetShield(name);
     end
 
-    -- Absorb-Schild als Pseudoleben direkt hinter den aktuellen HP
-    local shieldTop = math.min(hpMax, hp + shield);
-    frame.ShieldBar:SetMinMaxValues(0, hpMax);
-    frame.ShieldBar:SetValue(shieldTop);
-
-    -- Heilvorhersage haengt hinter dem Schild-Anteil
-    frame.IncHealBar:SetMinMaxValues(0, hpMax);
-    frame.IncHealBar:SetValue(math.min(hpMax, shieldTop + incHeal));
+    -- Absorb-Schild als Pseudoleben direkt hinter den aktuellen HP,
+    -- Heilvorhersage dahinter; Werte nur setzen, wenn sie sich aendern
+    local shieldTop = hp + shield;
+    if (shieldTop > hpMax) then shieldTop = hpMax; end
+    local incTop = shieldTop + incHeal;
+    if (incTop > hpMax) then incTop = hpMax; end
+    FBHealBox_SetBarValues(frame, hp, shieldTop, incTop);
 
     -- Manabalken (Balken im Balken)
     FBHealBox_UpdateMana(unit, frame);
     
-    -- Farbe: entfernbarer Debuff schlaegt den HP-Stand; dazu Icon + Stacks
-    local dtype, dtex, dcount = FBHealBox_DispelType(unit);
-    FBHealBox_UpdateDebuffIcon(frame, dtex, dcount);
+    -- Farbe: entfernbarer Debuff schlaegt den HP-Stand; dazu Icon + Stacks.
+    -- Debuffs aendern sich nur mit UNIT_AURA, sonst gilt der letzte Befund.
+    if (auraChanged or (not frame.dispelKnown) or g) then
+        frame.dispelType, frame.dispelTex, frame.dispelCount = FBHealBox_DispelType(unit);
+        frame.dispelKnown = true;
+        FBHealBox_UpdateDebuffIcon(frame, frame.dispelTex, frame.dispelCount);
+    end
+    local dtype = frame.dispelType;
     if (dtype) then
         local c = FBDispelColors[dtype];
-        frame.HealthBar:SetStatusBarColor(c[1], c[2], c[3], c[4]);
+        FBHealBox_SetBarColor(frame, dtype, c[1], c[2], c[3], c[4]);
     elseif (hpPercent > LowHP) then  
-        frame.HealthBar:SetStatusBarColor(0, 1, 0, 1); 
+        FBHealBox_SetBarColor(frame, "green", 0, 1, 0, 1); 
     elseif (hpPercent > VeryLowHP) then  
-        frame.HealthBar:SetStatusBarColor(1, 0.9, 0, 1); 
+        FBHealBox_SetBarColor(frame, "yellow", 1, 0.9, 0, 1); 
     else  
-        frame.HealthBar:SetStatusBarColor(1, 0, 0, 1); 
+        FBHealBox_SetBarColor(frame, "red", 1, 0, 0, 1); 
     end 
 end 
 
