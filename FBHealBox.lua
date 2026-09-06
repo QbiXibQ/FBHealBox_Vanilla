@@ -17,16 +17,17 @@
 --     Anzeige, Debuff-Icon mit Stackzahl
 --   * v1.4.2: Hook-Schnittstelle fuer Module (FBHealBox_RegisterHook,
 --     FBHealBox_AddOptionsTab). Der Raidmodus lebt in FBHealBox_Raid.lua.
---   * v1.4.4: Leistungsdurchgang ohne Funktionsaenderung: zentrale Button-
---     Zustaende statt 260 Event-Handler, Anzeige-Zwischenspeicher, Aura-Scan
---     je Frame nur einmal, Event-Salven zusammengefasst, Ticker per Event
---     gesteuert, Combatlog-Parser nach Eventklasse. Details im CHANGELOG.
 --   * v1.4.3: Mana-Ticker-Modul (FBHealBox_Ticker.lua), Smart-Damage-Modul
 --     (FBHealBox_Damage.lua, Abrangen von Angriffszaubern), Reiterknoepfe
 --     schmaler, damit vier Reiter ins Optionsfenster passen, Smart Healing
 --     (automatisches Abrangen je Ziel, standardmaessig aus), Cooldown-Uhr auf den Buttons, roter Rahmen fuer
 --     "wer wird angegriffen", HoT- und Schild-Restzeit auf dem jeweiligen
 --     Button (inkl. Geschwaechte Seele).
+--   * v1.4.4: Leistungsdurchgang ohne Funktionsaenderung: zentrale Button-
+--     Zustaende statt 260 Event-Handler, Anzeige-Zwischenspeicher, Aura-Scan
+--     je Frame nur einmal, Event-Salven zusammengefasst, Ticker per Event
+--     gesteuert, Combatlog-Parser nach Eventklasse. Details im CHANGELOG.
+--   * v1.4.4.1: Spells hinzugefügt, Bugfixes
 --
 -- Ehre wem Ehre gebuehrt: Aufbau, Namensplaketten und Grundidee stammen
 -- aus dem Original.
@@ -77,7 +78,7 @@ HealBox = {
 -- feuert ADDON_LOADED fuer uns.
 FBADDON_NAME   = "Heal Box Vanilla";
 FBADDON_FOLDER = "FBHealBox";
-HealBoxVersion = "|cFFFFFF00v1.4.4|r"; 
+HealBoxVersion = "|cFFFFFF00v1.4.4.1|r"; 
 
 -- ==========================================================================
 -- [ Lokalisierung / Localization ]
@@ -819,7 +820,7 @@ end
 -- gelernten erscheinen im Menue) und welche Gruppenversion dasselbe zaehlt.
 FBBuffWatchSpells = {
     Priest  = { "Power Word: Fortitude", "Prayer of Fortitude", "Divine Spirit", "Prayer of Spirit",
-                "Shadow Protection", "Prayer of Shadow Protection", "Renew", "Power Word: Shield" },
+                "Shadow Protection", "Prayer of Shadow Protection", "Fear Ward", "Renew", "Power Word: Shield", "Inner Fire" },
     Druid   = { "Mark of the Wild", "Gift of the Wild", "Thorns", "Rejuvenation", "Regrowth" },
     Paladin = { "Blessing of Wisdom", "Greater Blessing of Wisdom", "Blessing of Might", "Greater Blessing of Might",
                 "Blessing of Kings", "Greater Blessing of Kings", "Blessing of Salvation", "Greater Blessing of Salvation",
@@ -1029,49 +1030,105 @@ Spell = {
 }; 
 
 if (FBClass == "Druid") then  
-    Spell.Name[1] = "Rejuvenation"; 
-    Spell.Name[2] = "Regrowth"; 
-    Spell.Name[3] = "Lifebloom"; 
-    Spell.Name[4] = "Healing Touch"; 
-    Spell.Name[5] = "Swiftmend"; 
-    Spell.Name[6] = "Remove Curse"; 
-    Spell.Name[7] = "Abolish Poison"; 
+    -- Heilung
+    Spell.Name[1]  = "Healing Touch"; 
+    Spell.Name[2]  = "Regrowth"; 
+    Spell.Name[3]  = "Rejuvenation"; 
+    Spell.Name[4]  = "Swiftmend"; 
+    Spell.Name[5]  = "Tranquility"; 
+    Spell.Name[6]  = "Lifebloom"; -- TBC / Vanilla+ 
+    -- Reinigung
+    Spell.Name[7]  = "Abolish Poison"; 
+    Spell.Name[8]  = "Cure Poison"; 
+    Spell.Name[9]  = "Remove Curse"; 
+    -- Buffs & Rezz
+    Spell.Name[10] = "Mark of the Wild"; 
+    Spell.Name[11] = "Gift of the Wild"; 
+    Spell.Name[12] = "Thorns"; 
+    Spell.Name[13] = "Innervate"; 
+    Spell.Name[14] = "Rebirth"; 
 end 
 
 if (FBClass == "Priest") then  
-    Spell.Name[1] = "Renew"; 
-    Spell.Name[2] = "Flash Heal"; 
-    Spell.Name[3] = "Lesser Heal"; 
-    Spell.Name[4] = "Heal"; 
-    Spell.Name[5] = "Greater Heal"; 
-    Spell.Name[6] = "Binding Heal"; 
-    Spell.Name[7] = "Prayer of Healing"; 
-    Spell.Name[8] = "Prayer of Mending"; 
-    Spell.Name[9] = "Circle of Healing"; 
-    Spell.Name[10] = "Power Word: Shield"; 
-    Spell.Name[11] = "Abolish Disease"; 
-    Spell.Name[12] = "Cure Disease"; 
-    Spell.Name[13] = "Dispel Magic"; 
-end 
-
-if (FBClass == "Shaman") then 
-    Spell.Name[1] = "Lesser Healing Wave"; 
-    Spell.Name[2] = "Healing Wave"; 
-    Spell.Name[3] = "Chain Heal"; 
-    Spell.Name[4] = "Earth Shield"; 
-    Spell.Name[5] = "Cure Poison"; 
-    Spell.Name[6] = "Cure Disease"; 
+    Spell.Name[1]  = "Lesser Heal"; 
+    Spell.Name[2]  = "Heal"; 
+    Spell.Name[3]  = "Flash Heal"; 
+    Spell.Name[4]  = "Greater Heal"; 
+    Spell.Name[5]  = "Renew"; 
+    Spell.Name[6]  = "Power Word: Shield"; 
+    Spell.Name[7]  = "Prayer of Healing"; 
+    Spell.Name[8]  = "Binding Heal";       -- TBC / Vanilla+
+    Spell.Name[9]  = "Prayer of Mending";  -- TBC / Vanilla+
+    Spell.Name[10] = "Circle of Healing";  -- TBC / Vanilla+
+    Spell.Name[11] = "Dispel Magic"; 
+    Spell.Name[12] = "Abolish Disease"; 
+    Spell.Name[13] = "Cure Disease"; 
+    Spell.Name[14] = "Power Word: Fortitude"; 
+    Spell.Name[15] = "Prayer of Fortitude"; 
+    Spell.Name[16] = "Divine Spirit"; 
+    Spell.Name[17] = "Prayer of Spirit"; 
+    Spell.Name[18] = "Shadow Protection"; 
+    Spell.Name[19] = "Prayer of Shadow Protection"; 
+    Spell.Name[20] = "Fear Ward"; 
+	Spell.Name[21] = "Inner Fire"; 
+    Spell.Name[22] = "Power Infusion"; 
+    Spell.Name[23] = "Resurrection"; 
 end 
 
 if (FBClass == "Paladin") then 
-    Spell.Name[1] = "Flash of Light"; 
-    Spell.Name[2] = "Holy Light"; 
-    Spell.Name[3] = "Holy Shock"; 
-    Spell.Name[4] = "Lay on Hands"; 
-    Spell.Name[5] = "Purify"; 
-    Spell.Name[6] = "Cleanse"; 
-    Spell.Name[7] = "Blessing of Protection"; 
+    Spell.Name[1]  = "Flash of Light"; 
+    Spell.Name[2]  = "Holy Light"; 
+    Spell.Name[3]  = "Holy Shock"; 
+    Spell.Name[4]  = "Lay on Hands"; 
+    Spell.Name[5]  = "Cleanse"; 
+    Spell.Name[6]  = "Purify"; 
+    Spell.Name[7]  = "Blessing of Protection"; 
+    Spell.Name[8]  = "Blessing of Freedom"; 
+    Spell.Name[9]  = "Blessing of Sacrifice"; 
+    Spell.Name[10] = "Redemption"; 
+    Spell.Name[11] = "Divine Intervention"; 
+    Spell.Name[12] = "Blessing of Wisdom"; 
+    Spell.Name[13] = "Blessing of Might"; 
+    Spell.Name[14] = "Blessing of Kings"; 
+    Spell.Name[15] = "Blessing of Salvation"; 
+    Spell.Name[16] = "Blessing of Light"; 
+    Spell.Name[17] = "Blessing of Sanctuary"; 
+    Spell.Name[18] = "Greater Blessing of Wisdom"; 
+    Spell.Name[19] = "Greater Blessing of Might"; 
+    Spell.Name[20] = "Greater Blessing of Kings"; 
+    Spell.Name[21] = "Greater Blessing of Salvation"; 
+    Spell.Name[22] = "Greater Blessing of Light"; 
+    Spell.Name[23] = "Greater Blessing of Sanctuary"; 
 end 
+
+if (FBClass == "Shaman") then 
+    Spell.Name[1]  = "Lesser Healing Wave"; 
+    Spell.Name[2]  = "Healing Wave"; 
+    Spell.Name[3]  = "Chain Heal"; 
+    Spell.Name[4]  = "Earth Shield";  -- TBC / Vanilla+
+    Spell.Name[5]  = "Water Shield";  -- TBC / Vanilla+
+    Spell.Name[6]  = "Cure Poison"; 
+    Spell.Name[7]  = "Cure Disease"; 
+    Spell.Name[8]  = "Purge"; 
+    Spell.Name[9]  = "Ancestral Spirit"; 
+    Spell.Name[10] = "Water Walking"; 
+    Spell.Name[11] = "Water Breathing"; 
+end 
+
+if (FBClass == "Mage") then
+    Spell.Name[1] = "Remove Lesser Curse";
+    Spell.Name[2] = "Arcane Intellect";
+    Spell.Name[3] = "Arcane Brilliance";
+    Spell.Name[4] = "Dampen Magic";
+    Spell.Name[5] = "Amplify Magic";
+end
+
+if (FBClass == "Warlock") then
+    Spell.Name[1] = "Unending Breath";
+    Spell.Name[2] = "Detect Invisibility";
+    Spell.Name[3] = "Detect Lesser Invisibility";
+    Spell.Name[4] = "Detect Greater Invisibility";
+end
 
 MaxButtonCount = 10; 
 
@@ -1201,13 +1258,14 @@ function FBLoadSpellData()
                 break;  
             end 
         end 
-        -- Buff-Wache: Textur des Zaubers merken (rangunabhaengig)
+        -- Buff-Wache: Textur des Zaubers merken (rangunabhaengig) und als Addon-Zauber erfassen
         for _, v in ipairs(FBBuffWatchSpells[FBClass] or {}) do 
             if (v == spellName) then 
                 FBBuffSpells[spellName] = { icon = GetSpellTexture(i, BOOKTYPE_SPELL) }; 
+                isHealBoxSpell = true; 
                 break; 
             end 
-        end 
+        end
         
         if isHealBoxSpell then 
             if not FBPlayerSpells[spellName] then 
@@ -2129,6 +2187,7 @@ function FBHealBox_DropSpell(btnIndex, side)
     local _, _, _, _, savedTable = FBChoiceTables(side);
     savedTable[btnIndex] = castString;
     FBApplySpellChoice(btnIndex, castString, side);
+    FBPredict_BuildWatch();
     FBHealBoxButtonsChanged();
 
     local key = "DROP_SET";
@@ -4162,7 +4221,7 @@ function FBPredict_TooltipText(bookID)
     local i = 1;
     while (i <= 30) do
         local fs = getglobal("FBHealBoxScanTipTextLeft"..i);
-        if (not fs) then break; end
+        if (not fs or not fs:IsShown()) then break; end
         local line = fs:GetText();
         if (line) then txt = txt.." "..line; end
         i = i + 1;
@@ -4350,8 +4409,11 @@ function FBPredict_BuildWatch()
         local top  = ranks[table.getn(ranks)];
         local info = FBPredict_GetSpellInfo(top.id, spellName);
         if (info) then
+            local alt = FBBuffAlternates[spellName];
+            local altTex = alt and FBBuffSpells[alt] and strupper(FBBuffSpells[alt].icon or "");
             FBPredictWatch[spellName] = {
                 tex       = strupper(top.icon or ""),
+                altTex    = altTex,
                 bookID    = top.id,
                 rank      = top.rank,
                 hasDirect = (info.direct ~= nil),
@@ -4683,7 +4745,7 @@ function FBPredict_ScanUnit(unit)
     --    ein Refresh (Nachcasten) die Uhr neu stellt.
     if (FBPredictPending and FBPredictPending.target == name) then
         local w = FBPredictWatch[FBPredictPending.spell];
-        if (w and textures[w.tex]) then
+        if (w and (textures[w.tex] or (w.altTex and textures[w.altTex]))) then
             if (w.hasHoT) then
                 dirty = FBPredict_StartHoT(name, FBPredictPending.spell,
                             FBPredictPending.rank, FBPredictPending.bookID, true) or dirty;
@@ -4705,14 +4767,12 @@ function FBPredict_ScanUnit(unit)
     if (not FBBuffPresent[name]) then FBBuffPresent[name] = {}; end
     for spellName, w in pairs(FBPredictWatch) do
         if (w.hasBuff) then
-            local present = textures[w.tex];
+            local present = textures[w.tex] or (w.altTex and textures[w.altTex]);
             if (FBBuffPresent[name][spellName] ~= present) then FBBuffIconsDirty = true; end
             FBBuffPresent[name][spellName] = present;
             local tracked = FBBuffTimers[name] and FBBuffTimers[name][spellName];
             if (present and unit == "player") then
-                -- beim Spieler bei jedem Scan neu aus der Buff-API lesen: so
-                -- stellt auch ein Neucast per Aktionsleiste die Uhr auf voll
-                local left = FBPredict_PlayerBuffTimeLeft(w.tex);
+                local left = FBPredict_PlayerBuffTimeLeft(w.tex) or (w.altTex and FBPredict_PlayerBuffTimeLeft(w.altTex));
                 if (left) then FBPredict_StartBuff(name, spellName, left); end
             elseif (tracked and not present) then
                 FBBuffTimers[name][spellName] = nil;

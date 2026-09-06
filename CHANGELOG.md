@@ -1,6 +1,49 @@
 # Changelog
 
-## 1.4.4 (2026-09-05)
+## 1.4.4.1 (2026-09-06)
+
+Buff tracking & class spells update. Fixes buff clock icons (Divine Spirit, etc.) not appearing next to the health bar, adds group buff alternate matching, and completes the spell selection lists across all healer classes with buffs, utility and rez spells.
+
+### English
+
+**Fixed**
+
+- **Buff tracking & Tooltip scanning.** In Vanilla 1.12.1, `ClearLines()` on the hidden scan tooltip (`FBHealBoxScanTip`) does not clear hidden text lines. Because `FBPredict_TooltipText` did not check `fs:IsShown()`, leftover lines from previously scanned heal spells (e.g. "Heals a friendly target...") lingered and were read when inspecting buff tooltips like *Divine Spirit*. This erroneously flagged `info.isHeal = true`, skipping buff duration detection (`info.buff`) and causing *Divine Spirit* not to display its clock icon and timer in the plate UI.
+- **Group buff alternate detection.** `FBPredict_BuildWatch` and `FBPredict_ScanUnit` now track group buff variants (`altTex`). When a group buff is applied or present (*Prayer of Fortitude*, *Prayer of Spirit*, *Gift of the Wild*, *Greater Blessings*), the addon correctly recognises the aura, confirms pending casts, and displays the buff clock icon.
+- **Buff watch textures.** `FBLoadSpellData` now flags all spells in `FBBuffWatchSpells` as addon spells (`isHealBoxSpell = true`), ensuring their textures and ranks are gathered and monitored even if they are not yet assigned to a heal button.
+- **Drag & drop instant sync.** Dropping a spell onto a button now immediately calls `FBPredict_BuildWatch()`, updating tracked buffs and predictions without requiring a `/reload`.
+
+**New & Changed**
+
+- **Expanded class spell lists.** Greatly expanded `Spell.Name` for all classes so that all relevant buffs, utility spells, dispels, and resurrections appear in the cascading spell menus:
+  - **Priest:** Added *Power Word: Fortitude*, *Prayer of Fortitude*, *Divine Spirit*, *Prayer of Spirit*, *Shadow Protection*, *Prayer of Shadow Protection*, *Fear Ward*, *Power Infusion*, *Resurrection*.
+  - **Druid:** Added *Mark of the Wild*, *Gift of the Wild*, *Thorns*, *Tranquility*, *Innervate*, *Rebirth*, *Cure Poison*.
+  - **Paladin:** Added all normal and Greater Blessings (*Wisdom, Might, Kings, Salvation, Light, Sanctuary*), *Blessing of Freedom*, *Blessing of Sacrifice*, *Redemption*, *Divine Intervention*.
+  - **Shaman:** Added *Ancestral Spirit*, *Purge*, *Water Walking*, *Water Breathing*, *Water Shield*.
+  - Added optional support for **Mage** (*Remove Lesser Curse*, *Arcane Intellect*, *Arcane Brilliance*, *Dampen Magic*, *Amplify Magic*) and **Warlock** (*Unending Breath*, *Detect Invisibility*).
+- **Fear Ward in Buff Watch.** Added *Fear Ward* to `FBBuffWatchSpells` for Priests.
+
+### Deutsch
+
+**Behoben**
+
+- **Buff-Erkennung & Tooltip-Scan.** Im 1.12.1-Client leert `ClearLines()` auf dem versteckten Scan-Tooltip (`FBHealBoxScanTip`) ausgeblendete Textzeilen nicht. Da `FBPredict_TooltipText` nicht pruefte, ob eine Zeile sichtbar ist (`fs:IsShown()`), wurden Textzeilen zuvor gescannter Heilzauber (z. B. „Heals a friendly target...") faelschlicherweise auch bei Buff-Tooltips wie *Goettlicher Willen* (*Divine Spirit*) mitgelesen. Dadurch wurde fehlerhaft `isHeal = true` gesetzt, was die Erkennung der Buff-Laufzeit (`info.buff`) verhinderte und dazu fuehrte, dass das Buff-Icon links am Lebensbalken nicht erschien.
+- **Erkennung von Gruppen-Buffs.** `FBPredict_BuildWatch` und `FBPredict_ScanUnit` unterstuetzen nun Gruppenversionen (`altTex`). Gruppen-Buffs (*Gebet der Seelenstaerke*, *Gebet der Willenskraft*, *Gabe der Wildnis*, *Grosse Segen*) werden nun zuverlaessig bestaetigt und mit Laufzeit/Icon dargestellt.
+- **Buff-Wache Texturen.** `FBLoadSpellData` markiert nun alle Zauber aus `FBBuffWatchSpells` automatisch als Addon-Zauber (`isHealBoxSpell = true`), sodass ihre Texturen und Daten auch dann geladen und getrackt werden, wenn sie noch auf keinem Button liegen.
+- **Drag & Drop Sofort-Synchronisation.** Das Ablegen eines Zaubers auf einen Button ruft nun direkt `FBPredict_BuildWatch()` auf, sodass neue Buffs und Vorhersagen ohne `/reload` sofort aktiv sind.
+
+**Neu & Geaendert**
+
+- **Vollstaendige Klassen-Zauberlisten.** `Spell.Name` fuer alle Heilerklassen stark erweitert, sodass saemtliche Heiler-Buffs, Gruppen-Buffs, Hilfszauber und Wiederbelebungen in den Auswahlmenues verfuegbar sind:
+  - **Priester:** *Machtwort: Seelenstaerke*, *Gebet der Seelenstaerke*, *Goettlicher Willen*, *Gebet der Willenskraft*, *Schattenschutz*, *Gebet des Schattenschutzes*, *Furchtzauberschutz*, *Seele der Macht*, *Auferstehung* hinzugefuegt.
+  - **Druide:** *Mal der Wildnis*, *Gabe der Wildnis*, *Dornen*, *Gelassenheit*, *Anregen*, *Wiedergeburt*, *Vergiftung heilen* hinzugefuegt.
+  - **Paladin:** Alle normalen und Grossen Segen (*Weisheit, Macht, Koenige, Rettung, Licht, Schutz*), *Segen der Freiheit*, *Segen der Opferung*, *Erloesung*, *Goettliches Eingreifen* hinzugefuegt.
+  - **Schamane:** *Geist der Ahnen*, *Reinigen*, *Wasserwandeln*, *Wasseratmung*, *Wasserschild* hinzugefuegt.
+  - Zusaetzliche Unterstuetzung fuer **Magier** (*Geringen Fluch aufheben*, *Arkane Intelligenz*, *Arkane Brillanz*, *Magie daempfen*, *Magie verstaerken*) und **Hexenmeister** (*Unendlicher Atem*, *Unsichtbarkeit entdecken*) ergaenzt.
+- **Furchtzauberschutz in Buff-Wache.** *Fear Ward* fuer Priester in `FBBuffWatchSpells` aufgenommen.
+
+
+## 1.4.4 (2026-09-06)
 
 Performance pass. No feature was added or changed; every visible behaviour is meant to be identical. A simulated five-second raid fight (40 players, aura and health events, mana changes, combat log, 60 frames per second) went from about 63,900 API and widget calls to about 14,450, a reduction of 77 %.
 

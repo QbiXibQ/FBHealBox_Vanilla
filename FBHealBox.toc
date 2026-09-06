@@ -1,9 +1,9 @@
 ## Interface: 11200
-## Title: Heal Box Vanilla |cFFFFFF00v1.4.4|r
+## Title: Heal Box Vanilla |cFFFFFF00v1.4.4.1|r
 ## Notes: Party, pet and self heal display with quick-cast buttons for healers. Ported to client 1.12.1 (optional SuperWoW). Up to 10 buttons per row, mana bar inside the health bar, class colours, buff watch, range fading, adjustable spacing, test mode with ghost players, optional raid mode for 20 and 40 players, mana ticker with five-second rule, smart damage ranking for attack spells. Heal prediction for direct heals, HoT ticks and absorb shields, self-correcting from the combat log. HealComm sync with Puppeteer, pfUI and others. German/English. Original by Dourd, ported to Vanilla and extended 09/2026 by Mquadrat.
 ## Notes-deDE: Party-, Begleiter- und Selbst-Heilanzeige mit Schnellzugriff-Buttons fuer Heiler. Portiert fuer Client 1.12.1 (optional SuperWoW). Bis zu 10 Buttons pro Reihe, Manabalken im Lebensbalken, Klassenfarben, Buff-Wache, Reichweiten-Fading, einstellbare Abstaende, Testmodus mit Geisterspielern, optionaler Raidmodus fuer 20 und 40 Spieler, Mana-Ticker mit Fuenf-Sekunden-Regel, Smart Damage fuer Angriffszauber. Heal-Prediction fuer Direktheilung, HoT-Ticks und Absorb-Schilde, selbstkorrigierend ueber den Combatlog. HealComm-Sync mit Puppeteer, pfUI und Co. Deutsch/Englisch. Original von Dourd, Vanilla-Portierung und Erweiterung 09/2026 von Mquadrat.
 ## Author: Dourd (Argent Dawn EU) | Vanilla-Port & Erweiterung 09/2026: Mquadrat
-## Version: 1.4.4
+## Version: 1.4.4.1
 ## SavedVariablesPerCharacter: HealBox
 ## OptionalDeps: SuperWoW
 
