@@ -644,10 +644,12 @@ The preset lists, freely extensible in `Spell.Name`:
 
 |Class|Spells|
 |-|-|
-|Priest|Renew · Flash Heal · Lesser Heal · Heal · Greater Heal · Binding Heal · Prayer of Healing · Prayer of Mending · Circle of Healing · Power Word: Shield · Abolish Disease · Cure Disease · Dispel Magic|
-|Druid|Rejuvenation · Regrowth · Lifebloom · Healing Touch · Swiftmend · Remove Curse · Abolish Poison|
-|Shaman|Lesser Healing Wave · Healing Wave · Chain Heal · Earth Shield · Cure Poison · Cure Disease|
-|Paladin|Flash of Light · Holy Light · Holy Shock · Lay on Hands · Purify · Cleanse · Blessing of Protection|
+|Priest|Renew · Flash Heal · Lesser Heal · Heal · Greater Heal · Binding Heal · Prayer of Healing · Prayer of Mending · Circle of Healing · Power Word: Shield · Abolish Disease · Cure Disease · Dispel Magic · Power Word: Fortitude · Prayer of Fortitude · Divine Spirit · Prayer of Spirit · Shadow Protection · Prayer of Shadow Protection · Fear Ward · Power Infusion · Resurrection|
+|Druid|Healing Touch · Regrowth · Rejuvenation · Swiftmend · Tranquility · Lifebloom · Abolish Poison · Cure Poison · Remove Curse · Mark of the Wild · Gift of the Wild · Thorns · Innervate · Rebirth|
+|Shaman|Lesser Healing Wave · Healing Wave · Chain Heal · Earth Shield · Water Shield · Cure Poison · Cure Disease · Purge · Ancestral Spirit · Water Walking · Water Breathing|
+|Paladin|Flash of Light · Holy Light · Holy Shock · Lay on Hands · Cleanse · Purify · Blessing of Protection · Blessing of Freedom · Blessing of Sacrifice · Redemption · Divine Intervention · Blessing of Wisdom / Might / Kings / Salvation / Light / Sanctuary · Greater Blessing of Wisdom / Might / Kings / Salvation / Light / Sanctuary|
+|Mage|Remove Lesser Curse · Arcane Intellect · Arcane Brilliance · Dampen Magic · Amplify Magic|
+|Warlock|Unending Breath · Detect Invisibility · Detect Lesser / Greater Invisibility|
 
 Entries that do not exist do no harm: if the spellbook scan does not find them, they are quietly skipped.
 
@@ -663,6 +665,7 @@ Entries that do not exist do no harm: if the spellbook scan does not find them, 
 * heal prediction for direct heals, remaining HoT ticks and absorb shields, self-correcting from the combat log
 * HealComm sync with Puppeteer, pfUI, Luna and others, without any Ace libraries
 * English, German, Spanish, French and Italian localization, switchable in game
+* 1.4.4.1: buff tracking & tooltip scanning fix (Divine Spirit clock icon), expanded class spell lists with blessings, buffs, utility and rez spells, group buff alternate tracking; see CHANGELOG
 * 1.4.4: performance pass without functional change (central button states, display caches, shared aura scans, coalesced event bursts); see CHANGELOG
 * 1.4.3: mana ticker module (2 s regeneration tick and five-second rule as a spark in the mana bar), Smart Damage module (rank selection for attack spells on any action bar), Smart Healing (auto-downrank, off by default), cooldown sweep on buttons, red border for the attacked member, HoT/shield timers on buttons
 * 1.4.2: raid mode as a separate module (`FBHealBox_Raid.lua`) with a compact 20/40 grid, mini buttons, own options tab and raid test; hook interface in the core
@@ -670,14 +673,14 @@ Entries that do not exist do no harm: if the spellbook scan does not find them, 
 
 \---
 
-Heal Box Vanilla v1.4.4 · original by Dourd, UI Overhauled · ported to Vanilla and extended 09/2026 by Mquadrat
+Heal Box Vanilla v1.4.4.1 · original by Dourd, UI Overhauled · ported to Vanilla and extended 09/2026 by Mquadrat
 
 _______________________________________________________________________
 GERMAN
 
 # Heal Box Vanilla
 
-ADDON-DOKUMENTATION · VERSION 1.4.4 · CLIENT 1.12.1
+ADDON-DOKUMENTATION · VERSION 1.4.4.1 · CLIENT 1.12.1
 
 Party-, Begleiter- und Selbst-Heilanzeige mit Schnellzugriff-Buttons für Heiler. Für jeden Gruppenplatz eine Namensplakette mit Lebensbalken, dazu eine für jeden Begleiter in der Gruppe direkt unter seinem Besitzer, daneben bis zu zehn frei belegbare Zauber-Buttons. Ein schmaler Manabalken liegt im Lebensbalken, bei allen, die tatsächlich Mana nutzen. Dazu eine vollständige Heilvorhersage (Direktheilung, HoT-Restticks und Absorb-Schilde), die sich über den Combatlog selbst korrigiert und ihre Werte im HealComm-Format mit anderen Heilern teilt. Die Oberfläche gibt es auf **Deutsch und Englisch**, umschaltbar im Optionsfenster.
 
@@ -1296,10 +1299,12 @@ Die vorbelegten Listen, frei erweiterbar in `Spell.Name`:
 
 |Klasse|Zauber|
 |-|-|
-|Priester|Renew · Flash Heal · Lesser Heal · Heal · Greater Heal · Binding Heal · Prayer of Healing · Prayer of Mending · Circle of Healing · Power Word: Shield · Abolish Disease · Cure Disease · Dispel Magic|
-|Druide|Rejuvenation · Regrowth · Lifebloom · Healing Touch · Swiftmend · Remove Curse · Abolish Poison|
-|Schamane|Lesser Healing Wave · Healing Wave · Chain Heal · Earth Shield · Cure Poison · Cure Disease|
-|Paladin|Flash of Light · Holy Light · Holy Shock · Lay on Hands · Purify · Cleanse · Blessing of Protection|
+|Priester|Renew · Flash Heal · Lesser Heal · Heal · Greater Heal · Binding Heal · Prayer of Healing · Prayer of Mending · Circle of Healing · Power Word: Shield · Abolish Disease · Cure Disease · Dispel Magic · Power Word: Fortitude · Prayer of Fortitude · Divine Spirit · Prayer of Spirit · Shadow Protection · Prayer of Shadow Protection · Fear Ward · Power Infusion · Resurrection|
+|Druide|Healing Touch · Regrowth · Rejuvenation · Swiftmend · Tranquility · Lifebloom · Abolish Poison · Cure Poison · Remove Curse · Mark of the Wild · Gift of the Wild · Thorns · Innervate · Rebirth|
+|Schamane|Lesser Healing Wave · Healing Wave · Chain Heal · Earth Shield · Water Shield · Cure Poison · Cure Disease · Purge · Ancestral Spirit · Water Walking · Water Breathing|
+|Paladin|Flash of Light · Holy Light · Holy Shock · Lay on Hands · Cleanse · Purify · Blessing of Protection · Blessing of Freedom · Blessing of Sacrifice · Redemption · Divine Intervention · Blessing of Wisdom / Might / Kings / Salvation / Light / Sanctuary · Greater Blessing of Wisdom / Might / Kings / Salvation / Light / Sanctuary|
+|Magier|Remove Lesser Curse · Arcane Intellect · Arcane Brilliance · Dampen Magic · Amplify Magic|
+|Hexenmeister|Unending Breath · Detect Invisibility · Detect Lesser / Greater Invisibility|
 
 Nicht vorhandene Einträge stören nicht: Findet der Zauberbuch-Scan sie nicht, werden sie stillschweigend übergangen.
 
@@ -1315,6 +1320,7 @@ Nicht vorhandene Einträge stören nicht: Findet der Zauberbuch-Scan sie nicht, 
 * Heilvorhersage für Direktheilung, HoT-Restticks und Absorb-Schilde, selbstkorrigierend über den Combatlog
 * HealComm-Sync mit Puppeteer, pfUI, Luna und Co., ohne Ace-Bibliotheken
 * Lokalisierung Deutsch, Englisch, Spanisch, Französisch und Italienisch, im laufenden Spiel umschaltbar
+* 1.4.4.1: Buff-Erkennung & Tooltip-Scan behoben (Göttlicher Willen Uhr-Icon), vollständige Klassen-Zauberlisten mit Segen, Buffs, Hilfszaubern und Wiederbelebung, Gruppen-Buff-Erkennung; siehe CHANGELOG
 * 1.4.4: Leistungsdurchgang ohne Funktionsänderung (zentrale Button-Zustände, Anzeige-Zwischenspeicher, gemeinsame Aura-Scans, zusammengefasste Event-Salven); siehe CHANGELOG
 * 1.4.3: Mana-Ticker-Modul (2-s-Regenerationstick und Fünf-Sekunden-Regel als Funke im Manabalken), Smart-Damage-Modul (Rangwahl für Angriffszauber auf jeder Aktionsleiste), Smart Healing (automatisches Abrangen, standardmäßig aus), Cooldown-Uhr auf den Buttons, roter Rahmen für den Angegriffenen, HoT/Schild-Timer auf den Buttons
 * 1.4.2: Raidmodus als eigenes Modul (`FBHealBox_Raid.lua`) mit kompaktem 20/40-Raster, Mini-Buttons, eigenem Options-Reiter und Raid-Test; Hook-Schnittstelle im Kern
@@ -1322,7 +1328,7 @@ Nicht vorhandene Einträge stören nicht: Findet der Zauberbuch-Scan sie nicht, 
 
 \---
 
-Heal Box Vanilla v1.4.4 · Original von Dourd, UI Overhauled · Vanilla-Portierung und Erweiterung 09/2026 von Mquadrat
+Heal Box Vanilla v1.4.4.1 · Original von Dourd, UI Overhauled · Vanilla-Portierung und Erweiterung 09/2026 von Mquadrat
 
 \---
 
