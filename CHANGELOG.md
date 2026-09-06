@@ -1,6 +1,6 @@
 # Changelog
 
-## 1.4.4 (unreleased)
+## 1.4.4 (2026-09-05)
 
 Performance pass. No feature was added or changed; every visible behaviour is meant to be identical. A simulated five-second raid fight (40 players, aura and health events, mana changes, combat log, 60 frames per second) went from about 63,900 API and widget calls to about 14,450, a reduction of 77 %.
 
