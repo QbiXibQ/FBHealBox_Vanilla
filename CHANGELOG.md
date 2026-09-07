@@ -1,6 +1,6 @@
 # Changelog
 
-## 1.4.4.2 (2026-09-06)
+## 1.4.4.2 (2026-09-07)
 
 Buff duration display update & bugfix. Replaces the 4-quadrant clock division for buff icons with a 32-step vertical duration wipe, offering much finer timer resolution, and fixes an <eof> syntax error when loading.
 
