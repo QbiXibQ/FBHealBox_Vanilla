@@ -28,6 +28,7 @@
 --     je Frame nur einmal, Event-Salven zusammengefasst, Ticker per Event
 --     gesteuert, Combatlog-Parser nach Eventklasse. Details im CHANGELOG.
 --   * v1.4.4.1: Spells hinzugefügt, Bugfixes
+--   * v1.4.4.2: TOC Addonbeschreibung präzisiert, Umstellung Buff-Restlaufzeit von 4/4 Blocks auf 32 Topdown Anzeige (fadeout Effekt)
 --
 -- Ehre wem Ehre gebuehrt: Aufbau, Namensplaketten und Grundidee stammen
 -- aus dem Original.
@@ -78,7 +79,7 @@ HealBox = {
 -- feuert ADDON_LOADED fuer uns.
 FBADDON_NAME   = "Heal Box Vanilla";
 FBADDON_FOLDER = "FBHealBox";
-HealBoxVersion = "|cFFFFFF00v1.4.4.1|r"; 
+HealBoxVersion = "|cFFFFFF00v1.4.4.2|r"; 
 
 -- ==========================================================================
 -- [ Lokalisierung / Localization ]

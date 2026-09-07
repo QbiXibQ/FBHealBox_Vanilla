@@ -1,5 +1,27 @@
 # Changelog
 
+## 1.4.4.2 (2026-09-06)
+
+Buff duration display update & bugfix. Replaces the 4-quadrant clock division for buff icons with a 32-step vertical duration wipe, offering much finer timer resolution, and fixes an <eof> syntax error when loading.
+
+### English
+
+**New & Changed**
+
+- **32-step buff icon duration display.** The buff icons left of the health bar previously divided the remaining duration into 4 coarse quadrants (quarters). They now transition in 32 fine vertical steps (`FBBUFFICON_STEPS = 32`) from top to bottom. As a buff expires, the top portion is progressively desaturated and darkened in 32 increments. For a 30-minute buff like *Power Word: Fortitude* or *Divine Spirit*, the visual display now updates approximately every 56 seconds rather than once every 7.5 minutes.
+- **Optimised texture usage.** Replaced the 4 quadrant textures and 4 wash textures per buff icon with a single dynamically cropped desaturated overlay (`ic.qTex`) and dark wash (`ic.wTex`), reducing texture objects by 75 % per buff icon while increasing visual granularity eightfold.
+- **Shortened addon notes.** Better display in WoW-Launcher addon managers.
+
+
+### Deutsch
+
+**Neu & Geaendert**
+
+- **32-Stufen-Ablaufanzeige fuer Buff-Icons.** Die Buff-Symbole links neben dem Lebensbalken teilten die Restlaufzeit bisher in 4 grobe Bloecke (Quadranten) auf. Dies wurde auf 32 feine Ablaufstufen (`FBBUFFICON_STEPS = 32`) von oben nach unten umgestellt. Bei ablaufender Restzeit wird das Icon in 32 Teilschritten von oben nach unten schrittweise entsaettigt (schwarz-weiss) und abgedunkelt. Bei einem 30-Minuten-Buff (z. B. *Machtwort: Seelenstaerke*) aktualisiert sich die visuelle Anzeige nun ca. alle 56 Sekunden statt nur alle 7,5 Minuten.
+- **Ressourcenschonende Textur-Struktur.** Statt 4 separaten Quadranten-Texturen und 4 Abdunklungs-Overlays nutzt jedes Icon nun nur noch je eine dynamisch skalierte und beschnittene Overlay-Textur (`ic.qTex` und `ic.wTex`). Das spart 75 % der Texturobjekte pro Icon ein und erhoeht gleichzeitig die Anzeigegenauigkeit um das Achtfache.
+- **Addon Beschreibung eingekuerzt** Fuer bessere Übersicht in WoW-Launchern.
+
+
 ## 1.4.4.1 (2026-09-06)
 
 Buff tracking & class spells update. Fixes buff clock icons (Divine Spirit, etc.) not appearing next to the health bar, adds group buff alternate matching, and completes the spell selection lists across all healer classes with buffs, utility and rez spells.
