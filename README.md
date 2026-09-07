@@ -1,6 +1,6 @@
 # Heal Box Vanilla
 
-ADDON DOCUMENTATION · VERSION 1.4.2 · World of Warcraft CLIENT 1.12.1
+ADDON DOCUMENTATION · VERSION 1.4.4.2 · World of Warcraft CLIENT 1.12.1
 
 Party, pet and self heal display with quick-cast buttons for healers. One name plate with a health bar per group slot, plus one for every pet in the group directly below its owner, and next to it up to ten freely assignable spell buttons. A thin mana bar sits inside the health bar for everyone who actually uses mana. On top of that a complete heal prediction (direct heals, remaining HoT ticks and absorb shields) that corrects itself from the combat log and shares its numbers with other healers in the HealComm format. The interface is available in **English and German**, switchable in the options window.
 
@@ -20,7 +20,7 @@ Party, pet and self heal display with quick-cast buttons for healers. One name p
 
 Download zip, unpack into your Addons folder.
 
-The folder under `Interface\\AddOns` is called **`FBHealBox`** and holds seven files:
+The folder under `Interface\AddOns` is called **`FBHealBox`** and holds seven files:
 
 |File|Contents|
 |-|-|
@@ -29,16 +29,16 @@ The folder under `Interface\\AddOns` is called **`FBHealBox`** and holds seven f
 |`FBHealBox_Raid.lua`|The raid mode module (see [Raid mode](#raid-mode)). Remove it from the `.toc` and the core runs exactly as in 1.4.1|
 |`FBHealBox_Ticker.lua`|The mana ticker module (see [Mana ticker](#mana-ticker)), also removable|
 |`FBHealBox_Damage.lua`|The Smart Damage module (see [Smart Damage](#smart-damage)), also removable|
-|`FBHealBox.xml`|Only the event frame that calls `FBHealBox\_OnLoad` and `FBHealBox\_OnEvent`|
+|`FBHealBox.xml`|Only the event frame that calls `FBHealBox_OnLoad` and `FBHealBox_OnEvent`|
 |`CHANGELOG.md`|What changed in which version|
 
-The folder name must match the name of the `.toc` file, otherwise the addon never starts. If you want to rename the folder, also change the `FBADDON\_FOLDER` constant near the top of `FBHealBox.lua`, because the `ADDON\_LOADED` check depends on it. The display name lives separately in `FBADDON\_NAME` and can be changed freely.
+The folder name must match the name of the `.toc` file, otherwise the addon never starts. If you want to rename the folder, also change the `FBADDON_FOLDER` constant near the top of `FBHealBox.lua`, because the `ADDON_LOADED` check depends on it. The display name lives separately in `FBADDON_NAME` and can be changed freely.
 
-**Optional: SuperWoW.** When detected, the addon prints `\[SuperWoW detected]` at login and casts directly on the group member without touching your current target. Without SuperWoW it briefly switches target for the cast and restores the previous one afterwards.
+**Optional: SuperWoW.** When detected, the addon prints `[SuperWoW detected]` at login and casts directly on the group member without touching your current target. Without SuperWoW it briefly switches target for the cast and restores the previous one afterwards.
 
 **No libraries required.** No Ace, no HealComm, no RosterLib. The addon speaks the HealComm protocol directly, see [HealComm sync](#healcomm-sync).
 
-\---
+---
 
 ## The display
 
@@ -56,15 +56,15 @@ If your current hostile target is targeting a group member, that member's plate 
 
 ### Line of sight
 
-While a unit is out of your line of sight an **eye badge** (`FBLOS\_ICON`, the Blind icon) sits on the top-left corner of its plate. Vanilla has no API for this, so two paths are used: with the **UnitXP SP3** client mod installed the addon asks `UnitXP("inSight", "player", unit)` every half second, live and exact. Without it, the addon watches for the *not in line of sight* error after one of your heals and marks the unit you tried to heal for `FBLOS\_TIMEOUT` (8) seconds; the mark is cleared as soon as a cast on that unit starts or one of your heals or HoT ticks lands on it. `/fbp` reports which path is active. Option *Line of sight*; badge position via `FBLOS\_ICON\_X/Y`.
+While a unit is out of your line of sight an **eye badge** (`FBLOS_ICON`, the Blind icon) sits on the top-left corner of its plate. Vanilla has no API for this, so two paths are used: with the **UnitXP SP3** client mod installed the addon asks `UnitXP("inSight", "player", unit)` every half second, live and exact. Without it, the addon watches for the *not in line of sight* error after one of your heals and marks the unit you tried to heal for `FBLOS_TIMEOUT` (8) seconds; the mark is cleared as soon as a cast on that unit starts or one of your heals or HoT ticks lands on it. `/fbp` reports which path is active. Option *Line of sight*; badge position via `FBLOS_ICON_X/Y`.
 
 ### Pets
 
-Every pet in the group gets its own plate with the full set of spell buttons: heal the hunter's cat or the warlock's voidwalker with one click, exactly like a player. Pet plates appear and disappear with `UNIT_PET` (summon, dismiss, death). Three things tell them apart: they are **indented** by `FBPET\_INDENT` (12) px under their owner and narrower by the same amount so the buttons stay aligned, a **paw icon** (`FBPET\_ICON`) sits in front of the name, and the name is **light blue**. Hunter pets run on focus and warlock pets on mana, so only the latter get a mana bar. The *Show pets* option hides the whole family.
+Every pet in the group gets its own plate with the full set of spell buttons: heal the hunter's cat or the warlock's voidwalker with one click, exactly like a player. Pet plates appear and disappear with `UNIT_PET` (summon, dismiss, death). Three things tell them apart: they are **indented** by `FBPET_INDENT` (12) px under their owner and narrower by the same amount so the buttons stay aligned, a **paw icon** (`FBPET_ICON`) sits in front of the name, and the name is **light blue**. Hunter pets run on focus and warlock pets on mana, so only the latter get a mana bar. The *Show pets* option hides the whole family.
 
 ### Bar layers
 
-Four status bars sit exactly on top of each other, ordered by fixed frame levels (`FBHealBox\_SetBarStrata`). Mana is the topmost strip, then health, opaque; the shield below it, the heal prediction at the bottom:
+Four status bars sit exactly on top of each other, ordered by fixed frame levels (`FBHealBox_SetBarStrata`). Mana is the topmost strip, then health, opaque; the shield below it, the heal prediction at the bottom:
 
 |Layer|Colour|Meaning|
 |-|-|-|
@@ -77,7 +77,7 @@ Everything is clipped at the end of the bar: a shield exceeding maximum HP stays
 
 ### Mana bar
 
-The mana bar is `FBMANA\_BAR\_HEIGHT` (5) pixels high and lies on the bottom edge of the health bar. Where mana is missing a darker translucent strip shows through (`FBMANA\_BG\_ALPHA`, 0.35, set to 0 for none). It only appears when the unit's **power type is mana** (`UnitPowerType() == 0`): warriors, rogues, hunter pets and druids in cat or bear form get no strip, and the health bar is visible at full height. The bar follows `UNIT\_MANA`, `UNIT\_MAXMANA` and `UNIT\_DISPLAYPOWER`. The *Mana bar* option switches it off entirely.
+The mana bar is `FBMANA_BAR_HEIGHT` (5) pixels high and lies on the bottom edge of the health bar. Where mana is missing a darker translucent strip shows through (`FBMANA_BG_ALPHA`, 0.35, set to 0 for none). It only appears when the unit's **power type is mana** (`UnitPowerType() == 0`): warriors, rogues, hunter pets and druids in cat or bear form get no strip, and the health bar is visible at full height. The bar follows `UNIT_MANA`, `UNIT_MAXMANA` and `UNIT_DISPLAYPOWER`. The *Mana bar* option switches it off entirely.
 
 ### Dispel colouring
 
@@ -92,7 +92,7 @@ If someone carries a debuff **your** class can remove, their health bar takes th
 
 The thresholds for the HP colours are `LowHP` (0.6) and `VeryLowHP` (0.3) near the top of the file.
 
-\---
+---
 
 ## The spell buttons
 
@@ -104,11 +104,11 @@ Up to ten buttons sit next to each plate, each showing its spell's icon. A **lef
 
 **Smart Healing (off by default).** With *Smart Healing* on, a click casts the lowest rank of the assigned spell whose expected heal covers the target's missing health, minus healing already on the way, plus the *Safety margin* (default 20 %). Expected heals come from the learned values of the prediction where available, otherwise from the tooltip average. It never goes above the rank you assigned, applies to direct heals only (HoTs, shields and buffs such as Fortitude are always cast as assigned; a spell qualifies only if its tooltip describes a heal), and below 30 % health it always casts the assigned rank. Downsides: the estimate ignores crits, and with burst damage or when you want to overheal on purpose (a tank before a big hit) the lower rank can fall short. Leave it off whenever overhealing is what you want. `/fbp debug` prints every decision, `/fbp` shows the state.
 
-**Cooldowns.** Every button shows the usual cooldown sweep for its spell. The global cooldown is not shown (`FBCD\_MIN\_DURATION`). Option *Cooldowns on buttons*.
+**Cooldowns.** Every button shows the usual cooldown sweep for its spell. The global cooldown is not shown (`FBCD_MIN_DURATION`). Option *Cooldowns on buttons*.
 
 **HoT and shield timers.** The button of a spell shows, for its unit, the remaining seconds of your own HoT (green) or shield (blue) of that spell. When Power Word: Shield is used up, the same button shows Weakened Soul in red until the target can be shielded again. The left-click spell is checked first, then the right-click spell. Only your own effects are tracked. Option *HoT and shield timers*.
 
-**Buff icons left of the bar.** Buffs with a duration that sit on your buttons (Fortitude, Divine Spirit, Fear Ward, Inner Fire, left or right click) appear as small 8 px icons on the **outer left side** of the plate while the buff is up, stacked two high: the first at the top next to the plate, the second below it, the third at the top of the next column to the left, and so on. The icon is a **clock**: like a minute hand, it turns black and white clockwise from twelve o'clock as the time runs out. Fresh buff: fully coloured. Half the time left: right half grey. A quarter left: three quarters grey. Vanilla cannot draw a true circular sweep, so the icon is split into four quadrants; on 8 px that is the finest resolution that still reads. Elapsed quadrants are drawn dark (desaturated where the client supports it, with a dark wash `FBBUFFICON\_WASH`) on a small frame one level above the icon, so the split is visible on every client; `/fbp buffs` also prints the grey-quadrant count per icon. Hovering an icon shows the buff name and the remaining time. The remaining time is exact on yourself (buff API, re-read on every `PLAYER_AURAS_CHANGED` and once a second in between, because a refresh of a running buff fires no event; a recast therefore resets the clock) and counted from your own cast on others; a buff cast by someone else stays fully coloured (time unknown). Up to six icons per plate (`FBBUFFICON\_MAX`). Option *Buff icons left of the bar*, on by default. Raid cells show the same clock icons outside their left edge at 6 px in a 3 by 4 grid (twelve slots, columns filling from the cell outward), and the grid reserves the room for them between the groups. After a `/reload` or a group change the addon scans all units once, so existing buffs show up without waiting for an aura event. `/fbp buffs` lists the tracked buffs and their state on you.
+**Buff icons left of the bar.** Buffs with a duration that sit on your buttons (Fortitude, Divine Spirit, Fear Ward, Inner Fire, left or right click) appear as small 8 px icons on the **outer left side** of the plate while the buff is up, stacked two high: the first at the top next to the plate, the second below it, the third at the top of the next column to the left, and so on. The icon visually tracks remaining time in **32 vertical steps** (`FBBUFFICON_STEPS = 32`): as time runs out, the icon turns black and white and shades darker from top to bottom. Fresh buff: fully coloured. Half time left: top half grey. A quarter left: top three quarters grey. This 32-step vertical wipe provides much higher visual precision (e.g. updating approximately every 56 seconds for a 30-minute buff instead of every 7.5 minutes) while saving performance by using a single dynamically cropped desaturated overlay (`ic.qTex`) and dark wash (`ic.wTex`). Hovering an icon shows the buff name and the remaining time. The remaining time is exact on yourself (buff API, re-read on every `PLAYER_AURAS_CHANGED` and once a second in between, because a refresh of a running buff fires no event; a recast therefore resets the clock) and counted from your own cast on others; a buff cast by someone else stays fully coloured (time unknown). Up to six icons per plate (`FBBUFFICON_MAX`). Option *Buff icons left of the bar*, on by default. Raid cells show the same duration icons outside their left edge at 6 px in a 3 by 4 grid (twelve slots, columns filling from the cell outward), and the grid reserves the room for them between the groups. After a `/reload` or a group change the addon scans all units once, so existing buffs show up without waiting for an aura event. `/fbp buffs` lists the tracked buffs and their state on you.
 
 **Dead, ghost, offline.** Instead of `0 %` the bar shows *Dead*, *Ghost* or *Offline*, empty and grey, with no mana strip.
 
@@ -125,11 +125,11 @@ The icon tints to show the state:
 
 Hovering shows the full spell tooltip plus the line *Heal Box Vanilla Target: `<name>`*, so it is always clear who this button serves.
 
-\---
+---
 
 ## Raid mode
 
-Raid mode is an addon within the addon: it lives in its own file `FBHealBox_Raid.lua`, hooks into the core only through `FBHealBox\_RegisterHook` and `FBHealBox\_AddOptionsTab`, and is on by default. It does nothing until it is needed: the grid appears on its own once you are in a raid with **at least 11 players** (*Raid view from N players*, adjustable from 2 to 40); smaller raids keep the party display, which shows your own subgroup. The *Raid mode* switch is only an emergency off. Everything described above keeps working unchanged.
+Raid mode is an addon within the addon: it lives in its own file `FBHealBox_Raid.lua`, hooks into the core only through `FBHealBox_RegisterHook` and `FBHealBox_AddOptionsTab`, and is on by default. It does nothing until it is needed: the grid appears on its own once you are in a raid with **at least 11 players** (*Raid view from N players*, adjustable from 2 to 40); smaller raids keep the party display, which shows your own subgroup. The *Raid mode* switch is only an emergency off. Everything described above keeps working unchanged.
 
 **Installing the module:** `FBHealBox_Raid.lua` must sit next to `FBHealBox.lua`, the `.toc` must list it (the shipped `.toc` does), and the game client must be **restarted** once. A `/reload` does not pick up files newly added to a `.toc`. When the module is active, the login lines in the chat include *Raid mode module loaded*, and the options window shows a third tab.
 
@@ -166,9 +166,9 @@ All raid settings live in `HealBox.Raid`. `/fbp raidtest 20`, `/fbp raidtest 40`
 
 ### How it hooks in
 
-The core exposes `FBHealBox\_RegisterHook(name, fn)` and runs the hooks at fixed points: `Defaults`, `SyncOptions`, `ApplyLocale`, `UpdateNames`, `RefreshAllBars`, `ButtonsChanged`, `ActiveToggle`, `Status`, `Slash`, `Loaded`, `Aggro`, `SpellTimers` and `Cooldowns`. `FBHealBox\_AddOptionsTab(labelKey)` adds a tab to the options window. The raid module registers its roster refresh on `UpdateNames`, its cell refresh on `RefreshAllBars` (so the heal prediction reaches raid cells for free), and its slash commands on `Slash`. Raid units are added to `FBPredictUnits`, which lets HoT and shield confirmation via `UNIT\_AURA` work for `raid1` to `raid40`. Pets are not shown in raid mode.
+The core exposes `FBHealBox_RegisterHook(name, fn)` and runs the hooks at fixed points: `Defaults`, `SyncOptions`, `ApplyLocale`, `UpdateNames`, `RefreshAllBars`, `ButtonsChanged`, `ActiveToggle`, `Status`, `Slash`, `Loaded`, `Aggro`, `SpellTimers` and `Cooldowns`. `FBHealBox_AddOptionsTab(labelKey)` adds a tab to the options window. The raid module registers its roster refresh on `UpdateNames`, its cell refresh on `RefreshAllBars` (so the heal prediction reaches raid cells for free), and its slash commands on `Slash`. Raid units are added to `FBPredictUnits`, which lets HoT and shield confirmation via `UNIT_AURA` work for `raid1` to `raid40`. Pets are not shown in raid mode.
 
-\---
+---
 
 ## Mana ticker
 
@@ -176,7 +176,7 @@ The mana ticker lives in its own module `FBHealBox_Ticker.lua` and is on by defa
 
 ### How it works
 
-There is no API for this in 1.12, so the module watches `UNIT\_MANA` for the player. Mana going down starts the five-second rule. Mana going up is a tick candidate: the first one sets the 2 s grid, every later one that lands within *Tick tolerance* of the expected time re-synchronises it. Candidates outside the tolerance (Mana Spring pulses, Innervate) are ignored; only after three misses in a row is a new grid accepted. Jumps of at least 300 mana and more than four times the learned tick size (potions, runes) never count. With full mana no ticks arrive, so the grid runs on silently and the spark stays hidden until mana is missing again; it re-synchronises on the next real tick. The spark needs the mana strip (option *Mana bar*) and disappears in bear or cat form.
+There is no API for this in 1.12, so the module watches `UNIT_MANA` for the player. Mana going down starts the five-second rule. Mana going up is a tick candidate: the first one sets the 2 s grid, every later one that lands within *Tick tolerance* of the expected time re-synchronises it. Candidates outside the tolerance (Mana Spring pulses, Innervate) are ignored; only after three misses in a row is a new grid accepted. Jumps of at least 300 mana and more than four times the learned tick size (potions, runes) never count. With full mana no ticks arrive, so the grid runs on silently and the spark stays hidden until mana is missing again; it re-synchronises on the next real tick. The spark needs the mana strip (option *Mana bar*) and disappears in bear or cat form.
 
 ### Tab *Extras*, section *Mana ticker*
 
@@ -190,7 +190,7 @@ There is no API for this in 1.12, so the module watches `UNIT\_MANA` for the pla
 
 `/fbp ticker` toggles the ticker; `/fbp` reports whether the grid is synced, the time to the next tick and a running five-second rule. Settings live in `HealBox.Ticker`. The ticker shares the *Extras* tab with Smart Damage.
 
-\---
+---
 
 ## Smart Damage
 
@@ -222,7 +222,7 @@ The target's remaining health comes from the first source that answers:
 
 Spells per class: Priest Smite, Holy Fire, Mind Blast; Druid Wrath, Starfire, Moonfire; Shaman Lightning Bolt, Chain Lightning, Earth/Flame/Frost Shock; Paladin Holy Shock, Hammer of Wrath, Exorcism, Holy Wrath; Mage Fireball, Frostbolt, Fire Blast, Scorch, Pyroblast; Warlock Shadow Bolt, Searing Pain, Immolate, Soul Fire, Conflagrate; Hunter Arcane Shot, Aimed Shot (list `FBDamageSpells`). `/fbp damage` toggles, `/fbp debug` logs every decision with the health source used.
 
-\---
+---
 
 ## Options window
 
@@ -272,19 +272,19 @@ The window has two tabs.
 
 **Class colours**: colours the name on each plate in the class colour (`RAID_CLASS_COLORS` of the client, with a built-in fallback table). Pets keep their light-blue name. On by default.
 
-**Range fading**: fades a whole plate including its buttons to 50 % (`FBRANGE\_ALPHA`) when the unit is out of range. Range is checked every half second (`FBRANGE\_INTERVAL`) with `IsSpellInRange` on your first assigned button spell; with no spell assigned, `CheckInteractDistance(4)`, that is 28 yards, is used. On by default.
+**Range fading**: fades a whole plate including its buttons to 50 % (`FBRANGE_ALPHA`) when the unit is out of range. Range is checked every half second (`FBRANGE_INTERVAL`) with `IsSpellInRange` on your first assigned button spell; with no spell assigned, `CheckInteractDistance(4)`, that is 28 yards, is used. On by default.
 
-**Buff watch**: a button that opens the cascading menu with your class buffs (Fortitude, Divine Spirit, Mark of the Wild, Blessings, Thorns, Earth Shield, …; only learned ones are listed). Every plate whose unit is **missing** that buff gets an **orange border**. The group version counts too (Prayer of Fortitude for Power Word: Fortitude, Gift of the Wild for Mark of the Wild, Greater Blessings for Blessings), even when cast by another healer: the check first compares buff textures with your spellbook icons and, only if that fails, reads the buff names from a tooltip scan. Checked on `UNIT\_AURA` and after every group change, so nothing runs per frame. Pick *No buff watch* to switch it off. Saved as `WatchBuff`. Pets are left out unless *Buff watch on pets* is ticked.
+**Buff watch**: a button that opens the cascading menu with your class buffs (Fortitude, Divine Spirit, Mark of the Wild, Blessings, Thorns, Earth Shield, …; only learned ones are listed). Every plate whose unit is **missing** that buff gets an **orange border**. The group version counts too (Prayer of Fortitude for Power Word: Fortitude, Gift of the Wild for Mark of the Wild, Greater Blessings for Blessings), even when cast by another healer: the check first compares buff textures with your spellbook icons and, only if that fails, reads the buff names from a tooltip scan. Checked on `UNIT_AURA` and after every group change, so nothing runs per frame. Pick *No buff watch* to switch it off. Saved as `WatchBuff`. Pets are left out unless *Buff watch on pets* is ticked.
 
 **Buff watch on pets**: also marks pets missing the watched buff. Off by default.
 
 **HealComm sync**: exchanges heal information with the group, see [HealComm sync](#healcomm-sync). On by default.
 
-**Language / Sprache**: switches between English and German. The button opens the same cascading menu as the spell picker. The change takes effect **immediately**: `FBHealBox\_ApplyLocale()` relabels the already-built interface, no `/reload` needed. On first start `GetLocale()` decides: German clients start in German, everything else in English. The choice is saved per character.
+**Language / Sprache**: switches between English and German. The button opens the same cascading menu as the spell picker. The change takes effect **immediately**: `FBHealBox_ApplyLocale()` relabels the already-built interface, no `/reload` needed. On first start `GetLocale()` decides: German clients start in German, everything else in English. The choice is saved per character.
 
 **To move the window:** drag its frame. Close it with the X in the top right, with **Escape**, or with `/fbp config`. Escape is caught by a hook on `ToggleGameMenu` (in addition to `UISpecialFrames`), so it works on clients that do not honour that list; when Blizzard's game menu is open, Escape closes that first as usual.
 
-\---
+---
 
 ## Test mode
 
@@ -304,7 +304,7 @@ Their health drifts slowly up and down so you can watch the yellow and red thres
 
 Test mode is meant for the addon's own plates; in party-frame mode the ghosts sit at Blizzard's (hidden) frames and are of little use.
 
-\---
+---
 
 ## The spell menu
 
@@ -312,12 +312,12 @@ A custom cascading menu, not `UIDropDownMenu`: the 1.12 implementation of the la
 
 * **Level 1** lists every learned spell of your class from the spell list, each with its icon.
 * **An arrow on the right** means multiple ranks exist. The submenu opens **on hover**, overlaps the parent list by two pixels and has a 14-pixel tolerance zone around it so the mouse never loses it on the way over.
-* **Open stays open**: only picking a rank, opening another submenu, or clicking outside closes it. After three seconds without the mouse nearby an emergency timer fires (`FBMENU\_GRACE\_TIME`, set it to 999 to disable).
+* **Open stays open**: only picking a rank, opening another submenu, or clicking outside closes it. After three seconds without the mouse nearby an emergency timer fires (`FBMENU_GRACE_TIME`, set it to 999 to disable).
 * **No spell** at the top clears the button again.
 
 The selection is stored as the cast string `Spell(Rank N)`, exactly the form `CastSpellByName` expects, and the reason the prediction knows the precise rank.
 
-\---
+---
 
 ## Heal prediction
 
@@ -325,7 +325,7 @@ The heart of the addon. Three independent sources feed the bars.
 
 ### Direct heals
 
-`SPELLCAST\_START` provides the spell name and the cast time in milliseconds, regardless of whether the cast came from a Heal Box button, the action bar or a macro. No hook on `CastSpellByName` is required. The preview disappears on `SPELLCAST\_STOP`, `\_FAILED` and `\_INTERRUPTED`; pushback (`SPELLCAST\_DELAYED`) extends it.
+`SPELLCAST_START` provides the spell name and the cast time in milliseconds, regardless of whether the cast came from a Heal Box button, the action bar or a macro. No hook on `CastSpellByName` is required. The preview disappears on `SPELLCAST_STOP`, `_FAILED` and `_INTERRUPTED`; pushback (`SPELLCAST_DELAYED`) extends it.
 
 Instants deliberately get **no** prediction: the healing has landed before a bar could show it.
 
@@ -334,7 +334,7 @@ Instants deliberately get **no** prediction: the healing has landed before a bar
 `UnitBuff()` reports no remaining duration for other units, so the addon keeps its own books:
 
 1. The button registers the cast including target and rank.
-2. `UNIT\_AURA` confirms the application by comparing the **buff texture** with the spellbook icon (locale independent, no tooltip scan per event).
+2. `UNIT_AURA` confirms the application by comparing the **buff texture** with the spellbook icon (locale independent, no tooltip scan per event).
 3. What is shown is `remaining ticks × healing per tick`, with the remaining ticks derived from `(expiry − GetTime()) / interval`. The bar therefore counts down tick by tick.
 4. If the buff disappears early (dispel, death, overwritten), the display is gone immediately.
 
@@ -344,7 +344,7 @@ The tick interval cannot be read from the tooltip in Vanilla and therefore lives
 
 ### Absorb shields
 
-Maximum absorb from the spellbook tooltip, consumption from the combat log (`(123 absorbed)`). For `\*\_VS\_SELF\_\*` events the victim is the player, otherwise the message is searched for one of the currently shielded names.
+Maximum absorb from the spellbook tooltip, consumption from the combat log (`(123 absorbed)`). For `\*_VS_SELF_*` events the victim is the player, otherwise the message is searched for one of the currently shielded names.
 
 If you absorb more than the tooltip allows (heal gear), the maximum is corrected **upwards** and remembered. That correction is one-directional and therefore safe: more than possible cannot have been absorbed.
 
@@ -366,11 +366,11 @@ Two safeguards keep that memory clean. **Crits are not learned**: the crit wordi
 
 What a spell can do is decided by its own tooltip, and a spell may be several things at once. Regrowth, for instance, provides an instant portion *and* a HoT, and is treated as both.
 
-\---
+---
 
 ## HealComm sync
 
-HealComm-1.0 broadcasts plain text through `SendAddonMessage` with the prefix `HealComm`. Heal Box Vanilla speaks that protocol directly, without embedding the library. Puppeteer, pfUI, Luna Unit Frames, CT\_RaidAssist and everything else HealComm-aware therefore see your announced heals, and you see theirs.
+HealComm-1.0 broadcasts plain text through `SendAddonMessage` with the prefix `HealComm`. Heal Box Vanilla speaks that protocol directly, without embedding the library. Puppeteer, pfUI, Luna Unit Frames, CT_RaidAssist and everything else HealComm-aware therefore see your announced heals, and you see theirs.
 
 |Message|Meaning|
 |-|-|
@@ -389,14 +389,14 @@ On receive, your own messages are filtered by sender name, and since HealComm st
 
 **The protocol knows nothing about absorb shields**: those stay local.
 
-\---
+---
 
 ## Slash commands
 
 |Command|Effect|
 |-|-|
 |`/fbp`|Status report: every tooltip value read per spell (direct, HoT and shield portion, learned values in parentheses), all currently running predictions, the state of the HealComm sync and the incoming heals received|
-|`/fbp debug`|Toggles live output. Reports every detected cast, every correction, every absorb and every message sent (`\[FBP>]`)|
+|`/fbp debug`|Toggles live output. Reports every detected cast, every correction, every absorb and every message sent (`[FBP>]`)|
 |`/fbp reset`|Discards all learned values and re-reads the tooltips|
 |`/fbp test`|Toggles test mode (same as the checkbox)|
 |`/fbp config`|Opens or closes the options window (same as the minimap button)|
@@ -408,7 +408,7 @@ On receive, your own messages are filtered by sender name, and since HealComm st
 
 `/fbp` is the first place to look when something is not displayed: if a spell is not listed there, the tooltip parser did not recognise it; the display is not at fault.
 
-\---
+---
 
 ## Saved settings
 
@@ -416,7 +416,7 @@ Everything lives in the `HealBox` table, saved **per character**:
 
 |Key|Contents|
 |-|-|
-|`SpellChoice\[1..10]`|Cast string per button, e.g. `Renew(Rank 10)`|
+|`SpellChoice[1..10]`|Cast string per button, e.g. `Renew(Rank 10)`|
 |`MaxButtons`|How many buttons are shown|
 |`Scale`|Scale of the plates|
 |`AttachMode`|0 = own plates, 1 = default party frames|
@@ -427,7 +427,7 @@ Everything lives in the `HealBox` table, saved **per character**:
 |`RowSpacing`|Gap between the plates in px (0 to 20)|
 |`ManaBar`|1 = mana strip on, 0 = off|
 |`ShowPets`|1 = pet plates on, 0 = off|
-|`SpellChoiceR\[1..10]`|Cast string per button for right click|
+|`SpellChoiceR[1..10]`|Cast string per button for right click|
 |`RightClick`|1 = right-click spell on, 0 = off (default)|
 |`DebuffIcon`|1 = debuff icon on, 0 = off|
 |`LOSIcon`|1 = line-of-sight badge on, 0 = off|
@@ -444,9 +444,9 @@ Everything lives in the `HealBox` table, saved **per character**:
 |`Raid`|Sub-table with every raid-mode setting (see [Raid mode](#raid-mode)), including `PosX` / `PosY` of the grid|
 |`PredictMemory`|Learned heal values per spell and rank|
 
-Missing keys, for example in an old `HealBox` table from 1.4, are filled in by `FBHealBox\_ApplyDefaults()` on load. Test mode is deliberately **not** saved.
+Missing keys, for example in an old `HealBox` table from 1.4, are filled in by `FBHealBox_ApplyDefaults()` on load. Test mode is deliberately **not** saved.
 
-\---
+---
 
 ## Configuration in code
 
@@ -456,43 +456,43 @@ Every knob is a global at the top of its own section and can be changed without 
 |-|-|-|
 |`LowHP` · `VeryLowHP`|0.6 · 0.3|Thresholds for yellow and red|
 |`NamePlateWidth` · `NamePlateHeight`|120 · 28|Size of one plate|
-|`FBMANA\_BAR\_HEIGHT`|5|Height of the mana strip in px|
-|`FBMANA\_BAR\_COLOR`|`{0.15, 0.4, 1, 1}`|Colour of the mana strip|
-|`FBMANA\_BG\_ALPHA`|0.35|Dark strip behind missing mana (0 = off)|
-|`FBPET\_NAME\_COLOR`|`{0.75, 0.85, 1, 1}`|Name colour on pet plates|
-|`FBPET\_INDENT`|12|Indent (and width reduction) of pet plates|
-|`FBPET\_ICON` · `FBPET\_ICON\_SIZE`|footprint · 12|Paw icon in front of pet names|
-|`FBDEBUFF\_ICON\_SIZE`|14|Edge length of the debuff icon|
-|`FBLOS\_ICON` · `FBLOS\_ICON\_SIZE`|Blind icon · 12|Line-of-sight badge|
-|`FBLOS\_ICON\_X` · `FBLOS\_ICON\_Y`|-3 · 3|Badge offset from the plate's top-left corner|
-|`FBLOS\_TIMEOUT`|8|Seconds a line-of-sight error stays marked without UnitXP|
-|`FBNAME\_WIDTH\_FULL` · `FBNAME\_WIDTH\_ICON`|78 · 60|Width of the name box without / with a visible debuff icon|
-|`FBRANGE\_ALPHA` · `FBRANGE\_INTERVAL`|0.5 · 0.5|Faded opacity and check interval of the range fading|
-|`FBBUFF\_MISSING\_COLOR`|`{1, 0.5, 0, 1}`|Border colour when the watched buff is missing|
-|`FBAGGRO\_COLOR`|`{1, 0.15, 0.15, 1}`|Border colour for the attacked member|
-|`FBCD\_MIN\_DURATION`|2|Cooldowns shorter than this (the global cooldown) are not shown|
-|`FBTIMER\_COLOR\_HOT` · `\_SHIELD` · `\_WS`|green · blue · red|Timer colours on the buttons|
-|`FBBUFFICON\_SIZE` · `FBBUFFICON\_GAP` · `FBBUFFICON\_MAX` · `FBBUFFICON\_XOFF`|8 · 1 · 6 · -2|Buff icons left of the plate|
-|`FBBUFFICON\_GREY`|0.55|Grey tint of elapsed quadrants when the client cannot desaturate|
-|`FBNAME\_HEIGHT`|12|Height of the name box (one line, vertically centred)|
-|`FBWEAKENED\_SOUL\_SEC`|15|Length of Weakened Soul|
-|`FBClassColors`|(table)|Fallback class colours if the client has no `RAID\_CLASS\_COLORS`|
+|`FBMANA_BAR_HEIGHT`|5|Height of the mana strip in px|
+|`FBMANA_BAR_COLOR`|`{0.15, 0.4, 1, 1}`|Colour of the mana strip|
+|`FBMANA_BG_ALPHA`|0.35|Dark strip behind missing mana (0 = off)|
+|`FBPET_NAME_COLOR`|`{0.75, 0.85, 1, 1}`|Name colour on pet plates|
+|`FBPET_INDENT`|12|Indent (and width reduction) of pet plates|
+|`FBPET_ICON` · `FBPET_ICON_SIZE`|footprint · 12|Paw icon in front of pet names|
+|`FBDEBUFF_ICON_SIZE`|14|Edge length of the debuff icon|
+|`FBLOS_ICON` · `FBLOS_ICON_SIZE`|Blind icon · 12|Line-of-sight badge|
+|`FBLOS_ICON_X` · `FBLOS_ICON_Y`|-3 · 3|Badge offset from the plate's top-left corner|
+|`FBLOS_TIMEOUT`|8|Seconds a line-of-sight error stays marked without UnitXP|
+|`FBNAME_WIDTH_FULL` · `FBNAME_WIDTH_ICON`|78 · 60|Width of the name box without / with a visible debuff icon|
+|`FBRANGE_ALPHA` · `FBRANGE_INTERVAL`|0.5 · 0.5|Faded opacity and check interval of the range fading|
+|`FBBUFF_MISSING_COLOR`|`{1, 0.5, 0, 1}`|Border colour when the watched buff is missing|
+|`FBAGGRO_COLOR`|`{1, 0.15, 0.15, 1}`|Border colour for the attacked member|
+|`FBCD_MIN_DURATION`|2|Cooldowns shorter than this (the global cooldown) are not shown|
+|`FBTIMER_COLOR_HOT` · `_SHIELD` · `_WS`|green · blue · red|Timer colours on the buttons|
+|`FBBUFFICON_SIZE` · `FBBUFFICON_GAP` · `FBBUFFICON_MAX` · `FBBUFFICON_XOFF`|8 · 1 · 6 · -2|Buff icons left of the plate|
+|`FBBUFFICON_STEPS` · `FBBUFFICON_GREY`|32 · 0.30|Duration progress steps (32) and grey tint when client cannot desaturate|
+|`FBNAME_HEIGHT`|12|Height of the name box (one line, vertically centred)|
+|`FBWEAKENED_SOUL_SEC`|15|Length of Weakened Soul|
+|`FBClassColors`|(table)|Fallback class colours if the client has no `RAID_CLASS_COLORS`|
 |`FBBuffWatchSpells` · `FBBuffAlternates`|(table)|Buffs offered per class, and which group version counts as the same|
 |`FBPartyUnit` · `FBLayoutOrder`|(table)|The ten slots and their display order|
 |`FBTestGhosts`|(table)|Names and values of the test-mode ghosts|
 |`MaxButtonCount`|10|Maximum number of buttons|
-|`FBMENU\_BTN\_HEIGHT` · `FBMENU\_ICON\_SIZE`|17 · 16|Row height and icon size in the menu|
-|`FBMENU\_MOUSE\_PAD`|14|Tolerance zone around the menus|
-|`FBMENU\_GRACE\_TIME`|3.0|Menu auto-close (999 = off)|
-|`FBPREDICT\_TICK\_DEFAULT`|3|Default tick interval for HoTs|
-|`FBPREDICT\_THROTTLE`|0.2|Update rate of the prediction|
-|`FBPREDICT\_CONFIRM\_TIME`|3.0|Time to wait for the aura confirmation|
-|`FBPREDICT\_TARGET\_TIME`|2.0|Lifetime of the remembered cast target|
+|`FBMENU_BTN_HEIGHT` · `FBMENU_ICON_SIZE`|17 · 16|Row height and icon size in the menu|
+|`FBMENU_MOUSE_PAD`|14|Tolerance zone around the menus|
+|`FBMENU_GRACE_TIME`|3.0|Menu auto-close (999 = off)|
+|`FBPREDICT_TICK_DEFAULT`|3|Default tick interval for HoTs|
+|`FBPREDICT_THROTTLE`|0.2|Update rate of the prediction|
+|`FBPREDICT_CONFIRM_TIME`|3.0|Time to wait for the aura confirmation|
+|`FBPREDICT_TARGET_TIME`|2.0|Lifetime of the remembered cast target|
 |`FBPredictTickInterval`|`{Lifebloom = 1}`|Deviating tick intervals|
 |`FBCommGroupHeal`|`{Prayer of Healing}`|What is broadcast as `GrpHeal`|
-|`FBLocale`|`enUS`, `deDE`|Every visible string, per language|
+|`FBLocale`|`enUS`, `deDE`, `esES`, `frFR`, `itIT`|Every visible string, per language|
 
-\---
+---
 
 ## Function reference
 
@@ -500,36 +500,36 @@ Every knob is a global at the top of its own section and can be changed without 
 
 |Function|Purpose|
 |-|-|
-|`FBHealBox\_OnLoad()`|Event registration, startup message|
-|`FBHealBox\_OnEvent(event, arg1)`|Central event dispatch|
+|`FBHealBox_OnLoad()`|Event registration, startup message|
+|`FBHealBox_OnEvent(event, arg1)`|Central event dispatch|
 |`FBHealBoxSetup()`|Creates the ten plates (five players, five pets)|
 |`FBHealBoxCreateFrame(…)`|Builds one plate including its four bars|
-|`FBHealBox\_SetBarStrata(f, strata)`|Stacks mana / health / shield / prediction|
-|`FBHealBox\_SetPlateVisible(f, visible)`|Shows or hides all bars of a plate (party-frame mode)|
-|`FBHealBox\_UpdateUnit(unit, frame)`|Writes HP, shield, prediction, mana and dispel colour into a plate|
-|`FBHealBox\_UpdateMana(unit, frame)`|The mana strip: shown only for mana users|
-|`FBHealBox\_DispelType(unit)`|First debuff your class can remove: type, texture, stacks, or nil|
-|`FBHealBox\_UpdateDebuffIcon(frame, tex, count)`|Debuff icon and stack count|
-|`FBHealBox\_CastOn(button, castString)`|Casts a button's spell (left or right) on its target|
-|`FBHealBox\_DropSpell(btnIndex, side)` · `FBHealBox\_CursorSpell()`|Drag and drop from the spellbook|
-|`FBHealBox\_SmartRank(castString, unit)`|Picks the rank to cast|
-|`FBHealBox\_CheckAggroAll()` · `FBHealBox\_ApplyBorder(f)`|Red border for the attacked member; border precedence|
-|`FBHealBox\_UpdateSpellTimers()` · `FBHealBox\_SpellTimerFor(...)`|HoT/shield timers on buttons|
-|`FBHealBox\_UpdateButtonCooldown(b)` · `FBHealBox\_UpdateAllCooldowns()`|Cooldown sweep|
-|`FBHealBox\_ShowTab(n)` · `FBHealBox\_ApplyRightClickLayout()`|Options tabs; show/hide the right-click column|
-|`FBHealBox\_PlateMouseDown(f)` · `FBHealBox\_PlateMouseUp(f)` · `FBHealBox\_RunPlateAction(f, action)`|Click and drag on a plate|
-|`FBHealBox\_RefreshAllBars()`|Updates all ten|
+|`FBHealBox_SetBarStrata(f, strata)`|Stacks mana / health / shield / prediction|
+|`FBHealBox_SetPlateVisible(f, visible)`|Shows or hides all bars of a plate (party-frame mode)|
+|`FBHealBox_UpdateUnit(unit, frame)`|Writes HP, shield, prediction, mana and dispel colour into a plate|
+|`FBHealBox_UpdateMana(unit, frame)`|The mana strip: shown only for mana users|
+|`FBHealBox_DispelType(unit)`|First debuff your class can remove: type, texture, stacks, or nil|
+|`FBHealBox_UpdateDebuffIcon(frame, tex, count)`|Debuff icon and stack count|
+|`FBHealBox_CastOn(button, castString)`|Casts a button's spell (left or right) on its target|
+|`FBHealBox_DropSpell(btnIndex, side)` · `FBHealBox_CursorSpell()`|Drag and drop from the spellbook|
+|`FBHealBox_SmartRank(castString, unit)`|Picks the rank to cast|
+|`FBHealBox_CheckAggroAll()` · `FBHealBox_ApplyBorder(f)`|Red border for the attacked member; border precedence|
+|`FBHealBox_UpdateSpellTimers()` · `FBHealBox_SpellTimerFor(...)`|HoT/shield timers on buttons|
+|`FBHealBox_UpdateButtonCooldown(b)` · `FBHealBox_UpdateAllCooldowns()`|Cooldown sweep|
+|`FBHealBox_ShowTab(n)` · `FBHealBox_ApplyRightClickLayout()`|Options tabs; show/hide the right-click column|
+|`FBHealBox_PlateMouseDown(f)` · `FBHealBox_PlateMouseUp(f)` · `FBHealBox_RunPlateAction(f, action)`|Click and drag on a plate|
+|`FBHealBox_RefreshAllBars()`|Updates all ten|
 |`FBUpdateNames()`|Names and visibility after a group or pet change, then re-layout|
 |`FBSlotActive(p)`|Is slot p to be shown right now?|
-|`FBHealBox\_Layout()`|Stacks the visible plates (owner, then pet) with `RowSpacing`|
-|`FBHealBox\_ApplyButtonSpacing()`|Re-chains all buttons with `ButtonSpacing`|
-|`FBHealBox\_SavePosition()` · `FBHealBox\_RestorePosition()`|Plate position in the saved variables|
-|`FBHealBox\_ApplyDefaults()` · `FBHealBox\_SyncOptions()`|Fill missing settings; align the options window with them|
-|`FBHealBox\_ApplyNameColor(unit, f)` · `FBHealBox\_ApplyAllNameColors()`|Name in class colour / pet colour|
-|`FBHealBox\_SetWatchBuff(name)` · `FBHealBox\_HasWatchBuff(unit)` · `FBHealBox\_CheckWatchBuff(unit, f)`|Buff watch: select, test one unit, colour the border|
-|`FBHealBox\_UnitInRange(unit)` · `FBHealBox\_CheckRangeAll()`|Range fading|
-|`FBUnitLOSBlocked(unit)` · `FBLOS\_OnError(msg)` · `FBLOS\_Clear(name)` · `FBHealBox\_CheckLOSAll()`|Line of sight (UnitXP or error-message fallback)|
-|`FBMenu\_OpenBuffMenu(anchor)`|The buff picker (same cascading menu)|
+|`FBHealBox_Layout()`|Stacks the visible plates (owner, then pet) with `RowSpacing`|
+|`FBHealBox_ApplyButtonSpacing()`|Re-chains all buttons with `ButtonSpacing`|
+|`FBHealBox_SavePosition()` · `FBHealBox_RestorePosition()`|Plate position in the saved variables|
+|`FBHealBox_ApplyDefaults()` · `FBHealBox_SyncOptions()`|Fill missing settings; align the options window with them|
+|`FBHealBox_ApplyNameColor(unit, f)` · `FBHealBox_ApplyAllNameColors()`|Name in class colour / pet colour|
+|`FBHealBox_SetWatchBuff(name)` · `FBHealBox_HasWatchBuff(unit)` · `FBHealBox_CheckWatchBuff(unit, f)`|Buff watch: select, test one unit, colour the border|
+|`FBHealBox_UnitInRange(unit)` · `FBHealBox_CheckRangeAll()`|Range fading|
+|`FBUnitLOSBlocked(unit)` · `FBLOS_OnError(msg)` · `FBLOS_Clear(name)` · `FBHealBox_CheckLOSAll()`|Line of sight (UnitXP or error-message fallback)|
+|`FBMenu_OpenBuffMenu(anchor)`|The buff picker (same cascading menu)|
 |`HealBoxAttachMode(mode)`|Switch between own plates ↔ default party frames|
 |`HealBoxScale(this, scale)`|Scaling|
 
@@ -546,8 +546,8 @@ The display never calls `UnitExists`, `UnitName`, `UnitHealth` or `UnitMana` dir
 |`FBUnitClassToken(unit)`|`"PRIEST"`, `"WARRIOR"`, … or nil for pets|
 |`FBUnitState(unit)`|nil, `"dead"`, `"ghost"` or `"offline"`|
 |`FBChoiceTables(side)`|Runtime and saved tables of the left (`"L"`) or right (`"R"`) assignment|
-|`FBTest\_Ghost(unit)`|The ghost record, or nil|
-|`FBTest\_Set(on)`|Switch test mode|
+|`FBTest_Ghost(unit)`|The ghost record, or nil|
+|`FBTest_Set(on)`|Switch test mode|
 
 ### Buttons and spell data
 
@@ -558,20 +558,20 @@ The display never calls `UnitExists`, `UnitName`, `UnitHealth` or `UnitMana` dir
 |`FBHealBoxButtonsChanged()`|Refreshes icons and assignment without rebuilding|
 |`FBLoadSpellData()`|Scans the spellbook, collects all ranks|
 |`FBApplySpellChoice(i, castString)`|Assigns a spell to a button|
-|`HealBoxButton\_OnEvent(…)`|Tints the icon by mana, cooldown and range|
+|`HealBoxButton_OnEvent(…)`|Tints the icon by mana, cooldown and range|
 
 ### Spell menu
 
 |Function|Purpose|
 |-|-|
-|`FBMenu\_OpenMenu(entries, anchor)`|Opens any entry list as a menu|
-|`FBMenu\_OpenSpellMenu(btnIndex, anchor, side)`|Opens the menu for one options field (`side` = `"L"` or `"R"`)|
-|`FBMenu\_OpenLanguageMenu(anchor)`|The language picker|
-|`FBMenu\_ShowLevel(level, entries, anchor)`|Builds and positions one menu level|
-|`FBMenu\_BuildSpellEntries()`|Level 1: all learned spells|
-|`FBMenu\_BuildRankEntries(spellName)`|Level 2: all ranks of one spell|
-|`FBMenu\_SelectSpell(entry)` · `FBMenu\_ClearSpell()`|Apply a selection, or clear the button|
-|`FBMenu\_CloseAll()` · `FBMenu\_IsOpen()`|Close the menu, query its state|
+|`FBMenu_OpenMenu(entries, anchor)`|Opens any entry list as a menu|
+|`FBMenu_OpenSpellMenu(btnIndex, anchor, side)`|Opens the menu for one options field (`side` = `"L"` or `"R"`)|
+|`FBMenu_OpenLanguageMenu(anchor)`|The language picker|
+|`FBMenu_ShowLevel(level, entries, anchor)`|Builds and positions one menu level|
+|`FBMenu_BuildSpellEntries()`|Level 1: all learned spells|
+|`FBMenu_BuildRankEntries(spellName)`|Level 2: all ranks of one spell|
+|`FBMenu_SelectSpell(entry)` · `FBMenu_ClearSpell()`|Apply a selection, or clear the button|
+|`FBMenu_CloseAll()` · `FBMenu_IsOpen()`|Close the menu, query its state|
 
 ### Prediction: queries
 
@@ -588,27 +588,27 @@ The four functions that feed the bars. All of them expect a **player name**, not
 
 |Function|Purpose|
 |-|-|
-|`FBPredict\_GetSpellInfo(bookID, name)`|Parses the spellbook tooltip (direct / HoT / shield)|
-|`FBPredict\_BuildWatch()`|Builds the watch list after every spellbook scan|
-|`FBPredict\_NoteCast(castString, target)`|Registers target and rank **before** the cast|
-|`FBPredict\_CastStart(spell, castMs)` · `FBPredict\_CastEnd()`|Start and end a direct heal|
-|`FBPredict\_ScanUnit(unit)`|Aura check: confirm application, detect removal|
-|`FBPredict\_StartHoT(…)` · `FBPredict\_StartShield(…)`|Arm the tracking|
-|`FBPredict\_ParseCombat(event, msg)`|Combat log evaluation|
-|`FBPredict\_OnTick(…)` · `FBPredict\_OnDirectHeal(…)` · `FBPredict\_OnAbsorb(…)`|The three correction paths|
-|`FBPredict\_Remember(…)` · `FBPredict\_Remembered(…)`|Write and read the learned values|
-|`FBPredict\_TicksLeft(e, now)`|Remaining ticks of a HoT|
+|`FBPredict_GetSpellInfo(bookID, name)`|Parses the spellbook tooltip (direct / HoT / shield)|
+|`FBPredict_BuildWatch()`|Builds the watch list after every spellbook scan|
+|`FBPredict_NoteCast(castString, target)`|Registers target and rank **before** the cast|
+|`FBPredict_CastStart(spell, castMs)` · `FBPredict_CastEnd()`|Start and end a direct heal|
+|`FBPredict_ScanUnit(unit)`|Aura check: confirm application, detect removal|
+|`FBPredict_StartHoT(…)` · `FBPredict_StartShield(…)`|Arm the tracking|
+|`FBPredict_ParseCombat(event, msg)`|Combat log evaluation|
+|`FBPredict_OnTick(…)` · `FBPredict_OnDirectHeal(…)` · `FBPredict_OnAbsorb(…)`|The three correction paths|
+|`FBPredict_Remember(…)` · `FBPredict_Remembered(…)`|Write and read the learned values|
+|`FBPredict_TicksLeft(e, now)`|Remaining ticks of a HoT|
 
 ### HealComm
 
 |Function|Purpose|
 |-|-|
-|`FBComm\_Enabled()`|Is the sync switched on?|
-|`FBComm\_Send(msg)`|Raw send to raid or party|
-|`FBComm\_SendHealStart(…)`|`Heal` or `GrpHeal`|
-|`FBComm\_SendHealStop()` · `FBComm\_SendHealDelay(ms)`|Interrupt and pushback|
-|`FBComm\_SendHoT(spell, target, dur)`|`Renew` / `Reju` / `Regr`|
-|`FBComm\_OnMessage(prefix, msg, channel, sender)`|Receive and evaluate|
+|`FBComm_Enabled()`|Is the sync switched on?|
+|`FBComm_Send(msg)`|Raw send to raid or party|
+|`FBComm_SendHealStart(…)`|`Heal` or `GrpHeal`|
+|`FBComm_SendHealStop()` · `FBComm_SendHealDelay(ms)`|Interrupt and pushback|
+|`FBComm_SendHoT(spell, target, dur)`|`Renew` / `Reju` / `Regr`|
+|`FBComm_OnMessage(prefix, msg, channel, sender)`|Receive and evaluate|
 
 ### Localization
 
@@ -617,19 +617,19 @@ The four functions that feed the bars. All of them expect a **player name**, not
 |`FBT(key)`|Looks up a string in the active language, falls back to English|
 |`FBSetLocale(code, apply)`|Switches language and optionally relabels the interface|
 |`FBDetectLocale()`|Default language from `GetLocale()`|
-|`FBHealBox\_ApplyLocale()`|Relabels the already-built interface|
+|`FBHealBox_ApplyLocale()`|Relabels the already-built interface|
 
-\---
+---
 
 ## Troubleshooting
 
 **A spell does not appear in the menu.** It is not in your class's spell list (`Spell.Name` near the top of the file), or not learned yet. The list can be extended freely.
 
-**Learned absorb values are capped.** A remembered absorb larger than 1.5 times the tooltip value is treated as a counting error and dropped on load (`FBPredict\_SanitizeMemory`); values from versions before 1.4.2 that were doubled by the old double load clean themselves up this way.
+**Learned absorb values are capped.** A remembered absorb larger than 1.5 times the tooltip value is treated as a counting error and dropped on load (`FBPredict_SanitizeMemory`); values from versions before 1.4.2 that were doubled by the old double load clean themselves up this way.
 
-**No prediction for a particular spell.** Run `/fbp`: if the spell is not among the spells read, the tooltip parser did not recognise it. Wording can differ on custom servers; the patterns all sit in `FBPredict\_GetSpellInfo`.
+**No prediction for a particular spell.** Run `/fbp`: if the spell is not among the spells read, the tooltip parser did not recognise it. Wording can differ on custom servers; the patterns all sit in `FBPredict_GetSpellInfo`.
 
-**Combat log corrections do not take.** The patterns are built from the client's global strings (`PERIODICAURAHEALOTHERSELF`, `HEALEDSELFOTHER`, `ABSORB\_TRAILER`) and otherwise fall back to English defaults. `/fbp debug` shows whether corrections arrive.
+**Combat log corrections do not take.** The patterns are built from the client's global strings (`PERIODICAURAHEALOTHERSELF`, `HEALEDSELFOTHER`, `ABSORB_TRAILER`) and otherwise fall back to English defaults. `/fbp debug` shows whether corrections arrive.
 
 **Values are too low.** Before the first observed heal only the tooltip base value without +healing is available. A single cast through the buttons is enough to settle it.
 
@@ -637,7 +637,7 @@ The four functions that feed the bars. All of them expect a **player name**, not
 
 **Numbers are off after a gear change.** They correct themselves on the next cast; `/fbp reset` forces a fresh start.
 
-\---
+---
 
 ## Class spells
 
@@ -654,7 +654,7 @@ The preset lists, freely extensible in `Spell.Name`:
 
 Entries that do not exist do no harm: if the spellbook scan does not find them, they are quietly skipped.
 
-\---
+---
 
 ## Credits
 
@@ -666,32 +666,33 @@ Entries that do not exist do no harm: if the spellbook scan does not find them, 
 * heal prediction for direct heals, remaining HoT ticks and absorb shields, self-correcting from the combat log
 * HealComm sync with Puppeteer, pfUI, Luna and others, without any Ace libraries
 * English, German, Spanish, French and Italian localization, switchable in game
+* 1.4.4.2: 32-step buff icon duration display (replacing the 4-quadrant clock with a 32-stage vertical wipe) and syntax/diagnostic bugfixes; see CHANGELOG
 * 1.4.4.1: buff tracking & tooltip scanning fix (Divine Spirit clock icon), expanded class spell lists with blessings, buffs, utility and rez spells, group buff alternate tracking; see CHANGELOG
 * 1.4.4: performance pass without functional change (central button states, display caches, shared aura scans, coalesced event bursts); see CHANGELOG
 * 1.4.3: mana ticker module (2 s regeneration tick and five-second rule as a spark in the mana bar), Smart Damage module (rank selection for attack spells on any action bar), Smart Healing (auto-downrank, off by default), cooldown sweep on buttons, red border for the attacked member, HoT/shield timers on buttons
 * 1.4.2: raid mode as a separate module (`FBHealBox_Raid.lua`) with a compact 20/40 grid, mini buttons, own options tab and raid test; hook interface in the core
 * 1.4.1: pet plates, mana bar inside the health bar, adjustable button and row spacing, test mode with ghost players, saved plate position, class colours, buff watch, range fading, tabbed options, right-click spell, dead/ghost/offline text, debuff icon. See CHANGELOG.md.
 
-\---
+---
 
-Heal Box Vanilla v1.4.4.1 · original by Dourd, UI Overhauled · ported to Vanilla and extended 09/2026 by Mquadrat
+Heal Box Vanilla v1.4.4.2 · original by Dourd, UI Overhauled · ported to Vanilla and extended 09/2026 by Mquadrat
 
 _______________________________________________________________________
 GERMAN
 
 # Heal Box Vanilla
 
-ADDON-DOKUMENTATION · VERSION 1.4.4.1 · CLIENT 1.12.1
+ADDON-DOKUMENTATION · VERSION 1.4.4.2 · CLIENT 1.12.1
 
 Party-, Begleiter- und Selbst-Heilanzeige mit Schnellzugriff-Buttons für Heiler. Für jeden Gruppenplatz eine Namensplakette mit Lebensbalken, dazu eine für jeden Begleiter in der Gruppe direkt unter seinem Besitzer, daneben bis zu zehn frei belegbare Zauber-Buttons. Ein schmaler Manabalken liegt im Lebensbalken, bei allen, die tatsächlich Mana nutzen. Dazu eine vollständige Heilvorhersage (Direktheilung, HoT-Restticks und Absorb-Schilde), die sich über den Combatlog selbst korrigiert und ihre Werte im HealComm-Format mit anderen Heilern teilt. Die Oberfläche gibt es auf **Deutsch und Englisch**, umschaltbar im Optionsfenster.
 
 **Kurzfassung für Ungeduldige:** Minimap-Button anklicken (oder `/fbp config`) → Optionsfenster → für jeden Button einen Zauber wählen → fertig. Alles Weitere passiert von allein. `/fbp` zeigt jederzeit, was die Vorhersage gerade denkt. **Neu in 1.4.1:** *Testmodus* anhaken, dann füllt sich die Anzeige mit Geisterspielern und du kannst alles ohne Gruppe einrichten.
 
-\---
+---
 
 ## Installation
 
-Der Ordner unter `Interface\\AddOns` heißt **`FBHealBox`** und enthält sieben Dateien:
+Der Ordner unter `Interface\AddOns` heißt **`FBHealBox`** und enthält sieben Dateien:
 
 |Datei|Inhalt|
 |-|-|
@@ -700,16 +701,16 @@ Der Ordner unter `Interface\\AddOns` heißt **`FBHealBox`** und enthält sieben 
 |`FBHealBox_Raid.lua`|Das Raidmodus-Modul (siehe [Raidmodus](#raidmodus)). Aus der `.toc` entfernt, läuft der Kern genau wie in 1.4.1|
 |`FBHealBox_Ticker.lua`|Das Mana-Ticker-Modul (siehe [Mana-Ticker](#mana-ticker)), ebenfalls entfernbar|
 |`FBHealBox_Damage.lua`|Das Smart-Damage-Modul (siehe [Smart Damage](#smart-damage)), ebenfalls entfernbar|
-|`FBHealBox.xml`|Nur der Event-Frame, der `FBHealBox\_OnLoad` und `FBHealBox\_OnEvent` aufruft|
+|`FBHealBox.xml`|Nur der Event-Frame, der `FBHealBox_OnLoad` und `FBHealBox_OnEvent` aufruft|
 |`CHANGELOG.md`|Was sich in welcher Version geaendert hat|
 
-Der Ordnername muss zum Dateinamen der `.toc` passen, sonst startet das Addon nicht. Willst du den Ordner umbenennen, ändere in `FBHealBox.lua` zusätzlich die Konstante `FBADDON\_FOLDER` am Dateianfang, denn daran hängt der `ADDON\_LOADED`-Abgleich. Der Anzeigename steht getrennt davon in `FBADDON\_NAME` und darf frei geändert werden.
+Der Ordnername muss zum Dateinamen der `.toc` passen, sonst startet das Addon nicht. Willst du den Ordner umbenennen, ändere in `FBHealBox.lua` zusätzlich die Konstante `FBADDON_FOLDER` am Dateianfang, denn daran hängt der `ADDON_LOADED`-Abgleich. Der Anzeigename steht getrennt davon in `FBADDON_NAME` und darf frei geändert werden.
 
-**Optional: SuperWoW.** Wird es erkannt, meldet das Addon beim Login `\[SuperWoW erkannt]` und castet direkt auf das Gruppenmitglied, ohne dein aktuelles Ziel anzufassen. Ohne SuperWoW wechselt das Addon für den Cast kurz das Ziel und stellt das alte danach wieder her.
+**Optional: SuperWoW.** Wird es erkannt, meldet das Addon beim Login `[SuperWoW erkannt]` und castet direkt auf das Gruppenmitglied, ohne dein aktuelles Ziel anzufassen. Ohne SuperWoW wechselt das Addon für den Cast kurz das Ziel und stellt das alte danach wieder her.
 
 **Keine Bibliotheken nötig.** Kein Ace, kein HealComm, kein RosterLib. Das Addon spricht das HealComm-Protokoll direkt, siehe [HealComm-Sync](#healcomm-sync).
 
-\---
+---
 
 ## Die Anzeige
 
@@ -727,15 +728,15 @@ Hat dein aktuelles feindliches Ziel ein Gruppenmitglied im Ziel, bekommt dessen 
 
 ### Sichtlinie
 
-Solange eine Einheit außerhalb deiner Sichtlinie ist, sitzt ein **Augen-Abzeichen** (`FBLOS\_ICON`, das Blenden-Icon) auf der linken oberen Ecke ihrer Plakette. Vanilla hat dafür keine API, deshalb zwei Wege: Ist der Client-Mod **UnitXP SP3** installiert, fragt das Addon alle halbe Sekunde `UnitXP("inSight", "player", unit)` ab, live und exakt. Ohne ihn achtet das Addon auf die Fehlermeldung *nicht in Sichtlinie* nach einer eigenen Heilung und markiert die Einheit, die du heilen wolltest, für `FBLOS\_TIMEOUT` (8) Sekunden; die Markierung verschwindet, sobald ein Cast auf sie startet oder eine eigene Heilung bzw. ein HoT-Tick dort ankommt. `/fbp` zeigt, welcher Weg aktiv ist. Option *Sichtlinie*; Position des Abzeichens über `FBLOS\_ICON\_X/Y`.
+Solange eine Einheit außerhalb deiner Sichtlinie ist, sitzt ein **Augen-Abzeichen** (`FBLOS_ICON`, das Blenden-Icon) auf der linken oberen Ecke ihrer Plakette. Vanilla hat dafür keine API, deshalb zwei Wege: Ist der Client-Mod **UnitXP SP3** installiert, fragt das Addon alle halbe Sekunde `UnitXP("inSight", "player", unit)` ab, live und exakt. Ohne ihn achtet das Addon auf die Fehlermeldung *nicht in Sichtlinie* nach einer eigenen Heilung und markiert die Einheit, die du heilen wolltest, für `FBLOS_TIMEOUT` (8) Sekunden; die Markierung verschwindet, sobald ein Cast auf sie startet oder eine eigene Heilung bzw. ein HoT-Tick dort ankommt. `/fbp` zeigt, welcher Weg aktiv ist. Option *Sichtlinie*; Position des Abzeichens über `FBLOS_ICON_X/Y`.
 
 ### Begleiter
 
-Jeder Begleiter in der Gruppe bekommt eine eigene Plakette mit dem vollen Satz Zauber-Buttons: die Katze des Jägers oder den Leerwandler des Hexers heilt man mit einem Klick, genau wie einen Spieler. Pet-Plaketten kommen und gehen mit `UNIT\_PET` (Beschwören, Wegschicken, Tod). Drei Merkmale unterscheiden sie: Sie sind unter ihrem Besitzer um `FBPET\_INDENT` (12) px **eingerückt** und um denselben Betrag schmaler, damit die Buttons bündig bleiben, ein **Pfoten-Icon** (`FBPET\_ICON`) steht vor dem Namen, und der Name ist **hellblau**. Jägerbegleiter laufen auf Fokus, Hexerbegleiter auf Mana; nur letztere bekommen einen Manabalken. Die Option *Begleiter anzeigen* blendet die ganze Familie aus.
+Jeder Begleiter in der Gruppe bekommt eine eigene Plakette mit dem vollen Satz Zauber-Buttons: die Katze des Jägers oder den Leerwandler des Hexers heilt man mit einem Klick, genau wie einen Spieler. Pet-Plaketten kommen und gehen mit `UNIT_PET` (Beschwören, Wegschicken, Tod). Drei Merkmale unterscheiden sie: Sie sind unter ihrem Besitzer um `FBPET_INDENT` (12) px **eingerückt** und um denselben Betrag schmaler, damit die Buttons bündig bleiben, ein **Pfoten-Icon** (`FBPET_ICON`) steht vor dem Namen, und der Name ist **hellblau**. Jägerbegleiter laufen auf Fokus, Hexerbegleiter auf Mana; nur letztere bekommen einen Manabalken. Die Option *Begleiter anzeigen* blendet die ganze Familie aus.
 
 ### Balkenaufbau
 
-Vier Statusbalken liegen deckungsgleich übereinander, geregelt über feste Ebenen (`FBHealBox\_SetBarStrata`). Ganz oben der schmale Manastreifen, dann der Lebensbalken, deckend; darunter der Schild, ganz unten die Heilvorhersage:
+Vier Statusbalken liegen deckungsgleich übereinander, geregelt über feste Ebenen (`FBHealBox_SetBarStrata`). Ganz oben der schmale Manastreifen, dann der Lebensbalken, deckend; darunter der Schild, ganz unten die Heilvorhersage:
 
 |Schicht|Farbe|Bedeutung|
 |-|-|-|
@@ -748,7 +749,7 @@ Alles wird am Balkenende abgeschnitten: Ein Schild über der Maximal-HP bleibt u
 
 ### Manabalken
 
-Der Manabalken ist `FBMANA\_BAR\_HEIGHT` (5) Pixel hoch und liegt auf der Unterkante des Lebensbalkens. Wo Mana fehlt, scheint ein dunkler, halbtransparenter Streifen durch (`FBMANA\_BG\_ALPHA`, 0.35, auf 0 setzen, wenn unerwünscht). Er erscheint nur, wenn der **Powertyp der Einheit Mana** ist (`UnitPowerType() == 0`): Krieger, Schurken, Jägerbegleiter und Druiden in Katzen- oder Bärengestalt bekommen keinen Streifen, der Lebensbalken ist dann auf voller Höhe zu sehen. Der Balken folgt `UNIT\_MANA`, `UNIT\_MAXMANA` und `UNIT\_DISPLAYPOWER`. Die Option *Manabalken* schaltet ihn ganz ab.
+Der Manabalken ist `FBMANA_BAR_HEIGHT` (5) Pixel hoch und liegt auf der Unterkante des Lebensbalkens. Wo Mana fehlt, scheint ein dunkler, halbtransparenter Streifen durch (`FBMANA_BG_ALPHA`, 0.35, auf 0 setzen, wenn unerwünscht). Er erscheint nur, wenn der **Powertyp der Einheit Mana** ist (`UnitPowerType() == 0`): Krieger, Schurken, Jägerbegleiter und Druiden in Katzen- oder Bärengestalt bekommen keinen Streifen, der Lebensbalken ist dann auf voller Höhe zu sehen. Der Balken folgt `UNIT_MANA`, `UNIT_MAXMANA` und `UNIT_DISPLAYPOWER`. Die Option *Manabalken* schaltet ihn ganz ab.
 
 ### Dispel-Färbung
 
@@ -763,7 +764,7 @@ Hat jemand einen Debuff, den **deine** Klasse entfernen kann, färbt sich sein L
 
 Die Schwellwerte für die HP-Farben stehen als `LowHP` (0.6) und `VeryLowHP` (0.3) am Dateianfang.
 
-\---
+---
 
 ## Die Zauber-Buttons
 
@@ -775,11 +776,11 @@ Rechts neben jeder Plakette liegen bis zu zehn Buttons, jeder mit dem Icon seine
 
 **Smart Healing (standardmäßig aus).** Mit *Smart Healing* wirkt ein Klick den niedrigsten Rang des belegten Zaubers, dessen erwartete Heilung das fehlende Leben des Ziels abzüglich schon eingehender Heilung plus *Sicherheitsaufschlag* (Standard 20 %) deckt. Die erwartete Heilung stammt aus den gelernten Werten der Vorhersage, wo vorhanden, sonst aus dem Tooltip-Mittelwert. Nie über dem belegten Rang, nur für Direktheilungen (HoTs, Schilde und Buffs wie Seelenstärke gehen immer wie belegt raus; ein Zauber kommt nur in Frage, wenn sein Tooltip eine Heilung beschreibt), und unter 30 % Leben immer der belegte Rang. Nachteile: Die Schätzung kennt keine Crits, und bei Schadensspitzen oder gewolltem Überheilen (Tank vor einem großen Treffer) kann der kleinere Rang zu wenig sein. Aus lassen, wann immer Overheal gewollt ist. `/fbp debug` zeigt jede Entscheidung, `/fbp` den Zustand.
 
-**Cooldowns.** Jeder Button zeigt die gewohnte Cooldown-Uhr seines Zaubers. Der globale Cooldown wird nicht gezeigt (`FBCD\_MIN\_DURATION`). Option *Cooldowns auf den Buttons*.
+**Cooldowns.** Jeder Button zeigt die gewohnte Cooldown-Uhr seines Zaubers. Der globale Cooldown wird nicht gezeigt (`FBCD_MIN_DURATION`). Option *Cooldowns auf den Buttons*.
 
 **HoT- und Schild-Timer.** Der Button eines Zaubers zeigt für seine Einheit die Restsekunden deines eigenen HoTs (grün) oder Schilds (blau) dieses Zaubers. Ist Machtwort: Schild verbraucht, zeigt derselbe Button rot die Geschwächte Seele, bis das Ziel wieder schildbar ist. Geprüft wird zuerst der Linksklick-Zauber, dann der Rechtsklick-Zauber. Nur eigene Effekte werden verfolgt. Option *HoT- und Schild-Timer*.
 
-**Buff-Icons links am Balken.** Buffs mit Laufzeit, die auf deinen Buttons liegen (Seelenstärke, Göttlicher Willen, Furchtzauberschutz, Inneres Feuer, links oder rechts), erscheinen als kleine 8-px-Icons **außen links** neben der Plakette, solange der Buff wirkt, in Zweierstapeln: das erste oben an der Platte, das zweite darunter, das dritte oben in der nächsten Spalte links, und so weiter. Das Icon ist eine **Uhr**: Wie ein Minutenzeiger wird es mit ablaufender Zeit im Uhrzeigersinn ab zwölf Uhr schwarz-weiß. Frischer Buff: ganz farbig. Halbe Zeit übrig: rechte Hälfte grau. Ein Viertel übrig: drei Viertel grau. Vanilla kann keinen echten Kreis-Sweep zeichnen, deshalb ist das Icon in vier Quadranten geteilt; bei 8 px ist das die feinste Auflösung, die noch lesbar ist. Abgelaufene Quadranten werden dunkel gezeichnet (entsättigt, wo der Client das kann, mit dunkler Wäsche `FBBUFFICON\_WASH`) auf einem kleinen Frame eine Ebene über dem Icon, damit die Teilung auf jedem Client sichtbar ist; `/fbp buffs` nennt außerdem je Icon die Zahl grauer Quadranten. Mouseover auf ein Icon zeigt Buffname und Restzeit. Die Restzeit ist bei dir selbst exakt (Buff-API, bei jedem `PLAYER_AURAS_CHANGED` und dazwischen einmal je Sekunde neu gelesen, weil ein Refresh eines laufenden Buffs kein Event feuert; ein Neucast stellt die Uhr also zurück) und wird bei anderen ab deinem eigenen Cast gezählt; ein fremd gewirkter Buff bleibt ganz farbig (Zeit unbekannt). Bis zu sechs Icons je Plakette (`FBBUFFICON\_MAX`). Option *Buff-Icons links am Balken*, standardmäßig an. Die Raid-Zellen zeigen dieselben Uhr-Icons außen an ihrer linken Kante mit 6 px in einem 3-mal-4-Raster (zwölf Plätze, Spalten füllen sich von der Zelle nach außen), das Raster hält zwischen den Gruppen Platz dafür frei. Nach einem `/reload` oder Gruppenwechsel scannt das Addon alle Einheiten einmal aktiv, damit vorhandene Buffs sofort erscheinen und nicht erst beim nächsten Aura-Event. `/fbp buffs` listet die verfolgten Buffs und ihren Zustand auf dir.
+**Buff-Icons links am Balken.** Buffs mit Laufzeit, die auf deinen Buttons liegen (Seelenstärke, Göttlicher Willen, Furchtzauberschutz, Inneres Feuer, links oder rechts), erscheinen als kleine 8-px-Icons **außen links** neben der Plakette, solange der Buff wirkt, in Zweierstapeln: das erste oben an der Platte, das zweite darunter, das dritte oben in der nächsten Spalte links, und so weiter. Die Restlaufzeit wird visuell in **32 feinen Stufen** (`FBBUFFICON_STEPS = 32`) dargestellt: Mit ablaufender Zeit wird das Icon von oben nach unten schrittweise schwarz-weiß entsättigt und abgedunkelt. Frischer Buff: ganz farbig. Halbe Zeit übrig: obere Hälfte grau. Ein Viertel übrig: obere drei Viertel grau. Diese 32-Stufen-Darstellung bietet eine deutlich höhere Präzision (bei einem 30-Minuten-Buff aktualisiert sich die Anzeige ca. alle 56 Sekunden statt nur alle 7,5 Minuten) und spart gleichzeitig Ressourcen durch den Einsatz einer einzelnen dynamisch beschnittenen Overlay-Textur (`ic.qTex`) und Abdunklung (`ic.wTex`). Mouseover auf ein Icon zeigt Buffname und Restzeit. Die Restzeit ist bei dir selbst exakt (Buff-API, bei jedem `PLAYER_AURAS_CHANGED` und dazwischen einmal je Sekunde neu gelesen, weil ein Refresh eines laufenden Buffs kein Event feuert; ein Neucast stellt die Uhr also zurück) und wird bei anderen ab deinem eigenen Cast gezählt; ein fremd gewirkter Buff bleibt ganz farbig (Zeit unbekannt). Bis zu sechs Icons je Plakette (`FBBUFFICON_MAX`). Option *Buff-Icons links am Balken*, standardmäßig an. Die Raid-Zellen zeigen dieselben Icons außen an ihrer linken Kante mit 6 px in einem 3-mal-4-Raster (zwölf Plätze, Spalten füllen sich von der Zelle nach außen), das Raster hält zwischen den Gruppen Platz dafür frei. Nach einem `/reload` oder Gruppenwechsel scannt das Addon alle Einheiten einmal aktiv, damit vorhandene Buffs sofort erscheinen und nicht erst beim nächsten Aura-Event. `/fbp buffs` listet die verfolgten Buffs und ihren Zustand auf dir.
 
 **Tot, Geist, Offline.** Statt `0 %` zeigt der Balken *Tot*, *Geist* oder *Offline*, leer und grau, ohne Manastreifen.
 
@@ -796,11 +797,11 @@ Der Icon-Rand färbt sich mit:
 
 Beim Überfahren erscheint der komplette Zaubertooltip plus die Zeile *Heal Box Vanilla Ziel: `<Name>`*, damit klar ist, wen dieser Button bedient.
 
-\---
+---
 
 ## Raidmodus
 
-Der Raidmodus ist ein Addon im Addon: Er lebt in der eigenen Datei `FBHealBox_Raid.lua`, hängt sich nur über `FBHealBox\_RegisterHook` und `FBHealBox\_AddOptionsTab` in den Kern ein und ist standardmäßig an. Er tut nichts, bis er gebraucht wird: Das Raster erscheint von selbst, sobald du in einem Schlachtzug mit **mindestens 11 Spielern** bist (*Raid-Ansicht ab N Spielern*, einstellbar von 2 bis 40); kleinere Raids behalten die Gruppenanzeige, die deine eigene Untergruppe zeigt. Der Schalter *Raidmodus* ist nur ein Notaus. Alles oben Beschriebene funktioniert unverändert weiter.
+Der Raidmodus ist ein Addon im Addon: Er lebt in der eigenen Datei `FBHealBox_Raid.lua`, hängt sich nur über `FBHealBox_RegisterHook` und `FBHealBox_AddOptionsTab` in den Kern ein und ist standardmäßig an. Er tut nichts, bis er gebraucht wird: Das Raster erscheint von selbst, sobald du in einem Schlachtzug mit **mindestens 11 Spielern** bist (*Raid-Ansicht ab N Spielern*, einstellbar von 2 bis 40); kleinere Raids behalten die Gruppenanzeige, die deine eigene Untergruppe zeigt. Der Schalter *Raidmodus* ist nur ein Notaus. Alles oben Beschriebene funktioniert unverändert weiter.
 
 **Modul installieren:** `FBHealBox_Raid.lua` muss neben `FBHealBox.lua` liegen, die `.toc` muss sie auflisten (die mitgelieferte tut das), und der Spielclient muss einmal **neu gestartet** werden. Ein `/reload` übernimmt keine neu in eine `.toc` eingetragenen Dateien. Ist das Modul aktiv, steht beim Login *Raidmodus-Modul geladen* im Chat, und das Optionsfenster zeigt einen dritten Reiter.
 
@@ -837,9 +838,9 @@ Alle Raid-Einstellungen liegen in `HealBox.Raid`. `/fbp raidtest 20`, `/fbp raid
 
 ### Wie er andockt
 
-Der Kern bietet `FBHealBox\_RegisterHook(name, fn)` und ruft die Hooks an festen Stellen: `Defaults`, `SyncOptions`, `ApplyLocale`, `UpdateNames`, `RefreshAllBars`, `ButtonsChanged`, `ActiveToggle`, `Status`, `Slash`, `Loaded`, `Aggro`, `SpellTimers` und `Cooldowns`. `FBHealBox\_AddOptionsTab(labelKey)` legt einen Reiter im Optionsfenster an. Das Raid-Modul hängt sein Roster-Update an `UpdateNames`, sein Zellen-Update an `RefreshAllBars` (so erreicht die Heilvorhersage die Raid-Zellen ohne Zusatzaufwand) und seine Slash-Befehle an `Slash`. Die Raid-Einheiten werden in `FBPredictUnits` eingetragen, damit die HoT- und Schild-Bestätigung über `UNIT\_AURA` auch für `raid1` bis `raid40` greift. Begleiter werden im Raidmodus nicht angezeigt.
+Der Kern bietet `FBHealBox_RegisterHook(name, fn)` und ruft die Hooks an festen Stellen: `Defaults`, `SyncOptions`, `ApplyLocale`, `UpdateNames`, `RefreshAllBars`, `ButtonsChanged`, `ActiveToggle`, `Status`, `Slash`, `Loaded`, `Aggro`, `SpellTimers` und `Cooldowns`. `FBHealBox_AddOptionsTab(labelKey)` legt einen Reiter im Optionsfenster an. Das Raid-Modul hängt sein Roster-Update an `UpdateNames`, sein Zellen-Update an `RefreshAllBars` (so erreicht die Heilvorhersage die Raid-Zellen ohne Zusatzaufwand) und seine Slash-Befehle an `Slash`. Die Raid-Einheiten werden in `FBPredictUnits` eingetragen, damit die HoT- und Schild-Bestätigung über `UNIT_AURA` auch für `raid1` bis `raid40` greift. Begleiter werden im Raidmodus nicht angezeigt.
 
-\---
+---
 
 ## Mana-Ticker
 
@@ -847,7 +848,7 @@ Der Mana-Ticker lebt im eigenen Modul `FBHealBox_Ticker.lua` und ist standardmä
 
 ### Wie er arbeitet
 
-In 1.12 gibt es dafür keine API, deshalb beobachtet das Modul `UNIT\_MANA` für den Spieler. Sinkendes Mana startet die Fünf-Sekunden-Regel. Steigendes Mana ist ein Tick-Kandidat: Der erste setzt das 2-s-Raster, jeder spätere, der innerhalb der *Tick-Toleranz* um den erwarteten Zeitpunkt liegt, synchronisiert es neu. Kandidaten außerhalb der Toleranz (Manaquelle-Pulse, Anregen) werden ignoriert; erst nach drei Fehlschlägen in Folge gilt ein neues Raster. Sprünge ab 300 Mana und mehr als dem Vierfachen der gelernten Tickgröße (Tränke, Runen) zählen nie. Bei vollem Mana kommen keine Ticks, das Raster läuft dann still weiter und der Funke bleibt ausgeblendet, bis wieder Mana fehlt; am nächsten echten Tick synchronisiert er sich neu. Der Funke braucht den Manastreifen (Option *Manabalken*) und verschwindet in Bären- oder Katzengestalt.
+In 1.12 gibt es dafür keine API, deshalb beobachtet das Modul `UNIT_MANA` für den Spieler. Sinkendes Mana startet die Fünf-Sekunden-Regel. Steigendes Mana ist ein Tick-Kandidat: Der erste setzt das 2-s-Raster, jeder spätere, der innerhalb der *Tick-Toleranz* um den erwarteten Zeitpunkt liegt, synchronisiert es neu. Kandidaten außerhalb der Toleranz (Manaquelle-Pulse, Anregen) werden ignoriert; erst nach drei Fehlschlägen in Folge gilt ein neues Raster. Sprünge ab 300 Mana und mehr als dem Vierfachen der gelernten Tickgröße (Tränke, Runen) zählen nie. Bei vollem Mana kommen keine Ticks, das Raster läuft dann still weiter und der Funke bleibt ausgeblendet, bis wieder Mana fehlt; am nächsten echten Tick synchronisiert er sich neu. Der Funke braucht den Manastreifen (Option *Manabalken*) und verschwindet in Bären- oder Katzengestalt.
 
 ### Reiter *Extras*, Abschnitt *Mana-Ticker*
 
@@ -861,7 +862,7 @@ In 1.12 gibt es dafür keine API, deshalb beobachtet das Modul `UNIT\_MANA` für
 
 `/fbp ticker` schaltet den Ticker um; `/fbp` meldet, ob das Raster synchron ist, die Zeit bis zum nächsten Tick und eine laufende Fünf-Sekunden-Regel. Einstellungen liegen in `HealBox.Ticker`. Der Ticker teilt sich den Reiter *Extras* mit Smart Damage.
 
-\---
+---
 
 ## Smart Damage
 
@@ -893,7 +894,7 @@ Das Restleben des Ziels liefert die erste Quelle, die antwortet:
 
 Zauber je Klasse: Priester Göttliche Pein, Heiliges Feuer, Gedankenschlag; Druide Zorn, Sternenfeuer, Mondfeuer; Schamane Blitzschlag, Kettenblitzschlag, Erd-/Flammen-/Frostschock; Paladin Heiliger Schock, Hammer des Zorns, Exorzismus, Heiliger Zorn; Magier Feuerball, Frostblitz, Feuerschlag, Versengen, Pyroschlag; Hexenmeister Schattenblitz, Sengender Schmerz, Feuerbrand, Seelenfeuer, Feuersbrunst; Jäger Arkaner Schuss, Gezielter Schuss (Liste `FBDamageSpells`). `/fbp damage` schaltet um, `/fbp debug` protokolliert jede Entscheidung mit der genutzten Lebensquelle.
 
-\---
+---
 
 ## Optionsfenster
 
@@ -943,15 +944,15 @@ Das Fenster hat zwei Reiter.
 
 **Klassenfarben**: färbt den Namen auf jeder Plakette in der Klassenfarbe (`RAID_CLASS_COLORS` des Clients, mit eingebauter Ersatztabelle). Begleiter behalten ihren hellblauen Namen. Standardmäßig an.
 
-**Reichweiten-Fading**: blendet eine ganze Plakette samt Buttons auf 50 % ab (`FBRANGE\_ALPHA`), wenn die Einheit außer Reichweite ist. Geprüft wird alle halbe Sekunde (`FBRANGE\_INTERVAL`) per `IsSpellInRange` mit dem ersten belegten Button-Zauber; ohne belegten Zauber zählt `CheckInteractDistance(4)`, also 28 Meter. Standardmäßig an.
+**Reichweiten-Fading**: blendet eine ganze Plakette samt Buttons auf 50 % ab (`FBRANGE_ALPHA`), wenn die Einheit außer Reichweite ist. Geprüft wird alle halbe Sekunde (`FBRANGE_INTERVAL`) per `IsSpellInRange` mit dem ersten belegten Button-Zauber; ohne belegten Zauber zählt `CheckInteractDistance(4)`, also 28 Meter. Standardmäßig an.
 
-**Buff-Wache**: ein Knopf, der das Kaskadenmenü mit deinen Klassenbuffs öffnet (Seelenstärke, Göttlicher Willen, Mal der Wildnis, Segen, Dornen, Erdschild, …; nur gelernte erscheinen). Jede Plakette, deren Einheit diesen Buff **nicht** trägt, bekommt einen **orangen Rahmen**. Die Gruppenversion zählt mit (Gebet der Seelenstärke für Machtwort: Seelenstärke, Gabe der Wildnis für Mal der Wildnis, Große Segen für Segen), auch wenn ein anderer Heiler sie gewirkt hat: Die Prüfung vergleicht zuerst die Buff-Texturen mit deinen Zauberbuch-Icons und liest erst, wenn das nicht passt, die Buff-Namen per Tooltip-Scan. Geprüft wird bei `UNIT\_AURA` und nach jedem Gruppenwechsel, nichts läuft pro Frame. *Keine Buff-Wache* schaltet sie ab. Gespeichert als `WatchBuff`. Begleiter bleiben außen vor, solange *Buff-Wache auch für Begleiter* nicht gesetzt ist.
+**Buff-Wache**: ein Knopf, der das Kaskadenmenü mit deinen Klassenbuffs öffnet (Seelenstärke, Göttlicher Willen, Mal der Wildnis, Segen, Dornen, Erdschild, …; nur gelernte erscheinen). Jede Plakette, deren Einheit diesen Buff **nicht** trägt, bekommt einen **orangen Rahmen**. Die Gruppenversion zählt mit (Gebet der Seelenstärke für Machtwort: Seelenstärke, Gabe der Wildnis für Mal der Wildnis, Große Segen für Segen), auch wenn ein anderer Heiler sie gewirkt hat: Die Prüfung vergleicht zuerst die Buff-Texturen mit deinen Zauberbuch-Icons und liest erst, wenn das nicht passt, die Buff-Namen per Tooltip-Scan. Geprüft wird bei `UNIT_AURA` und nach jedem Gruppenwechsel, nichts läuft pro Frame. *Keine Buff-Wache* schaltet sie ab. Gespeichert als `WatchBuff`. Begleiter bleiben außen vor, solange *Buff-Wache auch für Begleiter* nicht gesetzt ist.
 
 **Buff-Wache auch für Begleiter**: markiert auch Pets, denen der überwachte Buff fehlt. Standardmäßig aus.
 
 **HealComm-Sync**: Austausch der Heilinformationen mit der Gruppe, siehe [HealComm-Sync](#healcomm-sync). Standardmäßig an.
 
-**Sprache / Language**: schaltet zwischen Deutsch und Englisch um. Der Knopf öffnet dasselbe Kaskadenmenü wie die Zauberwahl. Die Umstellung wirkt **sofort**: `FBHealBox\_ApplyLocale()` beschriftet die bereits gebaute Oberfläche neu, ein `/reload` ist nicht nötig. Beim ersten Start entscheidet `GetLocale()`: deutsche Clients starten auf Deutsch, alle anderen auf Englisch. Die Wahl wird pro Charakter gespeichert.
+**Sprache / Language**: schaltet zwischen Deutsch und Englisch um. Der Knopf öffnet dasselbe Kaskadenmenü wie die Zauberwahl. Die Umstellung wirkt **sofort**: `FBHealBox_ApplyLocale()` beschriftet die bereits gebaute Oberfläche neu, ein `/reload` ist nicht nötig. Beim ersten Start entscheidet `GetLocale()`: deutsche Clients starten auf Deutsch, alle anderen auf Englisch. Die Wahl wird pro Charakter gespeichert.
 
 **Fenster verschieben:** am Rahmen ziehen. Schließen über das X oben rechts, mit **Escape** oder per `/fbp config`. Escape wird über einen Hook auf `ToggleGameMenu` abgefangen (zusätzlich zu `UISpecialFrames`), damit es auch auf Clients funktioniert, die diese Liste nicht auswerten; ist Blizzards Spielmenü offen, schließt Escape wie gewohnt zuerst dieses.
 
@@ -973,7 +974,7 @@ Ihre HP wandern langsam auf und ab, damit man die gelbe und rote Schwelle kommen
 
 Der Testmodus ist für die eigenen Plaketten gedacht; im Party-Frame-Modus sitzen die Geister an Blizzards (ausgeblendeten) Frames und nützen wenig.
 
-\---
+---
 
 ## Das Zauber-Menü
 
@@ -981,12 +982,12 @@ Ein eigenes Kaskadenmenü, kein `UIDropDownMenu`: Dessen 1.12er Implementierung 
 
 * **Ebene 1** listet alle gelernten Zauber deiner Klasse aus der Zauberliste, jeweils mit Icon.
 * **Pfeil rechts** = mehrere Ränge vorhanden. Das Untermenü öffnet **beim Überfahren**, überlappt die Elternliste um zwei Pixel und hat ringsum eine Toleranzzone von 14 Pixeln, damit die Maus auf dem Weg nichts verliert.
-* **Offen bleibt offen**: Nur die Auswahl eines Rangs, das Aufklappen eines anderen Untermenüs oder ein Klick daneben schließt es. Nach drei Sekunden ohne Maus in der Nähe greift eine Notbremse (`FBMENU\_GRACE\_TIME`, auf 999 setzen deaktiviert sie).
+* **Offen bleibt offen**: Nur die Auswahl eines Rangs, das Aufklappen eines anderen Untermenüs oder ein Klick daneben schließt es. Nach drei Sekunden ohne Maus in der Nähe greift eine Notbremse (`FBMENU_GRACE_TIME`, auf 999 setzen deaktiviert sie).
 * **Kein Zauber** ganz oben leert den Button wieder.
 
 Ausgewählt wird als Cast-String `Zauber(Rank N)`, genau die Form, die `CastSpellByName` erwartet, und die Basis dafür, dass die Vorhersage den exakten Rang kennt.
 
-\---
+---
 
 ## Heilvorhersage
 
@@ -994,7 +995,7 @@ Der Kern des Addons. Drei unabhängige Quellen speisen die Balken.
 
 ### Direktheilung
 
-`SPELLCAST\_START` liefert Zaubernamen und Castdauer in Millisekunden, unabhängig davon, ob der Cast vom HealBox-Button, der Aktionsleiste oder aus einem Makro kommt. Es braucht dafür keinen Hook auf `CastSpellByName`. Die Vorschau verschwindet bei `SPELLCAST\_STOP`, `\_FAILED` und `\_INTERRUPTED`, Pushback (`SPELLCAST\_DELAYED`) verlängert sie.
+`SPELLCAST_START` liefert Zaubernamen und Castdauer in Millisekunden, unabhängig davon, ob der Cast vom HealBox-Button, der Aktionsleiste oder aus einem Makro kommt. Es braucht dafür keinen Hook auf `CastSpellByName`. Die Vorschau verschwindet bei `SPELLCAST_STOP`, `_FAILED` und `_INTERRUPTED`, Pushback (`SPELLCAST_DELAYED`) verlängert sie.
 
 Instants bekommen bewusst **keine** Vorhersage: Die Heilung ist da, bevor ein Balken sie zeigen könnte.
 
@@ -1003,7 +1004,7 @@ Instants bekommen bewusst **keine** Vorhersage: Die Heilung ist da, bevor ein Ba
 `UnitBuff()` liefert für fremde Einheiten keine Restlaufzeit, das Addon führt deshalb selbst Buch:
 
 1. Der Button meldet den Cast samt Ziel und Rang vor.
-2. `UNIT\_AURA` bestätigt die Anwendung über den **Buff-Textur-Vergleich** mit dem Zauberbuch-Icon (locale-unabhängig, kein Tooltip-Scan pro Event).
+2. `UNIT_AURA` bestätigt die Anwendung über den **Buff-Textur-Vergleich** mit dem Zauberbuch-Icon (locale-unabhängig, kein Tooltip-Scan pro Event).
 3. Angezeigt wird `Restticks × Heilung pro Tick`, wobei die Restticks aus `(Ablauf − GetTime()) / Intervall` fallen. Der Balken zählt damit Tick für Tick herunter.
 4. Fällt der Buff vorzeitig weg (Dispel, Tod, Überschrieben), ist die Anzeige sofort weg.
 
@@ -1013,7 +1014,7 @@ Das Tickintervall ist in Vanilla nicht aus dem Tooltip lesbar und steht deshalb 
 
 ### Absorb-Schilde
 
-Maximaler Absorb aus dem Zauberbuch-Tooltip, Verbrauch aus dem Combatlog (`(123 absorbed)`). Bei `\*\_VS\_SELF\_\*`-Events ist das Opfer der Spieler, sonst wird unter den aktuell beschildeten Namen gesucht.
+Maximaler Absorb aus dem Zauberbuch-Tooltip, Verbrauch aus dem Combatlog (`(123 absorbed)`). Bei `\*_VS_SELF_*`-Events ist das Opfer der Spieler, sonst wird unter den aktuell beschildeten Namen gesucht.
 
 Absorbierst du mehr, als der Tooltip hergibt (Heal-Gear), wird das Maximum **nach oben** korrigiert und gemerkt. Diese Korrektur ist einseitig und damit sicher: Mehr als möglich kann nicht absorbiert worden sein.
 
@@ -1035,11 +1036,11 @@ Zwei Schutzregeln halten den Speicher sauber. **Crits werden nicht gelernt**: di
 
 Welcher Zauber was kann, entscheidet der Tooltip selbst; ein Zauber darf mehreres sein. Regrowth etwa liefert Sofortheilung *und* HoT und wird auch so behandelt.
 
-\---
+---
 
 ## HealComm-Sync
 
-HealComm-1.0 funkt reinen Klartext über `SendAddonMessage` mit dem Prefix `HealComm`. Heal Box Vanilla spricht dieses Protokoll direkt, ohne die Bibliothek einzubinden. Damit sehen Puppeteer, pfUI, Luna Unit Frames, CT\_RaidAssist und alles andere HealComm-fähige deine angekündigten Heilungen, und du siehst umgekehrt ihre.
+HealComm-1.0 funkt reinen Klartext über `SendAddonMessage` mit dem Prefix `HealComm`. Heal Box Vanilla spricht dieses Protokoll direkt, ohne die Bibliothek einzubinden. Damit sehen Puppeteer, pfUI, Luna Unit Frames, CT_RaidAssist und alles andere HealComm-fähige deine angekündigten Heilungen, und du siehst umgekehrt ihre.
 
 |Nachricht|Bedeutung|
 |-|-|
@@ -1058,14 +1059,14 @@ Beim Empfang werden eigene Nachrichten über den Absendernamen gefiltert, und da
 
 **Absorb-Schilde kennt das Protokoll nicht**: die bleiben lokal.
 
-\---
+---
 
 ## Slash-Befehle
 
 |Befehl|Wirkung|
 |-|-|
 |`/fbp`|Statusbericht: alle ausgelesenen Tooltip-Werte je Zauber (Direkt-, HoT- und Schildanteil, gelernte Werte in Klammern), alle gerade laufenden Vorhersagen, der Zustand des HealComm-Sync und die empfangenen Fremdheilungen|
-|`/fbp debug`|Live-Ausgabe an/aus. Meldet jeden erkannten Cast, jede Korrektur, jeden Absorb und jede gefunkte Nachricht (`\[FBP>]`)|
+|`/fbp debug`|Live-Ausgabe an/aus. Meldet jeden erkannten Cast, jede Korrektur, jeden Absorb und jede gefunkte Nachricht (`[FBP>]`)|
 |`/fbp reset`|Verwirft alle gelernten Werte und liest die Tooltips neu ein|
 |`/fbp test`|Testmodus an/aus (wie der Haken in den Optionen)|
 |`/fbp config`|Optionsfenster auf/zu (wie der Minimap-Button)|
@@ -1077,7 +1078,7 @@ Beim Empfang werden eigene Nachrichten über den Absendernamen gefiltert, und da
 
 `/fbp` ist die erste Anlaufstelle, wenn etwas nicht angezeigt wird: Steht ein Zauber dort nicht drin, hat der Tooltip-Parser ihn nicht erkannt und nicht die Anzeige versagt.
 
-\---
+---
 
 ## Gespeicherte Einstellungen
 
@@ -1085,7 +1086,7 @@ Alles liegt in der Tabelle `HealBox`, gespeichert **pro Charakter**:
 
 |Schlüssel|Inhalt|
 |-|-|
-|`SpellChoice\[1..10]`|Cast-String je Button, z. B. `Renew(Rank 10)`|
+|`SpellChoice[1..10]`|Cast-String je Button, z. B. `Renew(Rank 10)`|
 |`MaxButtons`|Wie viele Buttons angezeigt werden|
 |`Scale`|Skalierung der Plaketten|
 |`AttachMode`|0 = eigene Plaketten, 1 = Standard-Gruppenfenster|
@@ -1096,7 +1097,7 @@ Alles liegt in der Tabelle `HealBox`, gespeichert **pro Charakter**:
 |`RowSpacing`|Abstand der Plaketten in px (0 bis 20)|
 |`ManaBar`|1 = Manastreifen an, 0 = aus|
 |`ShowPets`|1 = Pet-Plaketten an, 0 = aus|
-|`SpellChoiceR\[1..10]`|Cast-String je Button für Rechtsklick|
+|`SpellChoiceR[1..10]`|Cast-String je Button für Rechtsklick|
 |`RightClick`|1 = Rechtsklick-Zauber an, 0 = aus (Standard)|
 |`DebuffIcon`|1 = Debuff-Icon an, 0 = aus|
 |`LOSIcon`|1 = Sichtlinien-Abzeichen an, 0 = aus|
@@ -1113,7 +1114,7 @@ Alles liegt in der Tabelle `HealBox`, gespeichert **pro Charakter**:
 |`Raid`|Untertabelle mit allen Raidmodus-Einstellungen (siehe [Raidmodus](#raidmodus)), einschließlich `PosX` / `PosY` des Rasters|
 |`PredictMemory`|Gelernte Heilwerte je Zauber und Rang|
 
-Fehlende Schlüssel, etwa in einer alten `HealBox`-Tabelle aus 1.4, zieht `FBHealBox\_ApplyDefaults()` beim Laden nach. Der Testmodus wird bewusst **nicht** gespeichert.
+Fehlende Schlüssel, etwa in einer alten `HealBox`-Tabelle aus 1.4, zieht `FBHealBox_ApplyDefaults()` beim Laden nach. Der Testmodus wird bewusst **nicht** gespeichert.
 
 ## Konfiguration im Code
 
@@ -1123,42 +1124,42 @@ Alle Stellschrauben stehen als Globals oben in ihrem jeweiligen Abschnitt und la
 |-|-|-|
 |`LowHP` · `VeryLowHP`|0.6 · 0.3|Schwellen für gelb und rot|
 |`NamePlateWidth` · `NamePlateHeight`|120 · 28|Größe einer Plakette|
-|`FBMANA\_BAR\_HEIGHT`|5|Höhe des Manastreifens in px|
-|`FBMANA\_BAR\_COLOR`|`{0.15, 0.4, 1, 1}`|Farbe des Manastreifens|
-|`FBMANA\_BG\_ALPHA`|0.35|Dunkler Streifen hinter fehlendem Mana (0 = aus)|
-|`FBPET\_NAME\_COLOR`|`{0.75, 0.85, 1, 1}`|Namensfarbe auf Pet-Plaketten|
-|`FBPET\_INDENT`|12|Einrückung (und Verschmälerung) der Pet-Plaketten|
-|`FBPET\_ICON` · `FBPET\_ICON\_SIZE`|Fußabdruck · 12|Pfoten-Icon vor Pet-Namen|
-|`FBDEBUFF\_ICON\_SIZE`|14|Kantenlänge des Debuff-Icons|
-|`FBLOS\_ICON` · `FBLOS\_ICON\_SIZE`|Blenden-Icon · 12|Sichtlinien-Abzeichen|
-|`FBLOS\_ICON\_X` · `FBLOS\_ICON\_Y`|-3 · 3|Versatz des Abzeichens von der linken oberen Plattenecke|
-|`FBLOS\_TIMEOUT`|8|Sekunden, die ein Sichtlinien-Fehler ohne UnitXP markiert bleibt|
-|`FBNAME\_WIDTH\_FULL` · `FBNAME\_WIDTH\_ICON`|78 · 60|Breite der Namensbox ohne / mit sichtbarem Debuff-Icon|
-|`FBRANGE\_ALPHA` · `FBRANGE\_INTERVAL`|0.5 · 0.5|Deckkraft und Prüfintervall des Reichweiten-Fadings|
-|`FBBUFF\_MISSING\_COLOR`|`{1, 0.5, 0, 1}`|Rahmenfarbe bei fehlendem Wache-Buff|
-|`FBAGGRO\_COLOR`|`{1, 0.15, 0.15, 1}`|Rahmenfarbe für den Angegriffenen|
-|`FBCD\_MIN\_DURATION`|2|Kürzere Cooldowns (globaler Cooldown) werden nicht gezeigt|
-|`FBTIMER\_COLOR\_HOT` · `\_SHIELD` · `\_WS`|grün · blau · rot|Timerfarben auf den Buttons|
-|`FBBUFFICON\_SIZE` · `FBBUFFICON\_GAP` · `FBBUFFICON\_MAX` · `FBBUFFICON\_XOFF`|8 · 1 · 6 · -2|Buff-Icons links neben der Plakette|
-|`FBBUFFICON\_GREY`|0.55|Grauton abgelaufener Quadranten, falls der Client nicht entsättigen kann|
-|`FBNAME\_HEIGHT`|12|Höhe der Namensbox (eine Zeile, vertikal zentriert)|
-|`FBWEAKENED\_SOUL\_SEC`|15|Dauer der Geschwächten Seele|
-|`FBClassColors`|(Tabelle)|Ersatz-Klassenfarben, falls der Client kein `RAID\_CLASS\_COLORS` hat|
+|`FBMANA_BAR_HEIGHT`|5|Höhe des Manastreifens in px|
+|`FBMANA_BAR_COLOR`|`{0.15, 0.4, 1, 1}`|Farbe des Manastreifens|
+|`FBMANA_BG_ALPHA`|0.35|Dunkler Streifen hinter fehlendem Mana (0 = aus)|
+|`FBPET_NAME_COLOR`|`{0.75, 0.85, 1, 1}`|Namensfarbe auf Pet-Plaketten|
+|`FBPET_INDENT`|12|Einrückung (und Verschmälerung) der Pet-Plaketten|
+|`FBPET_ICON` · `FBPET_ICON_SIZE`|Fußabdruck · 12|Pfoten-Icon vor Pet-Namen|
+|`FBDEBUFF_ICON_SIZE`|14|Kantenlänge des Debuff-Icons|
+|`FBLOS_ICON` · `FBLOS_ICON_SIZE`|Blenden-Icon · 12|Sichtlinien-Abzeichen|
+|`FBLOS_ICON_X` · `FBLOS_ICON_Y`|-3 · 3|Versatz des Abzeichens von der linken oberen Plattenecke|
+|`FBLOS_TIMEOUT`|8|Sekunden, die ein Sichtlinien-Fehler ohne UnitXP markiert bleibt|
+|`FBNAME_WIDTH_FULL` · `FBNAME_WIDTH_ICON`|78 · 60|Breite der Namensbox ohne / mit sichtbarem Debuff-Icon|
+|`FBRANGE_ALPHA` · `FBRANGE_INTERVAL`|0.5 · 0.5|Deckkraft und Prüfintervall des Reichweiten-Fadings|
+|`FBBUFF_MISSING_COLOR`|`{1, 0.5, 0, 1}`|Rahmenfarbe bei fehlendem Wache-Buff|
+|`FBAGGRO_COLOR`|`{1, 0.15, 0.15, 1}`|Rahmenfarbe für den Angegriffenen|
+|`FBCD_MIN_DURATION`|2|Kürzere Cooldowns (globaler Cooldown) werden nicht gezeigt|
+|`FBTIMER_COLOR_HOT` · `_SHIELD` · `_WS`|grün · blau · rot|Timerfarben auf den Buttons|
+|`FBBUFFICON_SIZE` · `FBBUFFICON_GAP` · `FBBUFFICON_MAX` · `FBBUFFICON_XOFF`|8 · 1 · 6 · -2|Buff-Icons links neben der Plakette|
+|`FBBUFFICON_STEPS` · `FBBUFFICON_GREY`|32 · 0.30|Anzahl Ablaufstufen (32) und Grauton, falls Client nicht entsättigen kann|
+|`FBNAME_HEIGHT`|12|Höhe der Namensbox (eine Zeile, vertikal zentriert)|
+|`FBWEAKENED_SOUL_SEC`|15|Dauer der Geschwächten Seele|
+|`FBClassColors`|(Tabelle)|Ersatz-Klassenfarben, falls der Client kein `RAID_CLASS_COLORS` hat|
 |`FBBuffWatchSpells` · `FBBuffAlternates`|(Tabelle)|Angebotene Buffs je Klasse und welche Gruppenversion als gleich zählt|
 |`FBPartyUnit` · `FBLayoutOrder`|(Tabelle)|Die zehn Plätze und ihre Anzeigereihenfolge|
 |`FBTestGhosts`|(Tabelle)|Namen und Werte der Geister im Testmodus|
 |`MaxButtonCount`|10|Maximale Buttonzahl|
-|`FBMENU\_BTN\_HEIGHT` · `FBMENU\_ICON\_SIZE`|17 · 16|Zeilenhöhe und Icon-Größe im Menü|
-|`FBMENU\_MOUSE\_PAD`|14|Toleranzzone um die Menüs|
-|`FBMENU\_GRACE\_TIME`|3.0|Auto-Close des Menüs (999 = aus)|
-|`FBPREDICT\_TICK\_DEFAULT`|3|Standard-Tickintervall für HoTs|
-|`FBPREDICT\_THROTTLE`|0.2|Update-Rate der Vorhersage|
-|`FBPREDICT\_CONFIRM\_TIME`|3.0|Wartezeit auf die Aura-Bestätigung|
-|`FBPREDICT\_TARGET\_TIME`|2.0|Gültigkeit des gemerkten Cast-Ziels|
+|`FBMENU_BTN_HEIGHT` · `FBMENU_ICON_SIZE`|17 · 16|Zeilenhöhe und Icon-Größe im Menü|
+|`FBMENU_MOUSE_PAD`|14|Toleranzzone um die Menüs|
+|`FBMENU_GRACE_TIME`|3.0|Auto-Close des Menüs (999 = aus)|
+|`FBPREDICT_TICK_DEFAULT`|3|Standard-Tickintervall für HoTs|
+|`FBPREDICT_THROTTLE`|0.2|Update-Rate der Vorhersage|
+|`FBPREDICT_CONFIRM_TIME`|3.0|Wartezeit auf die Aura-Bestätigung|
+|`FBPREDICT_TARGET_TIME`|2.0|Gültigkeit des gemerkten Cast-Ziels|
 |`FBPredictTickInterval`|`{Lifebloom = 1}`|Abweichende Tickintervalle|
 |`FBCommGroupHeal`|`{Prayer of Healing}`|Was als `GrpHeal` gefunkt wird|
 
-\---
+---
 
 ## Funktionsreferenz
 
@@ -1166,36 +1167,36 @@ Alle Stellschrauben stehen als Globals oben in ihrem jeweiligen Abschnitt und la
 
 |Funktion|Zweck|
 |-|-|
-|`FBHealBox\_OnLoad()`|Event-Registrierung, Startmeldung|
-|`FBHealBox\_OnEvent(event, arg1)`|Zentrale Ereignisverteilung|
+|`FBHealBox_OnLoad()`|Event-Registrierung, Startmeldung|
+|`FBHealBox_OnEvent(event, arg1)`|Zentrale Ereignisverteilung|
 |`FBHealBoxSetup()`|Legt die zehn Plaketten an (fünf Spieler, fünf Begleiter)|
 |`FBHealBoxCreateFrame(…)`|Baut eine Plakette samt der vier Balken|
-|`FBHealBox\_SetBarStrata(f, strata)`|Stapelt Mana / Leben / Schild / Vorhersage|
-|`FBHealBox\_SetPlateVisible(f, visible)`|Blendet alle Balken einer Plakette ein/aus (Party-Frame-Modus)|
-|`FBHealBox\_UpdateUnit(unit, frame)`|Schreibt HP, Schild, Vorhersage, Mana und Dispel-Farbe in eine Plakette|
-|`FBHealBox\_UpdateMana(unit, frame)`|Der Manastreifen: nur bei Mana-Nutzern sichtbar|
-|`FBHealBox\_DispelType(unit)`|Erster von der eigenen Klasse entfernbarer Debuff: Typ, Textur, Stacks, sonst nil|
-|`FBHealBox\_UpdateDebuffIcon(frame, tex, count)`|Debuff-Icon und Stackzahl|
-|`FBHealBox\_CastOn(button, castString)`|Wirkt den Zauber eines Buttons (links oder rechts) auf sein Ziel|
-|`FBHealBox\_DropSpell(btnIndex, side)` · `FBHealBox\_CursorSpell()`|Drag & Drop aus dem Zauberbuch|
-|`FBHealBox\_SmartRank(castString, unit)`|Wählt den zu wirkenden Rang|
-|`FBHealBox\_CheckAggroAll()` · `FBHealBox\_ApplyBorder(f)`|Roter Rahmen für den Angegriffenen; Rahmen-Vorrang|
-|`FBHealBox\_UpdateSpellTimers()` · `FBHealBox\_SpellTimerFor(...)`|HoT/Schild-Timer auf Buttons|
-|`FBHealBox\_UpdateButtonCooldown(b)` · `FBHealBox\_UpdateAllCooldowns()`|Cooldown-Uhr|
-|`FBHealBox\_ShowTab(n)` · `FBHealBox\_ApplyRightClickLayout()`|Options-Reiter; Rechtsklick-Spalte ein-/ausblenden|
-|`FBHealBox\_PlateMouseDown(f)` · `FBHealBox\_PlateMouseUp(f)` · `FBHealBox\_RunPlateAction(f, action)`|Klick und Ziehen auf einer Plakette|
-|`FBHealBox\_RefreshAllBars()`|Aktualisiert alle zehn|
+|`FBHealBox_SetBarStrata(f, strata)`|Stapelt Mana / Leben / Schild / Vorhersage|
+|`FBHealBox_SetPlateVisible(f, visible)`|Blendet alle Balken einer Plakette ein/aus (Party-Frame-Modus)|
+|`FBHealBox_UpdateUnit(unit, frame)`|Schreibt HP, Schild, Vorhersage, Mana und Dispel-Farbe in eine Plakette|
+|`FBHealBox_UpdateMana(unit, frame)`|Der Manastreifen: nur bei Mana-Nutzern sichtbar|
+|`FBHealBox_DispelType(unit)`|Erster von der eigenen Klasse entfernbarer Debuff: Typ, Textur, Stacks, sonst nil|
+|`FBHealBox_UpdateDebuffIcon(frame, tex, count)`|Debuff-Icon und Stackzahl|
+|`FBHealBox_CastOn(button, castString)`|Wirkt den Zauber eines Buttons (links oder rechts) auf sein Ziel|
+|`FBHealBox_DropSpell(btnIndex, side)` · `FBHealBox_CursorSpell()`|Drag & Drop aus dem Zauberbuch|
+|`FBHealBox_SmartRank(castString, unit)`|Wählt den zu wirkenden Rang|
+|`FBHealBox_CheckAggroAll()` · `FBHealBox_ApplyBorder(f)`|Roter Rahmen für den Angegriffenen; Rahmen-Vorrang|
+|`FBHealBox_UpdateSpellTimers()` · `FBHealBox_SpellTimerFor(...)`|HoT/Schild-Timer auf Buttons|
+|`FBHealBox_UpdateButtonCooldown(b)` · `FBHealBox_UpdateAllCooldowns()`|Cooldown-Uhr|
+|`FBHealBox_ShowTab(n)` · `FBHealBox_ApplyRightClickLayout()`|Options-Reiter; Rechtsklick-Spalte ein-/ausblenden|
+|`FBHealBox_PlateMouseDown(f)` · `FBHealBox_PlateMouseUp(f)` · `FBHealBox_RunPlateAction(f, action)`|Klick und Ziehen auf einer Plakette|
+|`FBHealBox_RefreshAllBars()`|Aktualisiert alle zehn|
 |`FBUpdateNames()`|Namen und Sichtbarkeit nach Gruppen- oder Pet-Wechsel, danach neu anordnen|
 |`FBSlotActive(p)`|Ist Platz p gerade anzuzeigen?|
-|`FBHealBox\_Layout()`|Stapelt die sichtbaren Plaketten (Besitzer, dann Pet) mit `RowSpacing`|
-|`FBHealBox\_ApplyButtonSpacing()`|Verkettet alle Buttons neu mit `ButtonSpacing`|
-|`FBHealBox\_SavePosition()` · `FBHealBox\_RestorePosition()`|Plattenposition in den SavedVariables|
-|`FBHealBox\_ApplyDefaults()` · `FBHealBox\_SyncOptions()`|Fehlende Einstellungen nachziehen; Optionsfenster daran angleichen|
-|`FBHealBox\_ApplyNameColor(unit, f)` · `FBHealBox\_ApplyAllNameColors()`|Name in Klassen- bzw. Pet-Farbe|
-|`FBHealBox\_SetWatchBuff(name)` · `FBHealBox\_HasWatchBuff(unit)` · `FBHealBox\_CheckWatchBuff(unit, f)`|Buff-Wache: wählen, eine Einheit prüfen, Rahmen färben|
-|`FBHealBox\_UnitInRange(unit)` · `FBHealBox\_CheckRangeAll()`|Reichweiten-Fading|
-|`FBUnitLOSBlocked(unit)` · `FBLOS\_OnError(msg)` · `FBLOS\_Clear(name)` · `FBHealBox\_CheckLOSAll()`|Sichtlinie (UnitXP oder Fehlermeldungs-Fallback)|
-|`FBMenu\_OpenBuffMenu(anchor)`|Die Buff-Auswahl (dasselbe Kaskadenmenü)|
+|`FBHealBox_Layout()`|Stapelt die sichtbaren Plaketten (Besitzer, dann Pet) mit `RowSpacing`|
+|`FBHealBox_ApplyButtonSpacing()`|Verkettet alle Buttons neu mit `ButtonSpacing`|
+|`FBHealBox_SavePosition()` · `FBHealBox_RestorePosition()`|Plattenposition in den SavedVariables|
+|`FBHealBox_ApplyDefaults()` · `FBHealBox_SyncOptions()`|Fehlende Einstellungen nachziehen; Optionsfenster daran angleichen|
+|`FBHealBox_ApplyNameColor(unit, f)` · `FBHealBox_ApplyAllNameColors()`|Name in Klassen- bzw. Pet-Farbe|
+|`FBHealBox_SetWatchBuff(name)` · `FBHealBox_HasWatchBuff(unit)` · `FBHealBox_CheckWatchBuff(unit, f)`|Buff-Wache: wählen, eine Einheit prüfen, Rahmen färben|
+|`FBHealBox_UnitInRange(unit)` · `FBHealBox_CheckRangeAll()`|Reichweiten-Fading|
+|`FBUnitLOSBlocked(unit)` · `FBLOS_OnError(msg)` · `FBLOS_Clear(name)` · `FBHealBox_CheckLOSAll()`|Sichtlinie (UnitXP oder Fehlermeldungs-Fallback)|
+|`FBMenu_OpenBuffMenu(anchor)`|Die Buff-Auswahl (dasselbe Kaskadenmenü)|
 |`HealBoxAttachMode(mode)`|Umschaltung eigene Plaketten ↔ Standard-Gruppenfenster|
 |`HealBoxScale(this, scale)`|Skalierung|
 
@@ -1212,8 +1213,8 @@ Die Anzeige ruft `UnitExists`, `UnitName`, `UnitHealth` und `UnitMana` nie direk
 |`FBUnitClassToken(unit)`|`"PRIEST"`, `"WARRIOR"`, … oder nil bei Begleitern|
 |`FBUnitState(unit)`|nil, `"dead"`, `"ghost"` oder `"offline"`|
 |`FBChoiceTables(side)`|Laufzeit- und Speichertabellen der linken (`"L"`) oder rechten (`"R"`) Belegung|
-|`FBTest\_Ghost(unit)`|Den Geist-Datensatz oder nil|
-|`FBTest\_Set(on)`|Testmodus umschalten|
+|`FBTest_Ghost(unit)`|Den Geist-Datensatz oder nil|
+|`FBTest_Set(on)`|Testmodus umschalten|
 
 ### Buttons und Zauberdaten
 
@@ -1224,18 +1225,18 @@ Die Anzeige ruft `UnitExists`, `UnitName`, `UnitHealth` und `UnitMana` nie direk
 |`FBHealBoxButtonsChanged()`|Aktualisiert Icons und Zuordnung ohne Neubau|
 |`FBLoadSpellData()`|Scannt das Zauberbuch, sammelt alle Ränge|
 |`FBApplySpellChoice(i, castString)`|Weist einem Button einen Zauber zu|
-|`HealBoxButton\_OnEvent(…)`|Färbt das Icon nach Mana, Cooldown und Reichweite|
+|`HealBoxButton_OnEvent(…)`|Färbt das Icon nach Mana, Cooldown und Reichweite|
 
 ### Zauber-Menü
 
 |Funktion|Zweck|
 |-|-|
-|`FBMenu\_OpenSpellMenu(btnIndex, anchor, side)`|Öffnet das Menü für ein Optionsfeld (`side` = `"L"` oder `"R"`)|
-|`FBMenu\_ShowLevel(level, entries, anchor)`|Baut und positioniert eine Menü-Ebene|
-|`FBMenu\_BuildSpellEntries()`|Ebene 1: alle gelernten Zauber|
-|`FBMenu\_BuildRankEntries(spellName)`|Ebene 2: alle Ränge eines Zaubers|
-|`FBMenu\_SelectSpell(entry)` · `FBMenu\_ClearSpell()`|Auswahl übernehmen bzw. Button leeren|
-|`FBMenu\_CloseAll()` · `FBMenu\_IsOpen()`|Menü schließen, Zustand abfragen|
+|`FBMenu_OpenSpellMenu(btnIndex, anchor, side)`|Öffnet das Menü für ein Optionsfeld (`side` = `"L"` oder `"R"`)|
+|`FBMenu_ShowLevel(level, entries, anchor)`|Baut und positioniert eine Menü-Ebene|
+|`FBMenu_BuildSpellEntries()`|Ebene 1: alle gelernten Zauber|
+|`FBMenu_BuildRankEntries(spellName)`|Ebene 2: alle Ränge eines Zaubers|
+|`FBMenu_SelectSpell(entry)` · `FBMenu_ClearSpell()`|Auswahl übernehmen bzw. Button leeren|
+|`FBMenu_CloseAll()` · `FBMenu_IsOpen()`|Menü schließen, Zustand abfragen|
 
 ### Vorhersage: Abfrage
 
@@ -1252,39 +1253,39 @@ Die vier Funktionen, die die Balken speisen. Alle erwarten einen **Spielernamen*
 
 |Funktion|Zweck|
 |-|-|
-|`FBPredict\_GetSpellInfo(bookID, name)`|Wertet den Zauberbuch-Tooltip aus (Direkt / HoT / Schild)|
-|`FBPredict\_BuildWatch()`|Baut die Watchlist nach jedem Zauberbuch-Scan|
-|`FBPredict\_NoteCast(castString, target)`|Merkt Ziel und Rang **vor** dem Cast vor|
-|`FBPredict\_CastStart(spell, castMs)` · `FBPredict\_CastEnd()`|Direktheilung starten und beenden|
-|`FBPredict\_ScanUnit(unit)`|Aura-Abgleich: Anwendung bestätigen, Wegfall erkennen|
-|`FBPredict\_StartHoT(…)` · `FBPredict\_StartShield(…)`|Tracking scharfschalten|
-|`FBPredict\_ParseCombat(event, msg)`|Combatlog-Auswertung|
-|`FBPredict\_OnTick(…)` · `FBPredict\_OnDirectHeal(…)` · `FBPredict\_OnAbsorb(…)`|Die drei Korrekturpfade|
-|`FBPredict\_Remember(…)` · `FBPredict\_Remembered(…)`|Lernspeicher schreiben und lesen|
-|`FBPredict\_TicksLeft(e, now)`|Restticks eines HoT|
+|`FBPredict_GetSpellInfo(bookID, name)`|Wertet den Zauberbuch-Tooltip aus (Direkt / HoT / Schild)|
+|`FBPredict_BuildWatch()`|Baut die Watchlist nach jedem Zauberbuch-Scan|
+|`FBPredict_NoteCast(castString, target)`|Merkt Ziel und Rang **vor** dem Cast vor|
+|`FBPredict_CastStart(spell, castMs)` · `FBPredict_CastEnd()`|Direktheilung starten und beenden|
+|`FBPredict_ScanUnit(unit)`|Aura-Abgleich: Anwendung bestätigen, Wegfall erkennen|
+|`FBPredict_StartHoT(…)` · `FBPredict_StartShield(…)`|Tracking scharfschalten|
+|`FBPredict_ParseCombat(event, msg)`|Combatlog-Auswertung|
+|`FBPredict_OnTick(…)` · `FBPredict_OnDirectHeal(…)` · `FBPredict_OnAbsorb(…)`|Die drei Korrekturpfade|
+|`FBPredict_Remember(…)` · `FBPredict_Remembered(…)`|Lernspeicher schreiben und lesen|
+|`FBPredict_TicksLeft(e, now)`|Restticks eines HoT|
 
 ### HealComm
 
 |Funktion|Zweck|
 |-|-|
-|`FBComm\_Enabled()`|Ist der Sync eingeschaltet?|
-|`FBComm\_Send(msg)`|Rohversand ins Raid bzw. in die Gruppe|
-|`FBComm\_SendHealStart(…)`|`Heal` bzw. `GrpHeal`|
-|`FBComm\_SendHealStop()` · `FBComm\_SendHealDelay(ms)`|Abbruch und Pushback|
-|`FBComm\_SendHoT(spell, target, dur)`|`Renew` / `Reju` / `Regr`|
-|`FBComm\_OnMessage(prefix, msg, channel, sender)`|Empfang und Auswertung|
+|`FBComm_Enabled()`|Ist der Sync eingeschaltet?|
+|`FBComm_Send(msg)`|Rohversand ins Raid bzw. in die Gruppe|
+|`FBComm_SendHealStart(…)`|`Heal` bzw. `GrpHeal`|
+|`FBComm_SendHealStop()` · `FBComm_SendHealDelay(ms)`|Abbruch und Pushback|
+|`FBComm_SendHoT(spell, target, dur)`|`Renew` / `Reju` / `Regr`|
+|`FBComm_OnMessage(prefix, msg, channel, sender)`|Empfang und Auswertung|
 
-\---
+---
 
 ## Fehlersuche
 
 **Ein Zauber taucht im Menü nicht auf.** Er steht nicht in der Zauberliste deiner Klasse (`Spell.Name` am Dateianfang) oder ist noch nicht gelernt. Die Liste lässt sich frei erweitern.
 
-**Gelernte Absorb-Werte sind gedeckelt.** Ein gemerkter Absorb über dem 1,5-fachen des Tooltipwerts gilt als Zählfehler und wird beim Laden verworfen (`FBPredict\_SanitizeMemory`); die durch die alte Doppelladung verdoppelten Werte aus Versionen vor 1.4.2 räumen sich so von selbst auf.
+**Gelernte Absorb-Werte sind gedeckelt.** Ein gemerkter Absorb über dem 1,5-fachen des Tooltipwerts gilt als Zählfehler und wird beim Laden verworfen (`FBPredict_SanitizeMemory`); die durch die alte Doppelladung verdoppelten Werte aus Versionen vor 1.4.2 räumen sich so von selbst auf.
 
-**Keine Vorhersage für einen bestimmten Zauber.** `/fbp` aufrufen: Steht der Zauber nicht in der Liste der ausgelesenen Zauber, hat der Tooltip-Parser ihn nicht erkannt. Auf abweichenden Servern können die Formulierungen abweichen; die Muster sitzen gebündelt in `FBPredict\_GetSpellInfo`.
+**Keine Vorhersage für einen bestimmten Zauber.** `/fbp` aufrufen: Steht der Zauber nicht in der Liste der ausgelesenen Zauber, hat der Tooltip-Parser ihn nicht erkannt. Auf abweichenden Servern können die Formulierungen abweichen; die Muster sitzen gebündelt in `FBPredict_GetSpellInfo`.
 
-**Combatlog-Korrekturen greifen nicht.** Die Muster werden aus den GlobalStrings des Clients gebaut (`PERIODICAURAHEALOTHERSELF`, `HEALEDSELFOTHER`, `ABSORB\_TRAILER`) und fallen sonst auf englische Vorgaben zurück. `/fbp debug` zeigt, ob Korrekturen ankommen.
+**Combatlog-Korrekturen greifen nicht.** Die Muster werden aus den GlobalStrings des Clients gebaut (`PERIODICAURAHEALOTHERSELF`, `HEALEDSELFOTHER`, `ABSORB_TRAILER`) und fallen sonst auf englische Vorgaben zurück. `/fbp debug` zeigt, ob Korrekturen ankommen.
 
 **Werte sind zu niedrig.** Vor der ersten beobachteten Heilung steht nur der Tooltip-Basiswert ohne +Heilung zur Verfügung. Ein einziger Cast über die Buttons genügt zum Einpendeln.
 
@@ -1292,7 +1293,7 @@ Die vier Funktionen, die die Balken speisen. Alle erwarten einen **Spielernamen*
 
 **Nach einem Gear-Wechsel stimmen die Zahlen nicht.** Sie korrigieren sich beim nächsten Cast von selbst; `/fbp reset` erzwingt den Neustart.
 
-\---
+---
 
 ## Klassenzauber
 
@@ -1309,7 +1310,7 @@ Die vorbelegten Listen, frei erweiterbar in `Spell.Name`:
 
 Nicht vorhandene Einträge stören nicht: Findet der Zauberbuch-Scan sie nicht, werden sie stillschweigend übergangen.
 
-\---
+---
 
 ## Credits
 
@@ -1321,17 +1322,18 @@ Nicht vorhandene Einträge stören nicht: Findet der Zauberbuch-Scan sie nicht, 
 * Heilvorhersage für Direktheilung, HoT-Restticks und Absorb-Schilde, selbstkorrigierend über den Combatlog
 * HealComm-Sync mit Puppeteer, pfUI, Luna und Co., ohne Ace-Bibliotheken
 * Lokalisierung Deutsch, Englisch, Spanisch, Französisch und Italienisch, im laufenden Spiel umschaltbar
+* 1.4.4.2: 32-Stufen-Ablaufanzeige für Buff-Icons (ersetzt die 4-Quadranten-Uhr durch 32 vertikale Stufen) sowie Syntax- und Diagnose-Korrekturen; siehe CHANGELOG
 * 1.4.4.1: Buff-Erkennung & Tooltip-Scan behoben (Göttlicher Willen Uhr-Icon), vollständige Klassen-Zauberlisten mit Segen, Buffs, Hilfszaubern und Wiederbelebung, Gruppen-Buff-Erkennung; siehe CHANGELOG
 * 1.4.4: Leistungsdurchgang ohne Funktionsänderung (zentrale Button-Zustände, Anzeige-Zwischenspeicher, gemeinsame Aura-Scans, zusammengefasste Event-Salven); siehe CHANGELOG
 * 1.4.3: Mana-Ticker-Modul (2-s-Regenerationstick und Fünf-Sekunden-Regel als Funke im Manabalken), Smart-Damage-Modul (Rangwahl für Angriffszauber auf jeder Aktionsleiste), Smart Healing (automatisches Abrangen, standardmäßig aus), Cooldown-Uhr auf den Buttons, roter Rahmen für den Angegriffenen, HoT/Schild-Timer auf den Buttons
 * 1.4.2: Raidmodus als eigenes Modul (`FBHealBox_Raid.lua`) mit kompaktem 20/40-Raster, Mini-Buttons, eigenem Options-Reiter und Raid-Test; Hook-Schnittstelle im Kern
 * 1.4.1: Begleiter-Plaketten, Manabalken im Lebensbalken, einstellbare Button- und Zeilenabstände, Testmodus mit Geisterspielern, gespeicherte Plattenposition, Klassenfarben, Buff-Wache, Reichweiten-Fading, Optionen in Reitern, Rechtsklick-Zauber, Tot/Geist/Offline-Text, Debuff-Icon. Siehe CHANGELOG.md.
 
-\---
+---
 
-Heal Box Vanilla v1.4.4.1 · Original von Dourd, UI Overhauled · Vanilla-Portierung und Erweiterung 09/2026 von Mquadrat
+Heal Box Vanilla v1.4.4.2 · Original von Dourd, UI Overhauled · Vanilla-Portierung und Erweiterung 09/2026 von Mquadrat
 
-\---
+---
 
 ## Keywords
 
@@ -1340,3 +1342,4 @@ Heal Box Vanilla v1.4.4.1 · Original von Dourd, UI Overhauled · Vanilla-Portie
 **Deutsch:** World of Warcraft Vanilla 1.12.1 Heiler-Addon, Classic WoW Heil-Addon, Heilfenster mit Klick-Buttons, Healium-Alternative für Vanilla, HealComm-kompatibel, Heilvorhersage und eingehende Heilung, Absorb-Schild-Anzeige, HoT-Timer, Machtwort: Schild und Geschwächte Seele, Buff-Timer als Uhr-Icons, Seelenstärke nachbuffen, Dispel-Anzeige, Gruppen- und Begleiterfenster, kompakte Raidframes für 20er und 40er Schlachtzüge, Raid-Raster für Heiler, Mana-Ticker und Fünf-Sekunden-Regel, Regenerations-Tick-Balken, automatisches Abrangen, Smart Healing, Smart Damage, Angriffsziel-Markierung, Sichtlinien-Anzeige, Reichweiten-Fading, Klassenfarben, SuperWoW, UnitXP, MobHealth3 und MobInfo-2, läuft auf Turtle WoW und anderen 1.12-Privatservern, Priester Druide Paladin Schamane Heiler-UI, Lua 5.0 Addon, Deutsch Englisch Spanisch Französisch Italienisch.
 
 #WoWVanilla #Vanilla112 #WoW1121 #ClassicWoW #TurtleWoW #WoWAddon #VanillaAddon #HealerAddon #HealingAddon #Healium #HealComm #HealPrediction #RaidFrames #PartyFrames #UnitFrames #ClickCasting #ManaTicker #FiveSecondRule #Downranking #SmartHealing #SmartDamage #BuffTimer #HoTTracker #DispelTracker #Priest #Druid #Paladin #Shaman #SuperWoW #UnitXP #MobHealth #Lua50 #HealBoxVanilla
+
