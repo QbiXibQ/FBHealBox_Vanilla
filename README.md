@@ -125,7 +125,7 @@ Up to ten buttons sit next to each plate, each showing its spell's icon. A **lef
 
 Everything in the chain is a candidate, and the one with the smallest expected heal that still covers the need wins. Nothing that heals more than the rank you assigned is ever picked, so the button never gets stronger, only cheaper. Note that this can change the cast time: for a small deficit a Greater Heal click may become Lesser Heal, and a Holy Light click may become Flash of Light. Group heals (Prayer of Healing, Chain Heal), HoTs, shields and cooldown spells (Holy Shock, Lay on Hands) are never part of a chain.
 
-`/fbp smartcross` turns the chain switching off and on. With it off, Smart Healing stays on the assigned spell and only lowers its rank, exactly as in 1.4.4.3. The chains live in `FBHealChains` near the Smart Healing code and can be edited freely; spells you do not want swapped simply come out of the list. Downsides: the estimate ignores crits, and with burst damage or when you want to overheal on purpose (a tank before a big hit) the lower rank can fall short. Leave it off whenever overhealing is what you want. `/fbp debug` prints every decision, `/fbp` shows the state.
+The *Smartcross* switch on the *Buttons* tab turns chain switching off and on, `/fbp smartcross` does the same from chat. With it off, Smart Healing stays on the assigned spell and only lowers its rank, the way it worked before 1.4.4.3. The chains live in `FBHealChains` near the Smart Healing code and can be edited freely; spells you do not want swapped simply come out of the list. Downsides: the estimate ignores crits, and with burst damage or when you want to overheal on purpose (a tank before a big hit) the lower rank can fall short. Leave it off whenever overhealing is what you want. `/fbp debug` prints every decision, `/fbp` shows the state.
 
 **Cooldowns.** Every button shows the usual cooldown sweep for its spell. The global cooldown is not shown (`FBCD_MIN_DURATION`). Option *Cooldowns on buttons*.
 
@@ -243,7 +243,7 @@ The target's remaining health comes from the first source that answers:
 |Target health source|Live line: which of the four sources answers for your current target|
 |Spells|The attack spells found in your spellbook with their rank count|
 
-Spells per class: Priest Smite, Holy Fire, Mind Blast; Druid Wrath, Starfire, Moonfire; Shaman Lightning Bolt, Chain Lightning, Earth/Flame/Frost Shock; Paladin Holy Shock, Hammer of Wrath, Exorcism, Holy Wrath; Mage Fireball, Frostbolt, Fire Blast, Scorch, Pyroblast; Warlock Shadow Bolt, Searing Pain, Immolate, Soul Fire, Conflagrate; Hunter Arcane Shot, Aimed Shot (list `FBDamageSpells`). `/fbp damage` toggles, `/fbp debug` logs every decision with the health source used.
+Spells per class: Priest Smite, Holy Fire, Mind Blast; Druid Wrath, Starfire, Moonfire; Shaman Lightning Bolt, Chain Lightning, Earth/Flame/Frost Shock; Paladin Holy Shock, Hammer of Wrath, Exorcism, Holy Wrath; Mage Fireball, Frostbolt, Fire Blast, Scorch, Pyroblast; Warlock Shadow Bolt, Searing Pain, Immolate, Soul Fire, Conflagrate; Hunter Arcane Shot, Aimed Shot (list `FBDamageSpells`). `/fbp damage` toggles, `/fbp debug` logs every decision with the health source used. Note for hunters: the addon does not load for that class, so Smart Damage only runs after `/fbp forceload`, see [Which classes it loads for](#which-classes-it-loads-for).
 
 ---
 
@@ -519,6 +519,9 @@ Every knob is a global at the top of its own section and can be changed without 
 |`FBPREDICT_TARGET_TIME`|2.0|Lifetime of the remembered cast target|
 |`FBPredictTickInterval`|`{Lifebloom = 1}`|Deviating tick intervals|
 |`FBCommGroupHeal`|`{Prayer of Healing}`|What is broadcast as `GrpHeal`|
+|`FBHealChains`|(table)|Which spells count as the same heal, only smaller. Smart Healing may switch spell inside a chain|
+|`FBHoTSpells`|(table)|Heal over time spells that Smart Healing never downranks|
+|`FBBlockedClasses`|`WARRIOR`, `ROGUE`, `HUNTER`|Classes the addon does not load for without `/fbp forceload`|
 |`FBLocale`|`enUS`, `deDE`, `esES`, `frFR`, `itIT`|Every visible string, per language|
 
 ---
@@ -831,14 +834,14 @@ Rechts neben jeder Plakette liegen bis zu zehn Buttons, jeder mit dem Icon seine
 
 |Klasse|Kette|
 |-|-|
-|Priester|Geringes Heilen · Heilen · Große Heilung |
+|Priester|Geringes Heilen · Heilen · Große Heilung|
 |Paladin|Blitz des Lichts · Heiliges Licht|
 |Schamane|Geringe Welle der Heilung · Welle der Heilung|
 |Druide|Heilende Berührung (Nachwachsen ist ein HoT und bleibt draußen)|
 
 Alles in der Kette ist Kandidat, gewonnen hat der mit der kleinsten erwarteten Heilung, die den Bedarf noch deckt. Nie gewählt wird etwas, das mehr heilt als der belegte Rang, der Button wird also nie stärker, nur billiger. Das kann die Zauberzeit ändern: Bei kleinem Fehlbetrag wird aus einem Klick auf Große Heilung ein Geringes Heilen, aus Heiligem Licht ein Blitz des Lichts. Gruppenheilungen (Gebet der Heilung, Kettenheilung), HoTs, Schilde und Zauber mit Abklingzeit (Heiliger Schock, Handauflegung) sind nie Teil einer Kette.
 
-`/fbp smartcross` schaltet den Kettenwechsel aus und wieder ein. Aus bleibt Smart Healing beim belegten Zauber und senkt nur dessen Rang, genau wie in 1.4.4.3. Die Ketten stehen in `FBHealChains` direkt beim Smart-Healing-Code und lassen sich frei bearbeiten; Zauber, die nicht getauscht werden sollen, fliegen einfach aus der Liste. Nachteile: Die Schätzung kennt keine Crits, und bei Schadensspitzen oder gewolltem Überheilen (Tank vor einem großen Treffer) kann der kleinere Rang zu wenig sein. Aus lassen, wann immer Overheal gewollt ist. `/fbp debug` zeigt jede Entscheidung, `/fbp` den Zustand.
+Der Schalter *Smartcross* im Reiter *Buttons* schaltet den Kettenwechsel aus und wieder ein, `/fbp smartcross` tut dasselbe aus dem Chat. Aus bleibt Smart Healing beim belegten Zauber und senkt nur dessen Rang, so wie es vor 1.4.4.3 war. Die Ketten stehen in `FBHealChains` direkt beim Smart-Healing-Code und lassen sich frei bearbeiten; Zauber, die nicht getauscht werden sollen, fliegen einfach aus der Liste. Nachteile: Die Schätzung kennt keine Crits, und bei Schadensspitzen oder gewolltem Überheilen (Tank vor einem großen Treffer) kann der kleinere Rang zu wenig sein. Aus lassen, wann immer Overheal gewollt ist. `/fbp debug` zeigt jede Entscheidung, `/fbp` den Zustand.
 
 **Cooldowns.** Jeder Button zeigt die gewohnte Cooldown-Uhr seines Zaubers. Der globale Cooldown wird nicht gezeigt (`FBCD_MIN_DURATION`). Option *Cooldowns auf den Buttons*.
 
@@ -956,7 +959,7 @@ Das Restleben des Ziels liefert die erste Quelle, die antwortet:
 |Lebensquelle des Ziels|Livezeile: welche der vier Quellen für dein aktuelles Ziel antwortet|
 |Zauber|Die im Zauberbuch gefundenen Angriffszauber mit Rangzahl|
 
-Zauber je Klasse: Priester Göttliche Pein, Heiliges Feuer, Gedankenschlag; Druide Zorn, Sternenfeuer, Mondfeuer; Schamane Blitzschlag, Kettenblitzschlag, Erd-/Flammen-/Frostschock; Paladin Heiliger Schock, Hammer des Zorns, Exorzismus, Heiliger Zorn; Magier Feuerball, Frostblitz, Feuerschlag, Versengen, Pyroschlag; Hexenmeister Schattenblitz, Sengender Schmerz, Feuerbrand, Seelenfeuer, Feuersbrunst; Jäger Arkaner Schuss, Gezielter Schuss (Liste `FBDamageSpells`). `/fbp damage` schaltet um, `/fbp debug` protokolliert jede Entscheidung mit der genutzten Lebensquelle.
+Zauber je Klasse: Priester Göttliche Pein, Heiliges Feuer, Gedankenschlag; Druide Zorn, Sternenfeuer, Mondfeuer; Schamane Blitzschlag, Kettenblitzschlag, Erd-/Flammen-/Frostschock; Paladin Heiliger Schock, Hammer des Zorns, Exorzismus, Heiliger Zorn; Magier Feuerball, Frostblitz, Feuerschlag, Versengen, Pyroschlag; Hexenmeister Schattenblitz, Sengender Schmerz, Feuerbrand, Seelenfeuer, Feuersbrunst; Jäger Arkaner Schuss, Gezielter Schuss (Liste `FBDamageSpells`). `/fbp damage` schaltet um, `/fbp debug` protokolliert jede Entscheidung mit der genutzten Lebensquelle. Hinweis für Jäger: Für diese Klasse lädt das Addon nicht, Smart Damage läuft also erst nach `/fbp forceload`, siehe [Für welche Klassen es lädt](#für-welche-klassen-es-lädt).
 
 ---
 
@@ -1228,6 +1231,9 @@ Alle Stellschrauben stehen als Globals oben in ihrem jeweiligen Abschnitt und la
 |`FBPREDICT_TARGET_TIME`|2.0|Gültigkeit des gemerkten Cast-Ziels|
 |`FBPredictTickInterval`|`{Lifebloom = 1}`|Abweichende Tickintervalle|
 |`FBCommGroupHeal`|`{Prayer of Healing}`|Was als `GrpHeal` gefunkt wird|
+|`FBHealChains`|(Tabelle)|Welche Zauber als derselbe Heilzauber in klein gelten. Innerhalb einer Kette darf Smart Healing den Zauber wechseln|
+|`FBHoTSpells`|(Tabelle)|Zauber mit Heilung über Zeit, die Smart Healing nie abrangt|
+|`FBBlockedClasses`|`WARRIOR`, `ROGUE`, `HUNTER`|Klassen, für die das Addon ohne `/fbp forceload` nicht lädt|
 
 ---
 
