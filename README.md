@@ -463,7 +463,7 @@ Everything lives in the `HealBox` table, saved **per character**:
 |`LOSIcon`|1 = line-of-sight badge on, 0 = off|
 |`PlateLeft` · `PlateRight`|Click action on a plate: `target`, `menu`, `move` or `none`|
 |`SmartRank` · `SmartMargin`|Smart Healing on/off (default off) and safety margin in percent|
-|`SmartCross`|1 = downranking may switch spell within a heal chain (default), 0 = stay on the assigned spell. Set with `/fbp smartcross`|
+|`SmartCross`|1 = downranking may switch spell within a heal chain (default), 0 = stay on the assigned spell. Set in the options or with `/fbp smartcross`|
 |`Cooldowns` · `AggroMark` · `SpellTimers` · `BuffIcons`|Cooldown sweep, red border for the attacked member, HoT/shield timers, buff icons left of the bar|
 |`ClassColors`|1 = names in class colour, 0 = white|
 |`RangeFade`|1 = fade plates out of range, 0 = off|
@@ -838,7 +838,7 @@ Rechts neben jeder Plakette liegen bis zu zehn Buttons, jeder mit dem Icon seine
 |Schamane|Geringe Welle der Heilung · Welle der Heilung|
 |Druide|Heilende Berührung (Nachwachsen ist ein HoT und bleibt draußen)|
 
-Alles in der Kette ist Kandidat, gewonnen hat der mit der kleinsten erwarteten Heilung, die den Bedarf noch deckt. Nie gewählt wird etwas, das mehr heilt als der belegte Rang, der Button wird also nie stärker, nur billiger. Das kann die Zauberzeit ändern: Bei kleinem Fehlbetrag wird aus einem Klick auf Große Heilung eine Geringe Heilung, aus Heiligem Licht ein Blitz des Lichts. Gruppenheilungen (Gebet der Heilung, Kettenheilung), HoTs, Schilde und Zauber mit Abklingzeit (Heiliger Schock, Handauflegung) sind nie Teil einer Kette.
+Alles in der Kette ist Kandidat, gewonnen hat der mit der kleinsten erwarteten Heilung, die den Bedarf noch deckt. Nie gewählt wird etwas, das mehr heilt als der belegte Rang, der Button wird also nie stärker, nur billiger. Das kann die Zauberzeit ändern: Bei kleinem Fehlbetrag wird aus einem Klick auf Große Heilung ein Geringes Heilen, aus Heiligem Licht ein Blitz des Lichts. Gruppenheilungen (Gebet der Heilung, Kettenheilung), HoTs, Schilde und Zauber mit Abklingzeit (Heiliger Schock, Handauflegung) sind nie Teil einer Kette.
 
 `/fbp smartcross` schaltet den Kettenwechsel aus und wieder ein. Aus bleibt Smart Healing beim belegten Zauber und senkt nur dessen Rang, genau wie in 1.4.4.3. Die Ketten stehen in `FBHealChains` direkt beim Smart-Healing-Code und lassen sich frei bearbeiten; Zauber, die nicht getauscht werden sollen, fliegen einfach aus der Liste. Nachteile: Die Schätzung kennt keine Crits, und bei Schadensspitzen oder gewolltem Überheilen (Tank vor einem großen Treffer) kann der kleinere Rang zu wenig sein. Aus lassen, wann immer Overheal gewollt ist. `/fbp debug` zeigt jede Entscheidung, `/fbp` den Zustand.
 
@@ -1174,7 +1174,7 @@ Alles liegt in der Tabelle `HealBox`, gespeichert **pro Charakter**:
 |`LOSIcon`|1 = Sichtlinien-Abzeichen an, 0 = aus|
 |`PlateLeft` · `PlateRight`|Klickaktion auf einer Plakette: `target`, `menu`, `move` oder `none`|
 |`SmartRank` · `SmartMargin`|Smart Healing an/aus (Standard aus) und Sicherheitsaufschlag in Prozent|
-|`SmartCross`|1 = Abrangen darf den Zauber innerhalb einer Heilkette wechseln (Standard), 0 = beim belegten Zauber bleiben. Wird mit `/fbp smartcross` gesetzt|
+|`SmartCross`|1 = Abrangen darf den Zauber innerhalb einer Heilkette wechseln (Standard), 0 = beim belegten Zauber bleiben. In den Optionen oder mit `/fbp smartcross` schaltbar|
 |`Cooldowns` · `AggroMark` · `SpellTimers` · `BuffIcons`|Cooldown-Uhr, roter Rahmen für den Angegriffenen, HoT/Schild-Timer, Buff-Icons links am Balken|
 |`ClassColors`|1 = Namen in Klassenfarbe, 0 = weiß|
 |`RangeFade`|1 = Plaketten außer Reichweite abblenden, 0 = aus|
@@ -1403,7 +1403,7 @@ Nicht vorhandene Einträge stören nicht: Findet der Zauberbuch-Scan sie nicht, 
 * Heilvorhersage für Direktheilung, HoT-Restticks und Absorb-Schilde, selbstkorrigierend über den Combatlog
 * HealComm-Sync mit Puppeteer, pfUI, Luna und Co., ohne Ace-Bibliotheken
 * Lokalisierung Deutsch, Englisch, Spanisch, Französisch und Italienisch, im laufenden Spiel umschaltbar
-* 1.4.4.3: Klassensperre für Krieger, Schurke und Jäger (Anzeige bleibt aus, Hinweis im Chat, Freischaltung mit `/fbp forceload`) und Smart Healing rangt HoTs aller Klassen nicht mehr ab. Smart Healing rangt innerhalb einer Heilkette auch über Zaubergrenzen ab (Große Heilung zu Geringem Heilen, Heiliges Licht zu Blitz des Lichts), `/fbp smartcross` schaltet es aus; siehe CHANGELOG siehe CHANGELOG
+* 1.4.4.3: Klassensperre für Krieger, Schurke und Jäger (Anzeige bleibt aus, Hinweis im Chat, Freischaltung mit `/fbp forceload`) und Smart Healing rangt HoTs aller Klassen nicht mehr ab. Smart Healing rangt innerhalb einer Heilkette auch über Zaubergrenzen ab (Große Heilung zu Geringem Heilen, Heiliges Licht zu Blitz des Lichts), `/fbp smartcross` schaltet es aus; siehe CHANGELOG
 * 1.4.4.2: 32-Stufen-Ablaufanzeige für Buff-Icons (ersetzt die 4-Quadranten-Uhr durch 32 vertikale Stufen) sowie Syntax- und Diagnose-Korrekturen; siehe CHANGELOG
 * 1.4.4.1: Buff-Erkennung & Tooltip-Scan behoben (Göttlicher Willen Uhr-Icon), vollständige Klassen-Zauberlisten mit Segen, Buffs, Hilfszaubern und Wiederbelebung, Gruppen-Buff-Erkennung; siehe CHANGELOG
 * 1.4.4: Leistungsdurchgang ohne Funktionsänderung (zentrale Button-Zustände, Anzeige-Zwischenspeicher, gemeinsame Aura-Scans, zusammengefasste Event-Salven); siehe CHANGELOG
