@@ -29,6 +29,11 @@
 --     gesteuert, Combatlog-Parser nach Eventklasse. Details im CHANGELOG.
 --   * v1.4.4.1: Spells hinzugefügt, Bugfixes
 --   * v1.4.4.2: TOC Addonbeschreibung präzisiert, Umstellung Buff-Restlaufzeit von 4/4 Blocks auf 32 Topdown Anzeige (fadeout Effekt)
+--   * v1.4.4.3: Klassensperre fuer Krieger, Schurke und Jaeger (Anzeige
+--     bleibt aus, Hinweis im Chat, Freischaltung mit /fbp forceload),
+--     Smart Healing rangt HoTs aller Klassen nicht mehr ab. 
+--     Smart Healing rangt in Heilketten auch ueber Zaubergrenzen
+--     ab (Grosse Heilung -> Geringes Heilen), abschaltbar mit /fbp smartcross.
 --
 -- Ehre wem Ehre gebuehrt: Aufbau, Namensplaketten und Grundidee stammen
 -- aus dem Original.
@@ -42,6 +47,65 @@ FBHealBox_CoreLoaded = true;
 
 FBHasSuperWoW = (SUPERWOW_VERSION ~= nil); 
 FBClass = UnitClass("player"); 
+
+-- ==========================================================================
+-- [ Klassensperre ]
+--
+-- Das Addon lohnt sich nur fuer Klassen, die heilen oder buffen koennen.
+-- Krieger, Schurken und Jaeger haben davon nichts: keine Heilzauber, keine
+-- Heilvorhersage, kein Mana-Ticker (Wut und Energie regenerieren anders,
+-- der Jaeger heilt niemanden). Bei diesen drei Klassen bleibt die Anzeige
+-- nach dem Einloggen aus, es kommt nur ein Hinweis in den Chat. Wer sie
+-- trotzdem will, schaltet sie mit /fbp forceload dauerhaft frei (gemerkt
+-- je Charakter in HealBox.ForceLoad).
+-- ==========================================================================
+
+-- Klassen-Token in Grossbuchstaben ("PRIEST"), wenn der Client eines liefert
+FBClassToken = nil;
+do
+    local _, eng = UnitClass("player");
+    if (eng) then FBClassToken = strupper(eng); end
+end
+
+-- Rueckfall, wenn der Client kein englisches Token liefert: angezeigter
+-- Klassenname. Bewusst in mehreren Sprachen, damit die Sperre auch auf
+-- lokalisierten Clients greift.
+FBBlockedClasses = {
+    ["WARRIOR"] = true,   ["ROGUE"] = true,     ["HUNTER"] = true,
+    ["KRIEGER"] = true,   ["SCHURKE"] = true,   ["JAEGER"] = true,
+    ["GUERRIER"] = true,  ["VOLEUR"] = true,    ["CHASSEUR"] = true,
+    ["GUERRERO"] = true,  ["PICARO"] = true,    ["CAZADOR"] = true,
+    ["GUERRIERO"] = true, ["LADRO"] = true,     ["CACCIATORE"] = true,
+    -- "Jaeger" und "Picaro" mit Sonderzeichen, je einmal Latin-1 und UTF-8,
+    -- gross wie klein: strupper des Clients laesst Umlaute in Ruhe
+    ["J\196GER"] = true, ["J\228GER"] = true,
+    ["J\195\132GER"] = true, ["J\195\164GER"] = true,
+    ["P\205CARO"] = true, ["P\237CARO"] = true,
+    ["P\195\141CARO"] = true, ["P\195\173CARO"] = true,
+};
+
+function FBHealBox_ClassIsBlocked()
+    if (FBClassToken and FBBlockedClasses[FBClassToken]) then return true; end
+    if (FBClass and FBBlockedClasses[strupper(FBClass)]) then return true; end
+    -- Letzter Rueckfall ohne Namen: Wut und Energie sind nie Manaklassen.
+    -- (Der Jaeger hat Mana und wird nur ueber den Namen erkannt.)
+    if (not FBClassToken) and (UnitPowerType) then
+        local pt = UnitPowerType("player");
+        if (pt == 1) or (pt == 3) then return true; end
+    end
+    return false;
+end
+
+FBClassBlocked   = FBHealBox_ClassIsBlocked();
+-- Bis die SavedVariables gelesen sind, gilt eine gesperrte Klasse als aus
+FBAddonSuppressed = FBClassBlocked;
+FBLoadAnnounced   = false;
+FBGateAnnounced   = false;
+
+-- Laeuft das Addon gerade im Ruhezustand? (Modul-Abfrage)
+function FBHealBox_Suppressed()
+    return (FBAddonSuppressed == true);
+end
 
 -- [[ Globals ]] -- 
 -- Vorgabewerte. Die SavedVariables ersetzen diese Tabelle beim Laden
@@ -67,19 +131,21 @@ HealBox = {
     BuffWatchPets = 0,   -- Buff-Wache auch fuer Begleiter
     SmartRank = 0,       -- Smart Healing (bewusst aus: Overheal kann gewollt sein)
     SmartMargin = 20,    -- Sicherheitsaufschlag in Prozent
+    SmartCross = 1,      -- Abrangen auch ueber Zaubergrenzen (/fbp smartcross)
     Cooldowns = 1,       -- Cooldown-Uhr auf den Buttons
     AggroMark = 1,       -- roter Rahmen fuer den Angegriffenen
     SpellTimers = 1,     -- HoT-/Schild-Restzeit auf den Buttons
     BuffIcons = 1,       -- Buff-Icons mit Uhr im Lebensbalken
     PlateLeft = "target",   -- Klick auf die Plakette: target | menu | move | none
     PlateRight = "target",
+    ForceLoad = 0,       -- Anzeige auch bei Krieger/Schurke/Jaeger (/fbp forceload)
 }; 
 -- Anzeigename des Addons. FBADDON_FOLDER muss dem Ordnernamen unter
 -- Interface\AddOns entsprechen (dort liegt auch die .toc). Nur dann
 -- feuert ADDON_LOADED fuer uns.
 FBADDON_NAME   = "Heal Box Vanilla";
 FBADDON_FOLDER = "FBHealBox";
-HealBoxVersion = "|cFFFFFF00v1.4.4.2|r"; 
+HealBoxVersion = "|cFFFFFF00v1.4.4.3|r"; 
 
 -- ==========================================================================
 -- [ Lokalisierung / Localization ]
@@ -124,7 +190,7 @@ FBLocale["enUS"] = {
     DROP_SET_R    = "Button %d, right click: |cFFFFFFFF%s|r (dragged from the spellbook)",
     DROP_UNKNOWN  = "Could not identify the dragged spell.",
     SMARTRANK     = "Smart Healing",
-    SMARTRANK_TIP = "What it does: on click, instead of the assigned rank the button casts the lowest rank of the same spell whose expected heal covers the target's missing health (minus healing already on the way) plus the safety margin. Saves mana and overhealing. Rules: never above the assigned rank, direct heals only (HoTs and shields are unaffected), and always the assigned rank below 30 % health. Downsides: the expected heal is an estimate from the tooltip or from learned values and ignores crits; with burst damage, or when you deliberately want to overheal as a buffer (a tank before a big hit), the lower rank can fall short. Turn it off whenever overhealing is what you want. Every decision is logged with /fbp debug.",
+    SMARTRANK_TIP = "What it does: on click, instead of the assigned rank the button casts the lowest rank of the same spell whose expected heal covers the target's missing health (minus healing already on the way) plus the safety margin. Saves mana and overhealing. Rules: never more healing than the assigned rank, direct heals only (heal over time spells of every class, such as Renew, Rejuvenation or Regrowth, and shields are never downranked), and always the assigned rank below 30 % health. Within a heal chain the spell itself may change: Greater Heal can go out as Lesser Heal, Holy Light as Flash of Light, Healing Wave as Lesser Healing Wave. Turn that off with /fbp smartcross if you want it to stay on the assigned spell. Downsides: the expected heal is an estimate from the tooltip or from learned values and ignores crits; with burst damage, or when you deliberately want to overheal as a buffer (a tank before a big hit), the lower rank can fall short. Turn it off whenever overhealing is what you want. Every decision is logged with /fbp debug.",
     SMART_MARGIN  = "Safety margin: |cFFFFFFFF%s %%",
     COOLDOWNS     = "Cooldowns on buttons",
     COOLDOWNS_TIP = "Shows the cooldown sweep on every button (Nature's Swiftness, Inner Focus, Lay on Hands, shield cooldown). The global cooldown is not shown.",
@@ -207,7 +273,7 @@ FBLocale["enUS"] = {
     FBP_INCOMING  = "Incoming",
     FBP_DEBUG     = "Debug:",
     FBP_RESET     = "Learned values discarded.",
-    FBP_COMMANDS  = "Commands: /fbp config (options window), /fbp test (test mode), /fbp buffs (buff diagnostics), /fbp debug, /fbp reset",
+    FBP_COMMANDS  = "Commands: /fbp config (options window), /fbp test (test mode), /fbp buffs (buff diagnostics), /fbp forceload (show for warrior/rogue/hunter), /fbp smartcross (downranking across spells), /fbp debug, /fbp reset",
     FBP_SMART     = "Smart Healing: %s (safety margin %d %%)",
 
     DBG_HOT       = "HoT %s on %s: %d per tick, %ds",
@@ -216,6 +282,19 @@ FBLocale["enUS"] = {
     DBG_TICK      = "Tick corrected: %s = %d",
     DBG_HEAL      = "Heal %s = %d (estimate now %d)",
     DBG_ABSORB    = "Absorb %d on %s (%d left)",
+    DBG_SMART_HOT = "Smart Healing skipped: %s is a heal over time",
+    FBP_SMART_CROSS = "· across spells: %s",
+    SMART_CROSS_ON  = "Smart Healing may now switch spell within a heal chain (e.g. Greater Heal to Lesser Heal). |cFF00FF00On|r.",
+    SMART_CROSS_OFF = "Smart Healing now stays within the assigned spell and only lowers its rank. |cFFFF0000Cross-spell off|r.",
+
+    CLASS_BLOCKED = "not shown for %s: this addon is made for healing classes. Warriors, rogues and hunters have no heals, no heal prediction and nothing to gain from the mana ticker.",
+    CLASS_BLOCKED_HINT = "Type /fbp forceload to show it anyway. The setting is kept for this character.",
+    CLASS_FORCED  = "Display forced on for %s (/fbp forceload).",
+    CLASS_FORCE_ON = "Display forced |cFF00FF00on|r for this class. Kept for this character.",
+    CLASS_FORCE_OFF = "Display |cFFFF0000off|r again for this class. /fbp forceload brings it back.",
+    CLASS_FORCE_NA = "Your class uses mana and heals, the display is on anyway. /fbp forceload is only for warriors, rogues and hunters.",
+	SMARTCROSS      = "Smartcross",
+    SMARTCROSS_TIP  = "Allows Smart Healing to switch spells within a heal chain (e.g. Greater Heal to Lesser Heal, Holy Light to Flash of Light, Healing Wave to Lesser Healing Wave). When off, Smart Healing only downranks within the assigned spell. Only active when Smart Healing is enabled.",	
 };
 
 FBLocale["deDE"] = {
@@ -244,7 +323,7 @@ FBLocale["deDE"] = {
     DROP_SET_R    = "Button %d, Rechtsklick: |cFFFFFFFF%s|r (aus dem Zauberbuch gezogen)",
     DROP_UNKNOWN  = "Der gezogene Zauber liess sich nicht erkennen.",
     SMARTRANK     = "Smart Healing",
-    SMARTRANK_TIP = "Was es tut: Beim Klick wirkt der Button statt des belegten Rangs den niedrigsten Rang desselben Zaubers, dessen erwartete Heilung das fehlende Leben des Ziels (abzueglich bereits eingehender Heilung) plus Sicherheitsaufschlag deckt. Spart Mana und Overheal. Regeln: nie ueber dem belegten Rang, nur Direktheilungen (HoTs und Schilde bleiben unberuehrt), unter 30 % Leben immer der belegte Rang. Nachteile: Die erwartete Heilung ist eine Schaetzung aus Tooltip oder gelernten Werten und kennt keine Crits; bei Schadensspitzen oder wenn du bewusst ueberheilen willst (Tank vor einem grossen Treffer) kann der kleinere Rang zu wenig sein. Ausschalten, wann immer Overheal gewollt ist. Jede Entscheidung steht mit /fbp debug im Chat.",
+    SMARTRANK_TIP = "Was es tut: Beim Klick wirkt der Button statt des belegten Rangs den niedrigsten Rang desselben Zaubers, dessen erwartete Heilung das fehlende Leben des Ziels (abzueglich bereits eingehender Heilung) plus Sicherheitsaufschlag deckt. Spart Mana und Overheal. Regeln: nie mehr Heilung als der belegte Rang, nur Direktheilungen (Zauber mit Heilung ueber Zeit aller Klassen, etwa Erneuerung, Verjuengung oder Nachwachsen, und Schilde werden nie abgerangt), unter 30 % Leben immer der belegte Rang. Innerhalb einer Heilkette darf auch der Zauber wechseln: Grosse Heilung kann als Geringes Heilen rausgehen, Heiliges Licht als Blitz des Lichts, Welle der Heilung als Geringe Welle der Heilung. Mit /fbp smartcross abschaltbar, dann bleibt es beim belegten Zauber. Nachteile: Die erwartete Heilung ist eine Schaetzung aus Tooltip oder gelernten Werten und kennt keine Crits; bei Schadensspitzen oder wenn du bewusst ueberheilen willst (Tank vor einem grossen Treffer) kann der kleinere Rang zu wenig sein. Ausschalten, wann immer Overheal gewollt ist. Jede Entscheidung steht mit /fbp debug im Chat.",
     SMART_MARGIN  = "Sicherheitsaufschlag: |cFFFFFFFF%s %%",
     COOLDOWNS     = "Cooldowns auf den Buttons",
     COOLDOWNS_TIP = "Zeigt die Cooldown-Uhr auf jedem Button (Naturschnelligkeit, Innerer Fokus, Handauflegung, Schild-Cooldown). Der globale Cooldown wird nicht angezeigt.",
@@ -327,7 +406,7 @@ FBLocale["deDE"] = {
     FBP_INCOMING  = "Fremdheilung",
     FBP_DEBUG     = "Debug:",
     FBP_RESET     = "Gelernte Werte verworfen.",
-    FBP_COMMANDS  = "Befehle: /fbp config (Optionsfenster), /fbp test (Testmodus), /fbp buffs (Buff-Diagnose), /fbp debug, /fbp reset",
+    FBP_COMMANDS  = "Befehle: /fbp config (Optionsfenster), /fbp test (Testmodus), /fbp buffs (Buff-Diagnose), /fbp forceload (Anzeige fuer Krieger/Schurke/Jaeger), /fbp smartcross (Abrangen ueber Zaubergrenzen), /fbp debug, /fbp reset",
     FBP_SMART     = "Smart Healing: %s (Sicherheitsaufschlag %d %%)",
 
     DBG_HOT       = "HoT %s auf %s: %d pro Tick, %ds",
@@ -336,6 +415,19 @@ FBLocale["deDE"] = {
     DBG_TICK      = "Tick korrigiert: %s = %d",
     DBG_HEAL      = "Heilung %s = %d (Schaetzung jetzt %d)",
     DBG_ABSORB    = "Absorb %d auf %s (Rest %d)",
+    DBG_SMART_HOT = "Smart Healing uebersprungen: %s ist Heilung ueber Zeit",
+    FBP_SMART_CROSS = "· ueber Zaubergrenzen: %s",
+    SMART_CROSS_ON  = "Smart Healing darf den Zauber innerhalb einer Heilkette wechseln (z. B. Grosse Heilung zu Geringem Heilen). |cFF00FF00An|r.",
+    SMART_CROSS_OFF = "Smart Healing bleibt beim belegten Zauber und senkt nur dessen Rang. |cFFFF0000Kettenwechsel aus|r.",
+
+    CLASS_BLOCKED = "wird fuer %s nicht angezeigt: Das Addon ist fuer Heilerklassen gemacht. Krieger, Schurken und Jaeger haben keine Heilzauber, keine Heilvorhersage und keinen Nutzen vom Mana-Ticker.",
+    CLASS_BLOCKED_HINT = "Mit /fbp forceload trotzdem anzeigen. Die Einstellung bleibt fuer diesen Charakter gespeichert.",
+    CLASS_FORCED  = "Anzeige fuer %s erzwungen (/fbp forceload).",
+    CLASS_FORCE_ON = "Anzeige fuer diese Klasse |cFF00FF00eingeschaltet|r. Bleibt fuer diesen Charakter gespeichert.",
+    CLASS_FORCE_OFF = "Anzeige fuer diese Klasse wieder |cFFFF0000aus|r. Mit /fbp forceload kommt sie zurueck.",
+    CLASS_FORCE_NA = "Deine Klasse heilt und hat Mana, die Anzeige laeuft ohnehin. /fbp forceload ist nur fuer Krieger, Schurken und Jaeger.",
+	SMARTCROSS      = "Smartcross",
+    SMARTCROSS_TIP  = "Erlaubt Smart Healing, innerhalb einer Heilkette auch den Zauber zu wechseln (z. B. Grosse Heilung zu Geringem Heilen, Heiliges Licht zu Blitz des Lichts, Welle der Heilung zu Geringer Welle der Heilung). Deaktiviert bleibt Smart Healing beim belegten Zauber und senkt nur dessen Rang. Nur bei aktivem Smart Healing aktivierbar.",
 };
 
 FBL = nil;
@@ -389,7 +481,7 @@ FBLocale["esES"] = {
     DROP_SET_R      = "Botón %d, clic derecho: |cFFFFFFFF%s|r (arrastrado desde el libro de hechizos)",
     DROP_UNKNOWN    = "No se pudo identificar el hechizo arrastrado.",
     SMARTRANK       = "Smart Healing",
-    SMARTRANK_TIP   = "Qué hace: al hacer clic, en lugar del rango asignado el botón lanza el rango más bajo del mismo hechizo cuya curación esperada cubra la vida que le falta al objetivo (menos la curación ya en camino) más el margen de seguridad. Ahorra maná y sobrecuración. Reglas: nunca por encima del rango asignado, solo curaciones directas (HoT y escudos no se ven afectados) y siempre el rango asignado por debajo del 30 % de vida. Desventajas: la curación esperada es una estimación del tooltip o de valores aprendidos y no cuenta los críticos; con daño en ráfaga, o cuando quieres sobrecurar a propósito como colchón (un tanque antes de un golpe fuerte), el rango menor puede quedarse corto. Desactívalo siempre que quieras sobrecurar. Cada decisión se registra con /fbp debug.",
+    SMARTRANK_TIP   = "Qué hace: al hacer clic, en lugar del rango asignado el botón lanza el rango más bajo del mismo hechizo cuya curación esperada cubra la vida que le falta al objetivo (menos la curación ya en camino) más el margen de seguridad. Ahorra maná y sobrecuración. Reglas: nunca por encima del rango asignado, solo curaciones directas (los hechizos de curación con el tiempo de todas las clases, como Renovar, Rejuvenecimiento o Recrecimiento, y los escudos nunca se reducen de rango) y siempre el rango asignado por debajo del 30 % de vida. Dentro de una cadena de curación también puede cambiar el hechizo; desactívalo con /fbp smartcross. Desventajas: la curación esperada es una estimación del tooltip o de valores aprendidos y no cuenta los críticos; con daño en ráfaga, o cuando quieres sobrecurar a propósito como colchón (un tanque antes de un golpe fuerte), el rango menor puede quedarse corto. Desactívalo siempre que quieras sobrecurar. Cada decisión se registra con /fbp debug.",
     SMART_MARGIN    = "Margen de seguridad: |cFFFFFFFF%s %%",
     COOLDOWNS       = "Reutilización en botones",
     COOLDOWNS_TIP   = "Muestra el barrido de reutilización en cada botón (Rapidez de la naturaleza, Enfoque interno, Imposición de manos, reutilización del escudo). La reutilización global no se muestra.",
@@ -467,7 +559,7 @@ FBLocale["esES"] = {
     FBP_INCOMING    = "Entrante",
     FBP_DEBUG       = "Depuración:",
     FBP_RESET       = "Valores aprendidos descartados.",
-    FBP_COMMANDS    = "Comandos: /fbp config (ventana de opciones), /fbp test (modo de prueba), /fbp buffs (diagnóstico de beneficios), /fbp debug, /fbp reset",
+    FBP_COMMANDS    = "Comandos: /fbp config (ventana de opciones), /fbp test (modo de prueba), /fbp buffs (diagnóstico de beneficios), /fbp forceload (mostrar para guerrero/pícaro/cazador), /fbp smartcross (reducción entre hechizos), /fbp debug, /fbp reset",
     FBP_SMART       = "Smart Healing: %s (margen de seguridad %d %%)",
     DBG_HOT         = "HoT %s sobre %s: %d por pulso, %ds",
     DBG_SHIELD      = "Escudo %s sobre %s: %d absorción, %ds",
@@ -475,6 +567,19 @@ FBLocale["esES"] = {
     DBG_TICK        = "Pulso corregido: %s = %d",
     DBG_HEAL        = "Curación %s = %d (estimación ahora %d)",
     DBG_ABSORB      = "Absorción %d en %s (quedan %d)",
+    DBG_SMART_HOT   = "Smart Healing omitido: %s es curación con el tiempo",
+    FBP_SMART_CROSS = "· entre hechizos: %s",
+    SMART_CROSS_ON  = "Smart Healing puede cambiar de hechizo dentro de una cadena de curación (p. ej. Curar más y Curar menos). |cFF00FF00Activado|r.",
+    SMART_CROSS_OFF = "Smart Healing se queda en el hechizo asignado y solo baja su rango. |cFFFF0000Cambio de hechizo desactivado|r.",
+
+    CLASS_BLOCKED   = "no se muestra para %s: este addon está hecho para clases sanadoras. Guerreros, pícaros y cazadores no tienen curaciones, ni predicción de curación, ni provecho del marcador de maná.",
+    CLASS_BLOCKED_HINT = "Escribe /fbp forceload para mostrarlo igualmente. El ajuste se guarda para este personaje.",
+    CLASS_FORCED    = "Visualización forzada para %s (/fbp forceload).",
+    CLASS_FORCE_ON  = "Visualización |cFF00FF00activada|r para esta clase. Se guarda para este personaje.",
+    CLASS_FORCE_OFF = "Visualización de nuevo |cFFFF0000desactivada|r para esta clase. /fbp forceload la devuelve.",
+    CLASS_FORCE_NA  = "Tu clase usa maná y cura, la visualización ya está activa. /fbp forceload es solo para guerreros, pícaros y cazadores.",
+	SMARTCROSS      = "Smartcross",
+    SMARTCROSS_TIP  = "Permite a Smart Healing cambiar de hechizo dentro de una cadena de curación (p. ej. Sanación superior a Sanación inferior). Solo disponible con Smart Healing activo.",
 };
 
 FBLocale["frFR"] = {
@@ -500,7 +605,7 @@ FBLocale["frFR"] = {
     DROP_SET_R      = "Bouton %d, clic droit : |cFFFFFFFF%s|r (glissé depuis le grimoire)",
     DROP_UNKNOWN    = "Impossible d'identifier le sort glissé.",
     SMARTRANK       = "Smart Healing",
-    SMARTRANK_TIP   = "Ce que ça fait : au clic, au lieu du rang assigné, le bouton lance le rang le plus bas du même sort dont le soin attendu couvre les points de vie manquants de la cible (moins les soins déjà en route) plus la marge de sécurité. Économise du mana et du sursoin. Règles : jamais au-dessus du rang assigné, soins directs uniquement (les HoT et les boucliers ne sont pas concernés), et toujours le rang assigné sous 30 % de vie. Inconvénients : le soin attendu est une estimation tirée de l'infobulle ou des valeurs apprises et ignore les critiques ; en cas de dégâts en rafale, ou quand vous voulez volontairement sursoigner comme tampon (un tank avant un gros coup), le rang inférieur peut être insuffisant. Désactivez-le dès que vous voulez sursoigner. Chaque décision est consignée avec /fbp debug.",
+    SMARTRANK_TIP   = "Ce que ça fait : au clic, au lieu du rang assigné, le bouton lance le rang le plus bas du même sort dont le soin attendu couvre les points de vie manquants de la cible (moins les soins déjà en route) plus la marge de sécurité. Économise du mana et du sursoin. Règles : jamais au-dessus du rang assigné, soins directs uniquement (les soins sur la durée de toutes les classes, comme Rénovation, Récupération ou Rétablissement, et les boucliers ne sont jamais abaissés), et toujours le rang assigné sous 30 % de vie. Au sein d'une chaîne de soins le sort lui-même peut changer ; désactivez-le avec /fbp smartcross. Inconvénients : le soin attendu est une estimation tirée de l'infobulle ou des valeurs apprises et ignore les critiques ; en cas de dégâts en rafale, ou quand vous voulez volontairement sursoigner comme tampon (un tank avant un gros coup), le rang inférieur peut être insuffisant. Désactivez-le dès que vous voulez sursoigner. Chaque décision est consignée avec /fbp debug.",
     SMART_MARGIN    = "Marge de sécurité : |cFFFFFFFF%s %%",
     COOLDOWNS       = "Recharges sur les boutons",
     COOLDOWNS_TIP   = "Affiche le balayage du temps de recharge sur chaque bouton (Rapidité de la nature, Focalisation intérieure, Imposition des mains, recharge du bouclier). Le temps de recharge global n'est pas affiché.",
@@ -578,7 +683,7 @@ FBLocale["frFR"] = {
     FBP_INCOMING    = "Entrant",
     FBP_DEBUG       = "Débogage :",
     FBP_RESET       = "Valeurs apprises effacées.",
-    FBP_COMMANDS    = "Commandes : /fbp config (fenêtre des options), /fbp test (mode test), /fbp buffs (diagnostic des buffs), /fbp debug, /fbp reset",
+    FBP_COMMANDS    = "Commandes : /fbp config (fenêtre des options), /fbp test (mode test), /fbp buffs (diagnostic des buffs), /fbp forceload (afficher pour guerrier/voleur/chasseur), /fbp smartcross (rang abaissé entre sorts), /fbp debug, /fbp reset",
     FBP_SMART       = "Smart Healing : %s (marge de sécurité %d %%)",
     DBG_HOT         = "HoT %s sur %s : %d par tick, %ds",
     DBG_SHIELD      = "Bouclier %s sur %s : %d absorption, %ds",
@@ -586,6 +691,19 @@ FBLocale["frFR"] = {
     DBG_TICK        = "Tick corrigé : %s = %d",
     DBG_HEAL        = "Soin %s = %d (estimation maintenant %d)",
     DBG_ABSORB      = "Absorption %d sur %s (reste %d)",
+    DBG_SMART_HOT   = "Smart Healing ignoré : %s est un soin sur la durée",
+    FBP_SMART_CROSS = "· entre sorts : %s",
+    SMART_CROSS_ON  = "Smart Healing peut changer de sort dans une chaîne de soins (p. ex. Soins supérieurs vers Soins inférieurs). |cFF00FF00Activé|r.",
+    SMART_CROSS_OFF = "Smart Healing reste sur le sort assigné et n'abaisse que son rang. |cFFFF0000Changement de sort désactivé|r.",
+
+    CLASS_BLOCKED   = "non affiché pour %s : cet addon est fait pour les classes soigneuses. Les guerriers, voleurs et chasseurs n'ont pas de soins, pas de prévision de soins et aucun usage du compteur de mana.",
+    CLASS_BLOCKED_HINT = "Tapez /fbp forceload pour l'afficher quand même. Le réglage est conservé pour ce personnage.",
+    CLASS_FORCED    = "Affichage forcé pour %s (/fbp forceload).",
+    CLASS_FORCE_ON  = "Affichage |cFF00FF00activé|r pour cette classe. Conservé pour ce personnage.",
+    CLASS_FORCE_OFF = "Affichage de nouveau |cFFFF0000désactivé|r pour cette classe. /fbp forceload le ramène.",
+    CLASS_FORCE_NA  = "Votre classe utilise le mana et soigne, l'affichage est déjà actif. /fbp forceload ne sert qu'aux guerriers, voleurs et chasseurs.",
+	SMARTCROSS      = "Smartcross",
+    SMARTCROSS_TIP  = "Permet à Smart Healing de changer de sort dans une chaîne de soins (p. ex. Soins supérieurs vers Soins inférieurs). Disponible uniquement quand Smart Healing est activé.",
 };
 
 FBLocale["itIT"] = {
@@ -611,7 +729,7 @@ FBLocale["itIT"] = {
     DROP_SET_R      = "Pulsante %d, clic destro: |cFFFFFFFF%s|r (trascinato dal libro degli incantesimi)",
     DROP_UNKNOWN    = "Impossibile identificare l'incantesimo trascinato.",
     SMARTRANK       = "Smart Healing",
-    SMARTRANK_TIP   = "Cosa fa: al clic, invece del rango assegnato il pulsante lancia il rango più basso dello stesso incantesimo la cui cura prevista copre la salute mancante del bersaglio (meno le cure già in arrivo) più il margine di sicurezza. Risparmia mana e cure in eccesso. Regole: mai sopra il rango assegnato, solo cure dirette (HoT e scudi non sono toccati) e sempre il rango assegnato sotto il 30 % di salute. Svantaggi: la cura prevista è una stima dalla descrizione o dai valori appresi e ignora i critici; con danni a raffica, o quando vuoi curare in eccesso di proposito come cuscinetto (un tank prima di un colpo forte), il rango inferiore può non bastare. Disattivalo ogni volta che vuoi curare in eccesso. Ogni decisione è registrata con /fbp debug.",
+    SMARTRANK_TIP   = "Cosa fa: al clic, invece del rango assegnato il pulsante lancia il rango più basso dello stesso incantesimo la cui cura prevista copre la salute mancante del bersaglio (meno le cure già in arrivo) più il margine di sicurezza. Risparmia mana e cure in eccesso. Regole: mai sopra il rango assegnato, solo cure dirette (le cure nel tempo di tutte le classi, come Rinnovamento, Ringiovanimento o Ricrescita, e gli scudi non vengono mai ridotti di rango) e sempre il rango assegnato sotto il 30 % di salute. All'interno di una catena di cure può cambiare anche l'incantesimo; disattivalo con /fbp smartcross. Svantaggi: la cura prevista è una stima dalla descrizione o dai valori appresi e ignora i critici; con danni a raffica, o quando vuoi curare in eccesso di proposito come cuscinetto (un tank prima di un colpo forte), il rango inferiore può non bastare. Disattivalo ogni volta che vuoi curare in eccesso. Ogni decisione è registrata con /fbp debug.",
     SMART_MARGIN    = "Margine di sicurezza: |cFFFFFFFF%s %%",
     COOLDOWNS       = "Recuperi sui pulsanti",
     COOLDOWNS_TIP   = "Mostra l'animazione del tempo di recupero su ogni pulsante (Rapidità della Natura, Concentrazione Interiore, Imposizione delle Mani, recupero dello scudo). Il tempo di recupero globale non viene mostrato.",
@@ -689,7 +807,7 @@ FBLocale["itIT"] = {
     FBP_INCOMING    = "In arrivo",
     FBP_DEBUG       = "Debug:",
     FBP_RESET       = "Valori appresi scartati.",
-    FBP_COMMANDS    = "Comandi: /fbp config (finestra opzioni), /fbp test (modalità test), /fbp buffs (diagnostica benefici), /fbp debug, /fbp reset",
+    FBP_COMMANDS    = "Comandi: /fbp config (finestra opzioni), /fbp test (modalità test), /fbp buffs (diagnostica benefici), /fbp forceload (mostra per guerriero/ladro/cacciatore), /fbp smartcross (riduzione tra incantesimi), /fbp debug, /fbp reset",
     FBP_SMART       = "Smart Healing: %s (margine di sicurezza %d %%)",
     DBG_HOT         = "HoT %s su %s: %d per tick, %ds",
     DBG_SHIELD      = "Scudo %s su %s: %d assorbimento, %ds",
@@ -697,6 +815,19 @@ FBLocale["itIT"] = {
     DBG_TICK        = "Tick corretto: %s = %d",
     DBG_HEAL        = "Cura %s = %d (stima ora %d)",
     DBG_ABSORB      = "Assorbimento %d su %s (restano %d)",
+    DBG_SMART_HOT   = "Smart Healing saltato: %s è una cura nel tempo",
+    FBP_SMART_CROSS = "· tra incantesimi: %s",
+    SMART_CROSS_ON  = "Smart Healing può cambiare incantesimo all'interno di una catena di cure (p. es. da Cura Superiore a Cura Inferiore). |cFF00FF00Attivo|r.",
+    SMART_CROSS_OFF = "Smart Healing resta sull'incantesimo assegnato e ne abbassa solo il rango. |cFFFF0000Cambio incantesimo disattivato|r.",
+
+    CLASS_BLOCKED   = "non mostrato per %s: questo addon è pensato per le classi curatrici. Guerrieri, ladri e cacciatori non hanno cure, né previsione delle cure, né vantaggi dal contatore del mana.",
+    CLASS_BLOCKED_HINT = "Scrivi /fbp forceload per mostrarlo comunque. L'impostazione resta salvata per questo personaggio.",
+    CLASS_FORCED    = "Visualizzazione forzata per %s (/fbp forceload).",
+    CLASS_FORCE_ON  = "Visualizzazione |cFF00FF00attivata|r per questa classe. Resta salvata per questo personaggio.",
+    CLASS_FORCE_OFF = "Visualizzazione di nuovo |cFFFF0000disattivata|r per questa classe. /fbp forceload la riporta.",
+    CLASS_FORCE_NA  = "La tua classe usa il mana e cura, la visualizzazione è già attiva. /fbp forceload serve solo a guerrieri, ladri e cacciatori.",
+	SMARTCROSS      = "Smartcross",
+    SMARTCROSS_TIP  = "Permette a Smart Healing di cambiare incantesimo all'interno di una catena di cure (p. es. da Cura Superiore a Cura Inferiore). Disponibile solo con Smart Healing attivo.",
 };
 
 FBL = FBLocale[FBDetectLocale()];
@@ -1138,13 +1269,74 @@ FBPlayerSpells = {};
 FBActiveSpellIDs = {}; 
 FBSpellBtns = {}; 
 
+-- Begruessung im Chat. Laeuft erst, wenn die Einstellungen gelesen sind
+-- (Sprache und Klassensperre stehen dann fest), und nur einmal.
+function FBHealBox_Announce()
+    if (FBLoadAnnounced) then return; end
+    FBLoadAnnounced = true;
+    local swowTag = "";
+    if (FBHasSuperWoW) then
+        swowTag = FBT("SUPERWOW");
+    end
+    DEFAULT_CHAT_FRAME:AddMessage("|cFFFFFF00"..FBADDON_NAME.."|r  "..HealBoxVersion.." : |cFF00FF00"..FBT("LOADED")..swowTag);
+    DEFAULT_CHAT_FRAME:AddMessage(FBT("CREDITS"));
+    if (FBClassBlocked) then
+        DEFAULT_CHAT_FRAME:AddMessage("|cFFFFFF00"..FBADDON_NAME..":|r "..format(FBT("CLASS_FORCED"), FBClass or "?"));
+    end
+    FBHealBox_RunHook("Loaded");   -- Module melden sich im Chat
+end
+
+-- Anzeige samt Optionsfenster, Minimap-Button und Modulen stilllegen
+function FBHealBox_HideAll()
+    if (FBHealBox1) then FBHealBox1:Hide(); end
+    for p = 1, FBSlotCount do
+        if (FBPartyFrame[p]) then FBPartyFrame[p]:Hide(); end
+    end
+    if (panel) then panel:Hide(); end
+    if (MMButton) then MMButton:Hide(); end
+    FBHealBox_RunHook("Suppress");
+end
+
+-- Darf die Anzeige laufen? Gesperrte Klasse nur mit /fbp forceload.
+function FBHealBox_ClassAllowed()
+    if (not FBClassBlocked) then return true; end
+    if (HealBox and HealBox.ForceLoad == 1) then return true; end
+    return false;
+end
+
+-- Klassensperre auswerten. Rueckgabe: true = Addon darf laufen.
+-- Wird in ADDON_LOADED und VARIABLES_LOADED aufgerufen, weil je nach Client
+-- erst das zweite Ereignis die gespeicherten Werte mitbringt.
+function FBHealBox_ApplyClassGate()
+    if (FBHealBox_ClassAllowed()) then
+        FBAddonSuppressed = false;
+        return true;
+    end
+    FBAddonSuppressed = true;
+    FBHealBox_HideAll();
+    if (not FBGateAnnounced) then
+        FBGateAnnounced = true;
+        DEFAULT_CHAT_FRAME:AddMessage("|cFFFFFF00"..FBADDON_NAME.."|r  "..HealBoxVersion..": |cFFFF8000"
+            ..format(FBT("CLASS_BLOCKED"), FBClass or "?").."|r");
+        DEFAULT_CHAT_FRAME:AddMessage("|cFFAAAAAA"..FBT("CLASS_BLOCKED_HINT").."|r");
+    end
+    return false;
+end
+
+-- Volle Einrichtung der Anzeige (nach dem Laden und nach /fbp forceload)
+function FBHealBox_StartUp()
+    FBSetLocale(HealBox.Locale, 1);
+    FBHealBox_Announce();
+    FBLoadSpellData();
+    FBHealBoxButtons();
+    FBHealBox_SyncOptions();
+    HealBoxAttachMode(HealBox.AttachMode);
+    FBHealBox_ApplyButtonSpacing();
+    if (MMButton) then MMButton:Show(); end
+    FBUpdateNames();
+end
+
 function FBHealBox_OnLoad() 
-    local swowTag = ""; 
-    if (FBHasSuperWoW) then 
-        swowTag = FBT("SUPERWOW"); 
-    end 
-    DEFAULT_CHAT_FRAME:AddMessage("|cFFFFFF00"..FBADDON_NAME.."|r  "..HealBoxVersion.." : |cFF00FF00"..FBT("LOADED")..swowTag); 
-    DEFAULT_CHAT_FRAME:AddMessage(FBT("CREDITS")); 
     this:RegisterEvent("ADDON_LOADED"); 
     this:RegisterEvent("PARTY_MEMBERS_CHANGED"); 
     this:RegisterEvent("PLAYER_ENTERING_WORLD"); 
@@ -1187,10 +1379,12 @@ function FBHealBox_ApplyDefaults()
     if (HealBox.BuffWatchPets == nil) then HealBox.BuffWatchPets = 0; end
     if (HealBox.SmartRank == nil) then HealBox.SmartRank = 0; end
     if (HealBox.SmartMargin == nil) then HealBox.SmartMargin = 20; end
+    if (HealBox.SmartCross == nil) then HealBox.SmartCross = 1; end
     if (HealBox.Cooldowns == nil) then HealBox.Cooldowns = 1; end
     if (HealBox.AggroMark == nil) then HealBox.AggroMark = 1; end
     if (HealBox.SpellTimers == nil) then HealBox.SpellTimers = 1; end
     if (HealBox.BuffIcons == nil) then HealBox.BuffIcons = 1; end
+    if (HealBox.ForceLoad == nil) then HealBox.ForceLoad = 0; end
     if (not FBPlateActionName[HealBox.PlateLeft or ""]) then HealBox.PlateLeft = "target"; end
     if (not FBPlateActionName[HealBox.PlateRight or ""]) then HealBox.PlateRight = "target"; end
     FBHealBox_RunHook("Defaults");
@@ -1214,6 +1408,7 @@ function FBHealBox_SyncOptions()
     if (BuffWatchPetsCheck) then BuffWatchPetsCheck:SetChecked(HealBox.BuffWatchPets == 1); end
     if (RightClickCheck) then RightClickCheck:SetChecked(HealBox.RightClick == 1); end
     if (SmartRankCheck) then SmartRankCheck:SetChecked(HealBox.SmartRank == 1); end
+    if (SmartCrossCheck) then SmartCrossCheck:SetChecked(HealBox.SmartCross == 1); end
     if (SmartMarginSlider) then SmartMarginSlider:SetValue(HealBox.SmartMargin); end
     if (CooldownsCheck) then CooldownsCheck:SetChecked(HealBox.Cooldowns == 1); end
     if (AggroMarkCheck) then AggroMarkCheck:SetChecked(HealBox.AggroMark == 1); end
@@ -1222,7 +1417,23 @@ function FBHealBox_SyncOptions()
     FBHealBox_UpdateBuffWatchLabel();
     FBHealBox_UpdatePlateActionLabels();
     FBHealBox_ApplyRightClickLayout();
+    FBHealBox_UpdateSmartCrossState();
     FBHealBox_RunHook("SyncOptions");
+end
+
+function FBHealBox_UpdateSmartCrossState()
+    if (not SmartCrossCheck) then return; end
+    if (HealBox.SmartRank == 1) then
+        SmartCrossCheck:Enable();
+        if (SmartCrossCheck.Text) then
+            SmartCrossCheck.Text:SetTextColor(1, 1, 1, 1);
+        end
+    else
+        SmartCrossCheck:Disable();
+        if (SmartCrossCheck.Text) then
+            SmartCrossCheck.Text:SetTextColor(0.5, 0.5, 0.5, 1);
+        end
+    end
 end
 
 function FBUnitGUID(unit) 
@@ -1789,15 +2000,18 @@ function FBMenu_ClearSpell()
 end
 
 function FBHealBox_OnEvent(event, arg1) 
-    if ((event == "ADDON_LOADED") and (arg1 == FBADDON_FOLDER)) then 
+    -- Die beiden Ladeereignisse zuerst: hier faellt die Entscheidung, ob das
+    -- Addon fuer diese Klasse ueberhaupt anzeigt.
+    if (((event == "ADDON_LOADED") and (arg1 == FBADDON_FOLDER)) or (event == "VARIABLES_LOADED")) then 
         FBHealBox_ApplyDefaults(); 
         FBSetLocale(HealBox.Locale, 1); 
-        FBHealBox_RunHook("Loaded");   -- Module melden sich im Chat 
-        FBHealBox_SyncOptions(); 
-        HealBoxAttachMode(HealBox.AttachMode); 
-        FBHealBox_ApplyButtonSpacing(); 
-        FBUpdateNames(); 
+        if (not FBHealBox_ApplyClassGate()) then return; end 
+        FBHealBox_StartUp(); 
+        return; 
     end 
+    
+    -- Krieger, Schurke, Jaeger ohne /fbp forceload: nichts weiter tun
+    if (FBAddonSuppressed) then return; end 
     
     if (event == "PLAYER_ENTERING_WORLD" or event == "SPELLS_CHANGED") then 
         FBLoadSpellData(); 
@@ -1810,16 +2024,6 @@ function FBHealBox_OnEvent(event, arg1)
         FBHealBox_RefreshAllBars(); 
     end 
     
-    if (event == "VARIABLES_LOADED") then 
-        FBHealBox_ApplyDefaults(); 
-        FBSetLocale(HealBox.Locale, 1); 
-        FBLoadSpellData(); 
-        FBHealBoxButtons(); 
-        FBHealBox_SyncOptions(); 
-        HealBoxAttachMode(HealBox.AttachMode); 
-        FBHealBox_ApplyButtonSpacing(); 
-        FBUpdateNames(); 
-    end 
     
     -- Button-Farben und Cooldowns: ein zentraler Durchgang statt 260 Handler.
     -- Mehrere dieser Events je Frame (jede Manaaenderung feuert USABLE)
@@ -2210,12 +2414,122 @@ end
 -- Erwartete Heilung: gelernter Wert, sonst Tooltip-Mittelwert.
 -- ==========================================================================
 
+-- Heilung ueber Zeit, alle Klassen. Smart Healing laesst diese Zauber in
+-- Ruhe: Ein HoT heilt ueber viele Sekunden verteilt, das im Moment des
+-- Klicks fehlende Leben sagt also nichts darueber aus, welcher Rang passt.
+-- Ein abgerangtes Erneuerung tickt die volle Laufzeit zu schwach, und der
+-- Nachschlag laesst sich nicht mehr aufholen. Gemischte Zauber (Nachwachsen:
+-- Sofortheilung plus HoT) zaehlen ebenfalls als HoT.
+-- Ergaenzt wird die Liste zur Laufzeit aus dem Tooltip (info.hot), aus der
+-- Zauberwache und aus laufenden HoTs, deshalb greift die Ausnahme auch bei
+-- Zaubern, die hier nicht stehen (z. B. auf lokalisierten Clients).
+FBHoTSpells = {
+    -- Priester
+    ["Renew"] = true,
+    -- Druide
+    ["Rejuvenation"] = true, ["Regrowth"] = true, ["Tranquility"] = true,
+    ["Lifebloom"] = true, ["Wild Growth"] = true,
+    -- Schamane
+    ["Riptide"] = true, ["Earth Shield"] = true, ["Healing Stream Totem"] = true,
+    -- deutsche Zaubernamen (Umlaute als Bytefolge, damit die Datei auf jedem
+    -- Client passt: einmal UTF-8, einmal Latin-1)
+    ["Erneuerung"] = true, ["Nachwachsen"] = true, ["Gelassenheit"] = true,
+    ["Wildwuchs"] = true, ["Springflut"] = true, ["Erdschild"] = true,
+    ["Verj\195\188ngung"] = true, ["Verj\252ngung"] = true,
+    ["Lebensbl\195\188te"] = true, ["Lebensbl\252te"] = true,
+};
+
+-- Ist das ein Zauber mit Heilung ueber Zeit?
+function FBHealBox_IsHoT(base, ranks)
+    if (not base) then return false; end
+    if (FBHoTSpells[base]) then return true; end
+    -- aus dem Zauberbuch gelesen: irgendein Rang hat einen HoT-Anteil
+    local w = FBPredictWatch and FBPredictWatch[base];
+    if (w and w.hasHoT) then return true; end
+    if (ranks) then
+        for _, sd in ipairs(ranks) do
+            local info = FBPredict_GetSpellInfo(sd.id, base);
+            if (info and info.hot) then return true; end
+        end
+    end
+    -- laeuft gerade als HoT auf irgendjemandem (aus dem Combatlog gelernt)
+    for _, spells in pairs(FBHoTs) do
+        if (spells[base]) then return true; end
+    end
+    return false;
+end
+
+-- ==========================================================================
+-- [ Heilketten ]
+--
+-- Welche Zauber gelten als "derselbe Heilzauber, nur kleiner"? Innerhalb
+-- einer Kette darf Smart Healing die Zaubergrenze ueberschreiten: Grosse
+-- Heilung (Rang 2) kann als Geringes Heilen (Rang 3) rausgehen, wenn das
+-- reicht. Nur Einzelziel-Direktheilungen gehoeren hinein. Draussen bleiben
+-- Gruppenheilungen (Gebet der Heilung, Kettenheilung), HoTs, Schilde und
+-- Zauber mit Abklingzeit (Heiliger Schock, Handauflegung, Verjuengungs-
+-- zauber), die man nicht ungefragt verbraten will.
+--
+-- Die Liste ist flach: Zaubernamen sind zwischen den Klassen eindeutig,
+-- eine Klassenzuordnung braucht es also nicht. Ketten mit nur einem Eintrag
+-- stehen der Uebersicht halber trotzdem drin.
+-- ==========================================================================
+
+FBHealChains = {
+    -- Priester
+    { "Lesser Heal", "Heal", "Greater Heal" },
+    -- Paladin
+    { "Flash of Light", "Holy Light" },
+    -- Schamane
+    { "Lesser Healing Wave", "Healing Wave" },
+    -- Druide (Nachwachsen ist ein HoT und bleibt draussen)
+    { "Healing Touch" },
+    -- deutsche Zaubernamen, einmal Latin-1 und einmal UTF-8 fuer die
+    -- Sonderzeichen (\223 = ss-Ligatur, \252 = u-Umlaut)
+    { "Geringes Heilen", "Heilen", "Gro\223e Heilung", "Gro\195\159e Heilung" },
+    { "Blitz des Lichts", "Heiliges Licht" },
+    { "Geringe Welle der Heilung", "Welle der Heilung" },
+    { "Heilende Ber\252hrung", "Heilende Ber\195\188hrung" },
+};
+
+-- [Zaubername] = seine Kette
+FBHealChainOf = {};
+for _, chain in ipairs(FBHealChains) do
+    for _, n in ipairs(chain) do
+        if (not FBHealChainOf[n]) then FBHealChainOf[n] = chain; end
+    end
+end
+
+-- Erwartete Heilung eines Rangs, oder nil, wenn der Zauber fuer Smart
+-- Healing nicht in Frage kommt: kein Heilbetrag, Schild, HoT-Anteil, Buff
+-- oder kein Heiltext im Tooltip. Gelernter Wert schlaegt den Tooltip.
+function FBHealBox_DirectAmount(spellName, sd)
+    if (not sd) then return nil; end
+    local info = FBPredict_GetSpellInfo(sd.id, spellName);
+    if (not info) or (not info.direct) or info.shield or info.hot or (not info.isHeal) then return nil; end
+    return FBPredict_Remembered("direct", spellName, sd.rank) or info.direct;
+end
+
+-- Alle Zauber, die als kleinere Ausgabe von base gelten (base immer dabei)
+function FBHealBox_HealFamily(base)
+    if (HealBox.SmartCross ~= 1) then return { base }; end
+    return FBHealChainOf[base] or { base };
+end
+
 function FBHealBox_SmartRank(castString, unit)
     if (HealBox.SmartRank ~= 1) or (not castString) then return castString; end
     local base, rank = FBPredict_SplitCast(castString);
     if (not rank) then return castString; end
     local ranks = FBPlayerSpells[base];
-    if (not ranks) or (table.getn(ranks) < 2) then return castString; end
+    if (not ranks) then return castString; end
+
+    -- HoTs aller Klassen bleiben unangetastet
+    if (FBHealBox_IsHoT(base, ranks)) then
+        if (FBPredictDebug) then
+            DEFAULT_CHAT_FRAME:AddMessage("|cFF00FFFF[FBP]|r "..format(FBT("DBG_SMART_HOT"), castString));
+        end
+        return castString;
+    end
     if (not FBUnitExists(unit)) or FBTest_Ghost(unit) then return castString; end
 
     local hp, hpMax = FBUnitHealth(unit);
@@ -2226,31 +2540,38 @@ function FBHealBox_SmartRank(castString, unit)
     if (deficit < 0) then deficit = 0; end
     local need = deficit * (1 + (HealBox.SmartMargin or 20) / 100);
 
-    local assignedIdx = nil;
-    for i, sd in ipairs(ranks) do
-        if (sd.rank == rank) then assignedIdx = i; end
+    -- Der belegte Rang ist Obergrenze und Rueckfall zugleich
+    local assignedSD = nil;
+    for _, sd in ipairs(ranks) do
+        if (sd.rank == rank) then assignedSD = sd; end
     end
-    if (not assignedIdx) then return castString; end
+    local cap = FBHealBox_DirectAmount(base, assignedSD);
+    if (not cap) then return castString; end
 
-    for i = 1, assignedIdx do
-        local sd = ranks[i];
-        local info = FBPredict_GetSpellInfo(sd.id, base);
-        -- nur echte Direktheilungen: Heilbetrag vorhanden, "heal" im Tooltip,
-        -- kein Schild, kein Buff. Alles andere geht im belegten Rang raus.
-        if (not info) or (not info.direct) or info.shield or (not info.isHeal) then return castString; end
-        local amount = FBPredict_Remembered("direct", base, sd.rank) or info.direct;
-        if (amount >= need) then
-            if (i == assignedIdx) then return castString; end
-            local chosen = base;
-            if (sd.rank and sd.rank ~= "") then chosen = base.."("..sd.rank..")"; end
-            if (FBPredictDebug) then
-                DEFAULT_CHAT_FRAME:AddMessage("|cFF00FFFF[FBP]|r "..format(FBT("DBG_SMARTRANK"),
-                    castString, chosen, math.floor(deficit), math.floor(amount)));
+    -- Kleinsten Kandidaten suchen, der den Bedarf deckt und nicht mehr
+    -- heilt als der belegte Rang. Gleichstand behaelt den belegten Zauber.
+    local bestSD, bestName, bestAmount = assignedSD, base, cap;
+    for _, spellName in ipairs(FBHealBox_HealFamily(base)) do
+        local list = FBPlayerSpells[spellName];
+        if (list) and ((spellName == base) or (not FBHealBox_IsHoT(spellName, list))) then
+            for _, sd in ipairs(list) do
+                local amount = FBHealBox_DirectAmount(spellName, sd);
+                if (amount) and (amount >= need) and (amount < bestAmount) then
+                    bestSD, bestName, bestAmount = sd, spellName, amount;
+                end
             end
-            return chosen;
         end
     end
-    return castString;
+
+    if (bestSD == assignedSD) then return castString; end
+    local chosen = bestName;
+    if (bestSD.rank and bestSD.rank ~= "") then chosen = bestName.."("..bestSD.rank..")"; end
+    if (chosen == castString) then return castString; end
+    if (FBPredictDebug) then
+        DEFAULT_CHAT_FRAME:AddMessage("|cFF00FFFF[FBP]|r "..format(FBT("DBG_SMARTRANK"),
+            castString, chosen, math.floor(deficit), math.floor(bestAmount)));
+    end
+    return chosen;
 end
 
 -- Zauber castString auf das Ziel des Buttons wirken (Links- oder Rechtsklick)
@@ -2464,6 +2785,7 @@ end
 
 function FBUpdateNames() 
     if (not FBHealBox1) then return; end 
+    if (FBAddonSuppressed) then FBHealBox_HideAll(); return; end 
     for p = 1, FBSlotCount do 
         local f = FBPartyFrame[p]; 
         f:Hide(); 
@@ -3188,7 +3510,12 @@ function FBHealBox_ApplyLocale()
         SmartRankCheck.Text:SetText(FBT("SMARTRANK"));
         SmartRankCheck.tooltipText = FBT("SMARTRANK_TIP");
     end
+    if (SmartCrossCheck) then
+        SmartCrossCheck.Text:SetText(FBT("SMARTCROSS"));
+        SmartCrossCheck.tooltipText = FBT("SMARTCROSS_TIP");
+    end
     FBUpdateSmartMarginText();
+    FBHealBox_UpdateSmartCrossState();
     if (CooldownsCheck) then
         CooldownsCheck.Text:SetText(FBT("COOLDOWNS"));
         CooldownsCheck.tooltipText = FBT("COOLDOWNS_TIP");
@@ -3427,9 +3754,15 @@ function FBHealBoxCreateAddonOptionFrame()
     -- Smart Healing mit Sicherheitsaufschlag (oben)
     SmartRankCheck = FBHealBox_CreateCheck("FBHealBoxSmartRankCheck", tabButtons, 34, FBOPT_CONTENT_Y, "SMARTRANK", "SMARTRANK_TIP", function() 
         HealBox.SmartRank = SmartRankCheck:GetChecked() and 1 or 0; 
+        FBHealBox_UpdateSmartCrossState();
     end); 
     SmartRankCheck:SetChecked(nil); 
     
+    SmartCrossCheck = FBHealBox_CreateCheck("FBHealBoxSmartCrossCheck", tabButtons, 48, FBOPT_CONTENT_Y - 24, "SMARTCROSS", "SMARTCROSS_TIP", function()
+        HealBox.SmartCross = SmartCrossCheck:GetChecked() and 1 or 0;
+    end);
+    SmartCrossCheck:SetChecked(nil);
+
     SmartMarginSlider = CreateFrame("Slider", "FBSmartMarginSlider", tabButtons, "OptionsSliderTemplate"); 
     SmartMarginSlider:SetWidth(fieldW); 
     SmartMarginSlider:SetHeight(16); 
@@ -3448,8 +3781,8 @@ function FBHealBoxCreateAddonOptionFrame()
     FBUpdateSmartMarginText(); 
     
     -- Spaltenkoepfe und Zeilen
-    local yHead = FBOPT_CONTENT_Y - 52; 
-    local y0    = yHead - 16; 
+    local yHead = FBOPT_CONTENT_Y - 56; 
+    local y0    = yHead - 16;
     
     panel.colLeft = tabButtons:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall"); 
     panel.colLeft:SetPoint("TOPLEFT", tabButtons, "TOPLEFT", xLeft + 4, yHead); 
@@ -5044,6 +5377,7 @@ for _, ev in ipairs(FBPredictEvents) do
 end
 
 FBPredictFrame:SetScript("OnEvent", function()
+    if (FBAddonSuppressed) then return; end
     if (event == "UNIT_AURA") then
         FBPredict_ScanUnit(arg1);
 
@@ -5081,6 +5415,7 @@ FBPredictFrame:SetScript("OnEvent", function()
 end);
 
 FBPredictFrame:SetScript("OnUpdate", function()
+    if (FBAddonSuppressed) then return; end
     FBPredict_OnUpdate(arg1);
 end);
 
@@ -5380,6 +5715,36 @@ end
 
 SLASH_FBHEALPREDICT1 = "/fbp";
 SlashCmdList["FBHEALPREDICT"] = function(msg)
+    -- Anzeige bei Krieger/Schurke/Jaeger dauerhaft ein- oder ausschalten.
+    -- Steht vor allem anderen, damit der Befehl auch im Ruhezustand geht.
+    if (msg == "forceload") then
+        if (not FBClassBlocked) then
+            DEFAULT_CHAT_FRAME:AddMessage("|cFFFFFF00"..FBADDON_NAME..":|r "..FBT("CLASS_FORCE_NA"));
+            return;
+        end
+        if (HealBox.ForceLoad == 1) then
+            HealBox.ForceLoad = 0;
+            FBHealBox_ApplyClassGate();
+            DEFAULT_CHAT_FRAME:AddMessage("|cFFFFFF00"..FBADDON_NAME..":|r "..FBT("CLASS_FORCE_OFF"));
+        else
+            HealBox.ForceLoad = 1;
+            FBGateAnnounced = false;
+            FBHealBox_ApplyClassGate();
+            FBHealBox_StartUp();
+            DEFAULT_CHAT_FRAME:AddMessage("|cFFFFFF00"..FBADDON_NAME..":|r "..FBT("CLASS_FORCE_ON"));
+        end
+        return;
+    end
+
+    -- Im Ruhezustand bleibt es beim Hinweis: nichts ist aufgebaut,
+    -- Optionsfenster und Diagnose waeren leer.
+    if (FBAddonSuppressed) then
+        DEFAULT_CHAT_FRAME:AddMessage("|cFFFFFF00"..FBADDON_NAME..":|r "
+            ..format(FBT("CLASS_BLOCKED"), FBClass or "?"));
+        DEFAULT_CHAT_FRAME:AddMessage("|cFFAAAAAA"..FBT("CLASS_BLOCKED_HINT").."|r");
+        return;
+    end
+
     -- Module zuerst (z. B. /fbp raid)
     if (FBHealBox_RunHook("Slash", msg)) then return; end
 
@@ -5399,6 +5764,16 @@ SlashCmdList["FBHEALPREDICT"] = function(msg)
 
     if (msg == "test") then
         FBTest_Set(not FBTestMode);
+        return;
+    end
+
+    -- Abrangen ueber Zaubergrenzen (Heilketten) an/aus
+    if (msg == "smartcross" or msg == "cross") then
+        if (HealBox.SmartCross == 1) then HealBox.SmartCross = 0; else HealBox.SmartCross = 1; end
+        local key = "SMART_CROSS_OFF";
+        if (HealBox.SmartCross == 1) then key = "SMART_CROSS_ON"; end
+        DEFAULT_CHAT_FRAME:AddMessage("|cFFFFFF00"..FBADDON_NAME..":|r "..FBT(key));
+        if (SmartCrossCheck) then SmartCrossCheck:SetChecked(HealBox.SmartCross == 1); end
         return;
     end
 
@@ -5509,7 +5884,10 @@ SlashCmdList["FBHEALPREDICT"] = function(msg)
     end
     local smart = FBT("FBP_STATE_OFF");
     if (HealBox.SmartRank == 1) then smart = FBT("FBP_STATE_ON"); end
-    DEFAULT_CHAT_FRAME:AddMessage("|cFF00FFFF[FBP]|r "..format(FBT("FBP_SMART"), smart, HealBox.SmartMargin or 20));
+    local cross = FBT("FBP_STATE_OFF");
+    if (HealBox.SmartCross == 1) then cross = FBT("FBP_STATE_ON"); end
+    DEFAULT_CHAT_FRAME:AddMessage("|cFF00FFFF[FBP]|r "..format(FBT("FBP_SMART"), smart, HealBox.SmartMargin or 20)
+        .." "..format(FBT("FBP_SMART_CROSS"), cross));
     FBHealBox_RunHook("Status");
     DEFAULT_CHAT_FRAME:AddMessage("|cFF00FFFF[FBP]|r "..FBT("FBP_COMMANDS"));
 end
@@ -5966,4 +6344,12 @@ end
 
 MMButton = CreateMiniMapButton(); 
 FBHealBoxSetup(); 
+
+-- Gesperrte Klasse: alles bleibt aus, bis ADDON_LOADED / VARIABLES_LOADED
+-- die gespeicherte Einstellung geprueft hat. So blitzt die Anzeige beim
+-- Einloggen nicht kurz auf.
+if (FBAddonSuppressed) then
+    FBHealBox_HideAll();
+end
+
 FBHealBoxCreateAddonOptionFrame();

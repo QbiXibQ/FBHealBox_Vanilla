@@ -1242,6 +1242,7 @@ FBRaidEventFrame:RegisterEvent("UNIT_AURA");
 FBRaidRosterDirty = false;
 
 FBRaidEventFrame:SetScript("OnEvent", function()
+    if (FBAddonSuppressed) then return; end
     if (event == "RAID_ROSTER_UPDATE" or event == "PARTY_MEMBERS_CHANGED" or event == "PLAYER_ENTERING_WORLD") then
         -- Salven (mehrere Roster-Events je Frame beim Zonen) auf einen
         -- Durchlauf im naechsten Frame zusammenfassen
@@ -1256,6 +1257,7 @@ FBRaidEventFrame:SetScript("OnEvent", function()
 end);
 
 FBRaidEventFrame:SetScript("OnUpdate", function()
+    if (FBAddonSuppressed) then return; end
     if (FBRaidRosterDirty) then
         FBRaidRosterDirty = false;
         FBRaid_UpdateRoster();
@@ -1273,6 +1275,7 @@ FBRaidGhostAccum = 0;
 FBRaidEventFrame.ghostTicker = CreateFrame("Frame", nil, UIParent);
 FBRaidEventFrame.ghostTicker:Hide();   -- laeuft nur im Raid-Test (siehe FBRaid_SetTest)
 FBRaidEventFrame.ghostTicker:SetScript("OnUpdate", function()
+    if (FBAddonSuppressed) then return; end
     FBRaidGhostAccum = FBRaidGhostAccum + (arg1 or 0);
     if (FBRaidGhostAccum < 0.2) then return; end
     FBRaidGhostAccum = 0;
@@ -1518,6 +1521,11 @@ end
 
 FBHealBox_RegisterHook("Loaded", function()
     DEFAULT_CHAT_FRAME:AddMessage("|cFFFFFF00"..FBADDON_NAME..":|r "..FBT("RAID_LOADED"));
+    return true;
+end);
+-- Klassensperre des Kerns: Raidfenster mit stilllegen
+FBHealBox_RegisterHook("Suppress", function()
+    if (FBRaidFrame) then FBRaidFrame:Hide(); end
     return true;
 end);
 FBHealBox_RegisterHook("Defaults", function() return FBRaid_ApplyDefaults(); end);

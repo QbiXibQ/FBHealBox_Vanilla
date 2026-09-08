@@ -425,6 +425,9 @@ end
 
 -- Vor-Hook auf UseAction. true, wenn das Modul selbst gecastet hat.
 function FBDmg_TryDownrank(slot, checkCursor, onSelf)
+    -- Klassensperre des Kerns (Krieger/Schurke/Jaeger ohne /fbp forceload):
+    -- die Aktionsleiste bleibt unberuehrt
+    if (FBAddonSuppressed) then return false; end
     if (FBDmg_Cfg().Enabled ~= 1) or onSelf then return false; end
     if ((CursorHasSpell and CursorHasSpell()) or (CursorHasItem and CursorHasItem())) then return false; end
     local name, rank = FBDmg_SlotSpell(slot);
@@ -464,6 +467,7 @@ for _, ev in ipairs({
 }) do FBDmgFrame:RegisterEvent(ev); end
 
 FBDmgFrame:SetScript("OnEvent", function()
+    if (FBAddonSuppressed) then return; end
     if (event == "PLAYER_ENTERING_WORLD" or event == "SPELLS_CHANGED") then
         FBDmg_ScanSpells();
         FBDmg_UpdateSpellText();

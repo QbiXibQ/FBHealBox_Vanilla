@@ -405,6 +405,7 @@ FBTickerFrame:RegisterEvent("UNIT_MAXMANA");
 FBTickerFrame:RegisterEvent("UNIT_DISPLAYPOWER");
 FBTickerFrame:RegisterEvent("PLAYER_ENTERING_WORLD");
 FBTickerFrame:SetScript("OnEvent", function()
+    if (FBAddonSuppressed) then return; end
     if (event == "PLAYER_ENTERING_WORLD") then
         FBTicker_Reset();
         FBTicker_CollectBars();
@@ -422,6 +423,7 @@ FBTickerFrame:SetScript("OnEvent", function()
     FBTicker_UpdateGate();
 end);
 FBTickerFrame:SetScript("OnUpdate", function()
+    if (FBAddonSuppressed) then return; end
     FBTicker_Draw();
 end);
 
@@ -523,6 +525,13 @@ end
 
 FBHealBox_RegisterHook("Loaded", function()
     DEFAULT_CHAT_FRAME:AddMessage("|cFFFFFF00"..FBADDON_NAME..":|r "..FBT("TICK_LOADED"));
+    return true;
+end);
+-- Klassensperre des Kerns: Funken ausknipsen
+FBHealBox_RegisterHook("Suppress", function()
+    for _, e in ipairs(FBTicker.sparks or {}) do
+        if (e.spark) then e.spark:Hide(); end
+    end
     return true;
 end);
 FBHealBox_RegisterHook("Defaults", function() return FBTicker_ApplyDefaults(); end);
