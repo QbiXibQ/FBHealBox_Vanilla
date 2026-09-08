@@ -10,9 +10,7 @@ Party, pet and self heal display with quick-cast buttons for healers. One name p
 
 <img width="956" height="847" alt="Screenshot 2026-09-05 210241" src="https://github.com/user-attachments/assets/d7508232-eb56-47ef-8f7e-c39ab0c2b434" />
 
-<img width="839" height="1102" alt="grafik" src="https://github.com/user-attachments/assets/eda01796-04eb-4c8d-aec1-04bba0bf8821" />
-
-
+<img width="837" height="1097" alt="Screenshot 2026-09-08 205118" src="https://github.com/user-attachments/assets/1c5cd627-15dc-48a2-b4ec-46e7afaae172" />
 
 \---
 
