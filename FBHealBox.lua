@@ -190,7 +190,13 @@ FBLocale["enUS"] = {
     DROP_SET_R    = "Button %d, right click: |cFFFFFFFF%s|r (dragged from the spellbook)",
     DROP_UNKNOWN  = "Could not identify the dragged spell.",
     SMARTRANK     = "Smart Healing",
-    SMARTRANK_TIP = "What it does: on click, instead of the assigned rank the button casts the lowest rank of the same spell whose expected heal covers the target's missing health (minus healing already on the way) plus the safety margin. Saves mana and overhealing. Rules: never more healing than the assigned rank, direct heals only (heal over time spells of every class, such as Renew, Rejuvenation or Regrowth, and shields are never downranked), and always the assigned rank below 30 % health. Within a heal chain the spell itself may change: Greater Heal can go out as Lesser Heal, Holy Light as Flash of Light, Healing Wave as Lesser Healing Wave. Turn that off with /fbp smartcross if you want it to stay on the assigned spell. Downsides: the expected heal is an estimate from the tooltip or from learned values and ignores crits; with burst damage, or when you deliberately want to overheal as a buffer (a tank before a big hit), the lower rank can fall short. Turn it off whenever overhealing is what you want. Every decision is logged with /fbp debug.",
+    SMARTRANK_TIP = "Automatically casts the lowest spell rank that covers the target's missing health (minus incoming heals) plus safety margin.\n\n"
+        .. "|cFFFFD100Rules:|r\n"
+        .. "• Direct heals only (HoTs and shields untouched)\n"
+        .. "• Always casts assigned rank below 30 % health\n"
+        .. "• Never heals more than the assigned rank\n"
+        .. "• Chain spell switching toggled via 'Smartcross'\n"
+        .. "• Decisions logged with /fbp debug",
     SMART_MARGIN  = "Safety margin: |cFFFFFFFF%s %%",
     COOLDOWNS     = "Cooldowns on buttons",
     COOLDOWNS_TIP = "Shows the cooldown sweep on every button (Nature's Swiftness, Inner Focus, Lay on Hands, shield cooldown). The global cooldown is not shown.",
@@ -323,7 +329,13 @@ FBLocale["deDE"] = {
     DROP_SET_R    = "Button %d, Rechtsklick: |cFFFFFFFF%s|r (aus dem Zauberbuch gezogen)",
     DROP_UNKNOWN  = "Der gezogene Zauber liess sich nicht erkennen.",
     SMARTRANK     = "Smart Healing",
-    SMARTRANK_TIP = "Was es tut: Beim Klick wirkt der Button statt des belegten Rangs den niedrigsten Rang desselben Zaubers, dessen erwartete Heilung das fehlende Leben des Ziels (abzueglich bereits eingehender Heilung) plus Sicherheitsaufschlag deckt. Spart Mana und Overheal. Regeln: nie mehr Heilung als der belegte Rang, nur Direktheilungen (Zauber mit Heilung ueber Zeit aller Klassen, etwa Erneuerung, Verjuengung oder Nachwachsen, und Schilde werden nie abgerangt), unter 30 % Leben immer der belegte Rang. Innerhalb einer Heilkette darf auch der Zauber wechseln: Grosse Heilung kann als Geringes Heilen rausgehen, Heiliges Licht als Blitz des Lichts, Welle der Heilung als Geringe Welle der Heilung. Mit /fbp smartcross abschaltbar, dann bleibt es beim belegten Zauber. Nachteile: Die erwartete Heilung ist eine Schaetzung aus Tooltip oder gelernten Werten und kennt keine Crits; bei Schadensspitzen oder wenn du bewusst ueberheilen willst (Tank vor einem grossen Treffer) kann der kleinere Rang zu wenig sein. Ausschalten, wann immer Overheal gewollt ist. Jede Entscheidung steht mit /fbp debug im Chat.",
+    SMARTRANK_TIP = "Wirkt automatisch den niedrigsten Zauberrang, der das fehlende Leben (abzgl. eingehender Heilung) plus Sicherheitsaufschlag deckt.\n\n"
+        .. "|cFFFFD100Regeln:|r\n"
+        .. "• Nur Direktheilung (HoTs und Schilde unberuehrt)\n"
+        .. "• Unter 30 % Leben immer der belegte Rang\n"
+        .. "• Nie mehr Heilung als der belegte Rang\n"
+        .. "• Zauberwechsel in Ketten steuert 'Smartcross'\n"
+        .. "• Entscheidungen im Chat via /fbp debug",
     SMART_MARGIN  = "Sicherheitsaufschlag: |cFFFFFFFF%s %%",
     COOLDOWNS     = "Cooldowns auf den Buttons",
     COOLDOWNS_TIP = "Zeigt die Cooldown-Uhr auf jedem Button (Naturschnelligkeit, Innerer Fokus, Handauflegung, Schild-Cooldown). Der globale Cooldown wird nicht angezeigt.",
@@ -480,8 +492,14 @@ FBLocale["esES"] = {
     DROP_SET        = "Botón %d: |cFFFFFFFF%s|r (arrastrado desde el libro de hechizos)",
     DROP_SET_R      = "Botón %d, clic derecho: |cFFFFFFFF%s|r (arrastrado desde el libro de hechizos)",
     DROP_UNKNOWN    = "No se pudo identificar el hechizo arrastrado.",
-    SMARTRANK       = "Smart Healing",
-    SMARTRANK_TIP   = "Qué hace: al hacer clic, en lugar del rango asignado el botón lanza el rango más bajo del mismo hechizo cuya curación esperada cubra la vida que le falta al objetivo (menos la curación ya en camino) más el margen de seguridad. Ahorra maná y sobrecuración. Reglas: nunca por encima del rango asignado, solo curaciones directas (los hechizos de curación con el tiempo de todas las clases, como Renovar, Rejuvenecimiento o Recrecimiento, y los escudos nunca se reducen de rango) y siempre el rango asignado por debajo del 30 % de vida. Dentro de una cadena de curación también puede cambiar el hechizo; desactívalo con /fbp smartcross. Desventajas: la curación esperada es una estimación del tooltip o de valores aprendidos y no cuenta los críticos; con daño en ráfaga, o cuando quieres sobrecurar a propósito como colchón (un tanque antes de un golpe fuerte), el rango menor puede quedarse corto. Desactívalo siempre que quieras sobrecurar. Cada decisión se registra con /fbp debug.",
+    SMARTRANK     = "Smart Healing",
+    SMARTRANK_TIP = "Lanza automáticamente el rango más bajo que cubra la vida faltante (menos curaciones entrantes) más el margen de seguridad.\n\n"
+        .. "|cFFFFD100Reglas:|r\n"
+        .. "• Solo curaciones directas (HoTs y escudos intactos)\n"
+        .. "• Siempre el rango asignado bajo 30 % de vida\n"
+        .. "• Nunca cura más que el rango asignado\n"
+        .. "• Cambio de hechizo controlado por 'Smartcross'\n"
+        .. "• Registro de decisiones con /fbp debug",
     SMART_MARGIN    = "Margen de seguridad: |cFFFFFFFF%s %%",
     COOLDOWNS       = "Reutilización en botones",
     COOLDOWNS_TIP   = "Muestra el barrido de reutilización en cada botón (Rapidez de la naturaleza, Enfoque interno, Imposición de manos, reutilización del escudo). La reutilización global no se muestra.",
@@ -604,8 +622,14 @@ FBLocale["frFR"] = {
     DROP_SET        = "Bouton %d : |cFFFFFFFF%s|r (glissé depuis le grimoire)",
     DROP_SET_R      = "Bouton %d, clic droit : |cFFFFFFFF%s|r (glissé depuis le grimoire)",
     DROP_UNKNOWN    = "Impossible d'identifier le sort glissé.",
-    SMARTRANK       = "Smart Healing",
-    SMARTRANK_TIP   = "Ce que ça fait : au clic, au lieu du rang assigné, le bouton lance le rang le plus bas du même sort dont le soin attendu couvre les points de vie manquants de la cible (moins les soins déjà en route) plus la marge de sécurité. Économise du mana et du sursoin. Règles : jamais au-dessus du rang assigné, soins directs uniquement (les soins sur la durée de toutes les classes, comme Rénovation, Récupération ou Rétablissement, et les boucliers ne sont jamais abaissés), et toujours le rang assigné sous 30 % de vie. Au sein d'une chaîne de soins le sort lui-même peut changer ; désactivez-le avec /fbp smartcross. Inconvénients : le soin attendu est une estimation tirée de l'infobulle ou des valeurs apprises et ignore les critiques ; en cas de dégâts en rafale, ou quand vous voulez volontairement sursoigner comme tampon (un tank avant un gros coup), le rang inférieur peut être insuffisant. Désactivez-le dès que vous voulez sursoigner. Chaque décision est consignée avec /fbp debug.",
+    SMARTRANK     = "Smart Healing",
+    SMARTRANK_TIP = "Lance automatiquement le rang le plus bas couvrant la vie manquante (moins soins en cours) plus la marge de sécurité.\n\n"
+        .. "|cFFFFD100Règles :|r\n"
+        .. "• Soins directs uniquement (HoTs et boucliers intacts)\n"
+        .. "• Rang assigné conservé sous 30 % de vie\n"
+        .. "• Ne soigne jamais plus que le rang assigné\n"
+        .. "• Changement de sort contrôlé par 'Smartcross'\n"
+        .. "• Décisions visibles via /fbp debug",
     SMART_MARGIN    = "Marge de sécurité : |cFFFFFFFF%s %%",
     COOLDOWNS       = "Recharges sur les boutons",
     COOLDOWNS_TIP   = "Affiche le balayage du temps de recharge sur chaque bouton (Rapidité de la nature, Focalisation intérieure, Imposition des mains, recharge du bouclier). Le temps de recharge global n'est pas affiché.",
@@ -728,8 +752,14 @@ FBLocale["itIT"] = {
     DROP_SET        = "Pulsante %d: |cFFFFFFFF%s|r (trascinato dal libro degli incantesimi)",
     DROP_SET_R      = "Pulsante %d, clic destro: |cFFFFFFFF%s|r (trascinato dal libro degli incantesimi)",
     DROP_UNKNOWN    = "Impossibile identificare l'incantesimo trascinato.",
-    SMARTRANK       = "Smart Healing",
-    SMARTRANK_TIP   = "Cosa fa: al clic, invece del rango assegnato il pulsante lancia il rango più basso dello stesso incantesimo la cui cura prevista copre la salute mancante del bersaglio (meno le cure già in arrivo) più il margine di sicurezza. Risparmia mana e cure in eccesso. Regole: mai sopra il rango assegnato, solo cure dirette (le cure nel tempo di tutte le classi, come Rinnovamento, Ringiovanimento o Ricrescita, e gli scudi non vengono mai ridotti di rango) e sempre il rango assegnato sotto il 30 % di salute. All'interno di una catena di cure può cambiare anche l'incantesimo; disattivalo con /fbp smartcross. Svantaggi: la cura prevista è una stima dalla descrizione o dai valori appresi e ignora i critici; con danni a raffica, o quando vuoi curare in eccesso di proposito come cuscinetto (un tank prima di un colpo forte), il rango inferiore può non bastare. Disattivalo ogni volta che vuoi curare in eccesso. Ogni decisione è registrata con /fbp debug.",
+    SMARTRANK     = "Smart Healing",
+    SMARTRANK_TIP = "Lancia automaticamente il rango più basso la cui cura copre la salute mancante (meno cure in arrivo) più il margine di sicurezza.\n\n"
+        .. "|cFFFFD100Regole:|r\n"
+        .. "• Solo cure dirette (HoT e scudi non modificati)\n"
+        .. "• Sotto il 30 % di salute lancia sempre il rango assegnato\n"
+        .. "• Mai una cura superiore al rango assegnato\n"
+        .. "• Cambio incantesimo controllato da 'Smartcross'\n"
+        .. "• Decisioni registrate con /fbp debug",
     SMART_MARGIN    = "Margine di sicurezza: |cFFFFFFFF%s %%",
     COOLDOWNS       = "Recuperi sui pulsanti",
     COOLDOWNS_TIP   = "Mostra l'animazione del tempo di recupero su ogni pulsante (Rapidità della Natura, Concentrazione Interiore, Imposizione delle Mani, recupero dello scudo). Il tempo di recupero globale non viene mostrato.",
