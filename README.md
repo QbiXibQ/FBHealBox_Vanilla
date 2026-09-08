@@ -1,6 +1,6 @@
 # Heal Box Vanilla
 
-ADDON DOCUMENTATION · VERSION 1.4.4.2 · World of Warcraft CLIENT 1.12.1
+ADDON DOCUMENTATION · VERSION 1.4.4.3 · World of Warcraft CLIENT 1.12.1
 
 Party, pet and self heal display with quick-cast buttons for healers. One name plate with a health bar per group slot, plus one for every pet in the group directly below its owner, and next to it up to ten freely assignable spell buttons. A thin mana bar sits inside the health bar for everyone who actually uses mana. On top of that a complete heal prediction (direct heals, remaining HoT ticks and absorb shields) that corrects itself from the combat log and shares its numbers with other healers in the HealComm format. The interface is available in **English and German**, switchable in the options window.
 
@@ -37,6 +37,18 @@ The folder name must match the name of the `.toc` file, otherwise the addon neve
 **Optional: SuperWoW.** When detected, the addon prints `[SuperWoW detected]` at login and casts directly on the group member without touching your current target. Without SuperWoW it briefly switches target for the cast and restores the previous one afterwards.
 
 **No libraries required.** No Ace, no HealComm, no RosterLib. The addon speaks the HealComm protocol directly, see [HealComm sync](#healcomm-sync).
+
+---
+
+## Which classes it loads for
+
+The addon is built for healing and buffing. **Warriors, rogues and hunters** get nothing out of it: no heals, no heal prediction, and a mana ticker that either has no mana to watch (rage, energy) or nobody to heal (hunter). Logging in on one of those three classes therefore leaves everything switched off. No plates, no raid grid, no minimap button, no options window, and no event handling either, so the addon costs nothing while it sleeps. Instead two lines appear in the chat: what happened and how to change it.
+
+**Show it anyway:** type `/fbp forceload`. The display starts immediately, no `/reload` needed, and the setting is remembered for that character (`HealBox.ForceLoad`). The same command switches it back off. On every other class `/fbp forceload` just says it is not needed.
+
+While the addon sleeps, all other `/fbp` commands answer with the same hint, because nothing has been built that they could report on.
+
+Detection uses the client's English class token (`WARRIOR`, `ROGUE`, `HUNTER`) and falls back to the displayed class name in five languages, so it also works on localized clients.
 
 ---
 
@@ -102,7 +114,20 @@ Up to ten buttons sit next to each plate, each showing its spell's icon. A **lef
 
 **Right-click spell (optional).** Each button can carry a second spell for **right click** (Flash Heal left, Greater Heal right, say), which doubles the density without adding buttons. This is off by default and is enabled only through the switch on the *Buttons* tab. When on, a second column appears in the assignment and a small icon in the bottom-right corner of every button shows its right-click spell; the tooltip lists it as well. Switching it off keeps the assignments, it just stops the buttons from reacting to right click.
 
-**Smart Healing (off by default).** With *Smart Healing* on, a click casts the lowest rank of the assigned spell whose expected heal covers the target's missing health, minus healing already on the way, plus the *Safety margin* (default 20 %). Expected heals come from the learned values of the prediction where available, otherwise from the tooltip average. It never goes above the rank you assigned, applies to direct heals only (HoTs, shields and buffs such as Fortitude are always cast as assigned; a spell qualifies only if its tooltip describes a heal), and below 30 % health it always casts the assigned rank. Downsides: the estimate ignores crits, and with burst damage or when you want to overheal on purpose (a tank before a big hit) the lower rank can fall short. Leave it off whenever overhealing is what you want. `/fbp debug` prints every decision, `/fbp` shows the state.
+**Smart Healing (off by default).** With *Smart Healing* on, a click casts the lowest rank of the assigned spell whose expected heal covers the target's missing health, minus healing already on the way, plus the *Safety margin* (default 20 %). Expected heals come from the learned values of the prediction where available, otherwise from the tooltip average. It never goes above the rank you assigned, applies to direct heals only, and below 30 % health it always casts the assigned rank. **Heal over time spells are never downranked**, whatever the class: Renew, Rejuvenation, Regrowth, Tranquility, Lifebloom, Wild Growth, Riptide and Earth Shield always go out at the rank you assigned. A HoT spreads its healing over many seconds, so the health missing at the moment of the click says nothing about which rank fits, and a downranked HoT keeps ticking too weakly for its whole duration. Mixed spells such as Regrowth count as HoTs as well. Shields and buffs such as Fortitude are likewise cast as assigned, and a spell only qualifies at all if its tooltip describes a heal.
+
+**Heal chains (new in 1.4.4.3).** Downranking is not limited to the assigned spell. Within a *heal chain* the spell itself may change, so a click on Greater Heal can go out as Lesser Heal rank 3 when that covers the deficit. The chains hold the single-target direct heals of one class:
+
+|Class|Chain|
+|-|-|
+|Priest|Lesser Heal · Heal · Greater Heal|
+|Paladin|Flash of Light · Holy Light|
+|Shaman|Lesser Healing Wave · Healing Wave|
+|Druid|Healing Touch (Regrowth is a HoT and stays out)|
+
+Everything in the chain is a candidate, and the one with the smallest expected heal that still covers the need wins. Nothing that heals more than the rank you assigned is ever picked, so the button never gets stronger, only cheaper. Note that this can change the cast time: for a small deficit a Greater Heal click may become Lesser Heal, and a Holy Light click may become Flash of Light. Group heals (Prayer of Healing, Chain Heal), HoTs, shields and cooldown spells (Holy Shock, Lay on Hands) are never part of a chain.
+
+`/fbp smartcross` turns the chain switching off and on. With it off, Smart Healing stays on the assigned spell and only lowers its rank, exactly as in 1.4.4.3. The chains live in `FBHealChains` near the Smart Healing code and can be edited freely; spells you do not want swapped simply come out of the list. Downsides: the estimate ignores crits, and with burst damage or when you want to overheal on purpose (a tank before a big hit) the lower rank can fall short. Leave it off whenever overhealing is what you want. `/fbp debug` prints every decision, `/fbp` shows the state.
 
 **Cooldowns.** Every button shows the usual cooldown sweep for its spell. The global cooldown is not shown (`FBCD_MIN_DURATION`). Option *Cooldowns on buttons*.
 
@@ -245,6 +270,8 @@ The window has two tabs.
 **Show N buttons**: how many of the ten buttons actually appear (0 to 10). Assigned but hidden buttons keep their spell.
 
 **Smart Healing / Safety margin**: see [The buttons](#the-buttons). Off by default; margin 0 to 50 %, default 20.
+
+**Smartcross**: enables downranking across spells within a heal chain. Grayed out and disabled when Smart Healing is off; on by default.
 
 ### Tab *General*
 
@@ -401,6 +428,8 @@ On receive, your own messages are filtered by sender name, and since HealComm st
 |`/fbp test`|Toggles test mode (same as the checkbox)|
 |`/fbp config`|Opens or closes the options window (same as the minimap button)|
 |`/fbp buffs`|Lists the tracked buff spells, their presence and remaining time on you, and your raw buff textures|
+|`/fbp forceload`|Warrior, rogue and hunter only: shows the addon anyway, or hides it again. Saved per character|
+|`/fbp smartcross`|Smart Healing: downranking across spells within a heal chain on/off (on by default)|
 |`/fbp raid`|Toggles raid mode|
 |`/fbp raidtest 20` · `40` · `off`|Raid test with 20 or 40 ghosts, or off|
 |`/fbp ticker`|Toggles the mana ticker|
@@ -421,6 +450,7 @@ Everything lives in the `HealBox` table, saved **per character**:
 |`Scale`|Scale of the plates|
 |`AttachMode`|0 = own plates, 1 = default party frames|
 |`Active`|Display on/off (shift + left click on the minimap)|
+|`ForceLoad`|1 = show for warrior, rogue and hunter as well, 0 = off (default). Set with `/fbp forceload`|
 |`HealComm`|1 = sync on, 0 = off|
 |`Locale`|`deDE`, `enUS`, `esES`, `frFR` or `itIT`|
 |`ButtonSpacing`|Gap between the buttons in px (0 to 20)|
@@ -433,6 +463,7 @@ Everything lives in the `HealBox` table, saved **per character**:
 |`LOSIcon`|1 = line-of-sight badge on, 0 = off|
 |`PlateLeft` · `PlateRight`|Click action on a plate: `target`, `menu`, `move` or `none`|
 |`SmartRank` · `SmartMargin`|Smart Healing on/off (default off) and safety margin in percent|
+|`SmartCross`|1 = downranking may switch spell within a heal chain (default), 0 = stay on the assigned spell. Set with `/fbp smartcross`|
 |`Cooldowns` · `AggroMark` · `SpellTimers` · `BuffIcons`|Cooldown sweep, red border for the attacked member, HoT/shield timers, buff icons left of the bar|
 |`ClassColors`|1 = names in class colour, 0 = white|
 |`RangeFade`|1 = fade plates out of range, 0 = off|
@@ -500,8 +531,11 @@ Every knob is a global at the top of its own section and can be changed without 
 
 |Function|Purpose|
 |-|-|
-|`FBHealBox_OnLoad()`|Event registration, startup message|
-|`FBHealBox_OnEvent(event, arg1)`|Central event dispatch|
+|`FBHealBox_OnLoad()`|Event registration|
+|`FBHealBox_OnEvent(event, arg1)`|Central event dispatch; also decides the class gate on `ADDON_LOADED` / `VARIABLES_LOADED`|
+|`FBHealBox_ClassIsBlocked()` · `FBHealBox_ClassAllowed()`|Is this a warrior, rogue or hunter, and may the display run anyway (`ForceLoad`)?|
+|`FBHealBox_ApplyClassGate()` · `FBHealBox_Suppressed()`|Applies the class gate and reports the sleeping state to the modules|
+|`FBHealBox_HideAll()` · `FBHealBox_StartUp()` · `FBHealBox_Announce()`|Puts everything to sleep, wakes everything up, prints the startup message once|
 |`FBHealBoxSetup()`|Creates the ten plates (five players, five pets)|
 |`FBHealBoxCreateFrame(…)`|Builds one plate including its four bars|
 |`FBHealBox_SetBarStrata(f, strata)`|Stacks mana / health / shield / prediction|
@@ -513,6 +547,8 @@ Every knob is a global at the top of its own section and can be changed without 
 |`FBHealBox_CastOn(button, castString)`|Casts a button's spell (left or right) on its target|
 |`FBHealBox_DropSpell(btnIndex, side)` · `FBHealBox_CursorSpell()`|Drag and drop from the spellbook|
 |`FBHealBox_SmartRank(castString, unit)`|Picks the rank to cast|
+|`FBHealBox_IsHoT(base, ranks)`|Heal over time? List of names plus tooltip, spell watch and running HoTs. Smart Healing skips these|
+|`FBHealBox_HealFamily(base)` · `FBHealBox_DirectAmount(spell, sd)`|The heal chain a spell belongs to; the expected heal of one rank, or nil if the spell is not eligible|
 |`FBHealBox_CheckAggroAll()` · `FBHealBox_ApplyBorder(f)`|Red border for the attacked member; border precedence|
 |`FBHealBox_UpdateSpellTimers()` · `FBHealBox_SpellTimerFor(...)`|HoT/shield timers on buttons|
 |`FBHealBox_UpdateButtonCooldown(b)` · `FBHealBox_UpdateAllCooldowns()`|Cooldown sweep|
@@ -623,6 +659,10 @@ The four functions that feed the bars. All of them expect a **player name**, not
 
 ## Troubleshooting
 
+**Nothing shows up at all after login.** Check the chat for the orange line naming your class: on a warrior, rogue or hunter the addon stays asleep on purpose. `/fbp forceload` shows it anyway, see [Which classes it loads for](#which-classes-it-loads-for).
+
+**Smart Healing does not downrank a spell.** Heal over time spells are excluded on purpose, and so are shields, buffs and any spell whose tooltip does not describe a heal. If it downranks but never leaves the assigned spell, the spell is not in any heal chain, or `/fbp smartcross` is off. Below 30 % health the assigned rank is always used. `/fbp debug` prints the reason for every decision.
+
 **A spell does not appear in the menu.** It is not in your class's spell list (`Spell.Name` near the top of the file), or not learned yet. The list can be extended freely.
 
 **Learned absorb values are capped.** A remembered absorb larger than 1.5 times the tooltip value is treated as a counting error and dropped on load (`FBPredict_SanitizeMemory`); values from versions before 1.4.2 that were doubled by the old double load clean themselves up this way.
@@ -666,6 +706,7 @@ Entries that do not exist do no harm: if the spellbook scan does not find them, 
 * heal prediction for direct heals, remaining HoT ticks and absorb shields, self-correcting from the combat log
 * HealComm sync with Puppeteer, pfUI, Luna and others, without any Ace libraries
 * English, German, Spanish, French and Italian localization, switchable in game
+* 1.4.4.3: class gate for warriors, rogues and hunters (display stays off, chat hint, `/fbp forceload` to override) and Smart Healing no longer downranks heal over time spells of any class. Smart Healing downranks across spells inside a heal chain (Greater Heal to Lesser Heal, Holy Light to Flash of Light), `/fbp smartcross` turns it off; see CHANGELOG
 * 1.4.4.2: 32-step buff icon duration display (replacing the 4-quadrant clock with a 32-stage vertical wipe) and syntax/diagnostic bugfixes; see CHANGELOG
 * 1.4.4.1: buff tracking & tooltip scanning fix (Divine Spirit clock icon), expanded class spell lists with blessings, buffs, utility and rez spells, group buff alternate tracking; see CHANGELOG
 * 1.4.4: performance pass without functional change (central button states, display caches, shared aura scans, coalesced event bursts); see CHANGELOG
@@ -675,14 +716,14 @@ Entries that do not exist do no harm: if the spellbook scan does not find them, 
 
 ---
 
-Heal Box Vanilla v1.4.4.2 · original by Dourd, UI Overhauled · ported to Vanilla and extended 09/2026 by Mquadrat
+Heal Box Vanilla v1.4.4.3 · original by Dourd, UI Overhauled · ported to Vanilla and extended 09/2026 by Mquadrat
 
 _______________________________________________________________________
 GERMAN
 
 # Heal Box Vanilla
 
-ADDON-DOKUMENTATION · VERSION 1.4.4.2 · CLIENT 1.12.1
+ADDON DOKUMENTATION · VERSION 1.4.4.3 · World of Warcraft CLIENT 1.12.1
 
 Party-, Begleiter- und Selbst-Heilanzeige mit Schnellzugriff-Buttons für Heiler. Für jeden Gruppenplatz eine Namensplakette mit Lebensbalken, dazu eine für jeden Begleiter in der Gruppe direkt unter seinem Besitzer, daneben bis zu zehn frei belegbare Zauber-Buttons. Ein schmaler Manabalken liegt im Lebensbalken, bei allen, die tatsächlich Mana nutzen. Dazu eine vollständige Heilvorhersage (Direktheilung, HoT-Restticks und Absorb-Schilde), die sich über den Combatlog selbst korrigiert und ihre Werte im HealComm-Format mit anderen Heilern teilt. Die Oberfläche gibt es auf **Deutsch und Englisch**, umschaltbar im Optionsfenster.
 
@@ -709,6 +750,18 @@ Der Ordnername muss zum Dateinamen der `.toc` passen, sonst startet das Addon ni
 **Optional: SuperWoW.** Wird es erkannt, meldet das Addon beim Login `[SuperWoW erkannt]` und castet direkt auf das Gruppenmitglied, ohne dein aktuelles Ziel anzufassen. Ohne SuperWoW wechselt das Addon für den Cast kurz das Ziel und stellt das alte danach wieder her.
 
 **Keine Bibliotheken nötig.** Kein Ace, kein HealComm, kein RosterLib. Das Addon spricht das HealComm-Protokoll direkt, siehe [HealComm-Sync](#healcomm-sync).
+
+---
+
+## Für welche Klassen es lädt
+
+Das Addon ist fürs Heilen und Buffen gebaut. **Krieger, Schurken und Jäger** haben nichts davon: keine Heilzauber, keine Heilvorhersage, und ein Mana-Ticker, der entweder kein Mana zu beobachten hat (Wut, Energie) oder niemanden zu heilen (Jäger). Wer sich mit einer dieser drei Klassen einloggt, bekommt deshalb gar nichts zu sehen. Keine Plaketten, kein Raid-Raster, kein Minimap-Button, kein Optionsfenster, und auch keine Event-Verarbeitung, das Addon kostet im Ruhezustand also nichts. Stattdessen stehen zwei Zeilen im Chat: was passiert ist und wie man es ändert.
+
+**Trotzdem anzeigen:** `/fbp forceload` eintippen. Die Anzeige startet sofort, ohne `/reload`, und die Einstellung bleibt für diesen Charakter gespeichert (`HealBox.ForceLoad`). Derselbe Befehl schaltet sie wieder aus. Bei jeder anderen Klasse antwortet `/fbp forceload` nur, dass es nicht nötig ist.
+
+Solange das Addon ruht, antworten alle anderen `/fbp`-Befehle mit demselben Hinweis, denn es ist nichts aufgebaut, worüber sie berichten könnten.
+
+Erkannt wird über das englische Klassen-Token des Clients (`WARRIOR`, `ROGUE`, `HUNTER`), mit Rückfall auf den angezeigten Klassennamen in fünf Sprachen, damit die Sperre auch auf lokalisierten Clients greift.
 
 ---
 
@@ -774,7 +827,20 @@ Rechts neben jeder Plakette liegen bis zu zehn Buttons, jeder mit dem Icon seine
 
 **Rechtsklick-Zauber (optional).** Jeder Button kann einen zweiten Zauber für **Rechtsklick** tragen (etwa Blitzheilung links, Große Heilung rechts), was die Anzeige verdichtet, ohne Buttons hinzuzufügen. Das ist standardmäßig aus und wird ausschließlich über den Schalter im Reiter *Buttons* eingeschaltet. Eingeschaltet erscheint eine zweite Spalte in der Belegung, und ein kleines Icon unten rechts auf jedem Button zeigt seinen Rechtsklick-Zauber; der Tooltip nennt ihn ebenfalls. Ausschalten behält die Belegung, die Buttons reagieren nur nicht mehr auf Rechtsklick.
 
-**Smart Healing (standardmäßig aus).** Mit *Smart Healing* wirkt ein Klick den niedrigsten Rang des belegten Zaubers, dessen erwartete Heilung das fehlende Leben des Ziels abzüglich schon eingehender Heilung plus *Sicherheitsaufschlag* (Standard 20 %) deckt. Die erwartete Heilung stammt aus den gelernten Werten der Vorhersage, wo vorhanden, sonst aus dem Tooltip-Mittelwert. Nie über dem belegten Rang, nur für Direktheilungen (HoTs, Schilde und Buffs wie Seelenstärke gehen immer wie belegt raus; ein Zauber kommt nur in Frage, wenn sein Tooltip eine Heilung beschreibt), und unter 30 % Leben immer der belegte Rang. Nachteile: Die Schätzung kennt keine Crits, und bei Schadensspitzen oder gewolltem Überheilen (Tank vor einem großen Treffer) kann der kleinere Rang zu wenig sein. Aus lassen, wann immer Overheal gewollt ist. `/fbp debug` zeigt jede Entscheidung, `/fbp` den Zustand.
+**Smart Healing (standardmäßig aus).** Mit *Smart Healing* wirkt ein Klick den niedrigsten Rang des belegten Zaubers, dessen erwartete Heilung das fehlende Leben des Ziels abzüglich schon eingehender Heilung plus *Sicherheitsaufschlag* (Standard 20 %) deckt. Die erwartete Heilung stammt aus den gelernten Werten der Vorhersage, wo vorhanden, sonst aus dem Tooltip-Mittelwert. Nie über dem belegten Rang, nur für Direktheilungen, und unter 30 % Leben immer der belegte Rang. **Zauber mit Heilung über Zeit werden nie abgerangt**, egal welcher Klasse: Erneuerung, Verjüngung, Nachwachsen, Gelassenheit, Lebensblüte, Wildwuchs, Springflut und Erdschild gehen immer im belegten Rang raus. Ein HoT verteilt seine Heilung über viele Sekunden, das im Moment des Klicks fehlende Leben sagt also nichts darüber aus, welcher Rang passt, und ein abgerangter HoT tickt die volle Laufzeit zu schwach. Gemischte Zauber wie Nachwachsen zählen ebenfalls als HoT. Schilde und Buffs wie Seelenstärke gehen genauso wie belegt raus, und ein Zauber kommt überhaupt nur in Frage, wenn sein Tooltip eine Heilung beschreibt.
+
+**Heilketten (neu in 1.4.4.3).** Abgerangt wird nicht nur innerhalb des belegten Zaubers. Innerhalb einer *Heilkette* darf auch der Zauber selbst wechseln, ein Klick auf Große Heilung kann also als Geringes Heilen Rang 3 rausgehen, wenn das den Fehlbetrag deckt. Die Ketten enthalten die Einzelziel-Direktheilungen einer Klasse:
+
+|Klasse|Kette|
+|-|-|
+|Priester|Geringes Heilen · Heilen · Große Heilung |
+|Paladin|Blitz des Lichts · Heiliges Licht|
+|Schamane|Geringe Welle der Heilung · Welle der Heilung|
+|Druide|Heilende Berührung (Nachwachsen ist ein HoT und bleibt draußen)|
+
+Alles in der Kette ist Kandidat, gewonnen hat der mit der kleinsten erwarteten Heilung, die den Bedarf noch deckt. Nie gewählt wird etwas, das mehr heilt als der belegte Rang, der Button wird also nie stärker, nur billiger. Das kann die Zauberzeit ändern: Bei kleinem Fehlbetrag wird aus einem Klick auf Große Heilung eine Geringe Heilung, aus Heiligem Licht ein Blitz des Lichts. Gruppenheilungen (Gebet der Heilung, Kettenheilung), HoTs, Schilde und Zauber mit Abklingzeit (Heiliger Schock, Handauflegung) sind nie Teil einer Kette.
+
+`/fbp smartcross` schaltet den Kettenwechsel aus und wieder ein. Aus bleibt Smart Healing beim belegten Zauber und senkt nur dessen Rang, genau wie in 1.4.4.3. Die Ketten stehen in `FBHealChains` direkt beim Smart-Healing-Code und lassen sich frei bearbeiten; Zauber, die nicht getauscht werden sollen, fliegen einfach aus der Liste. Nachteile: Die Schätzung kennt keine Crits, und bei Schadensspitzen oder gewolltem Überheilen (Tank vor einem großen Treffer) kann der kleinere Rang zu wenig sein. Aus lassen, wann immer Overheal gewollt ist. `/fbp debug` zeigt jede Entscheidung, `/fbp` den Zustand.
 
 **Cooldowns.** Jeder Button zeigt die gewohnte Cooldown-Uhr seines Zaubers. Der globale Cooldown wird nicht gezeigt (`FBCD_MIN_DURATION`). Option *Cooldowns auf den Buttons*.
 
@@ -917,6 +983,8 @@ Das Fenster hat zwei Reiter.
 **N Buttons anzeigen**: wie viele der zehn Buttons tatsächlich erscheinen (0 bis 10). Belegte, aber ausgeblendete Buttons behalten ihre Zuordnung.
 
 **Smart Healing / Sicherheitsaufschlag**: siehe [Die Buttons](#die-buttons). Standardmäßig aus; Aufschlag 0 bis 50 %, Standard 20.
+
+**Smartcross**: erlaubt Smart Healing das Wechseln des Zaubers innerhalb einer Heilkette. Ausgegraut und gesperrt, wenn Smart Healing deaktiviert ist; standardmäßig an.
 
 ### Reiter *Allgemein*
 
@@ -1071,6 +1139,8 @@ Beim Empfang werden eigene Nachrichten über den Absendernamen gefiltert, und da
 |`/fbp test`|Testmodus an/aus (wie der Haken in den Optionen)|
 |`/fbp config`|Optionsfenster auf/zu (wie der Minimap-Button)|
 |`/fbp buffs`|Listet die verfolgten Buff-Zauber, ihre Präsenz und Restzeit auf dir sowie deine rohen Buff-Texturen|
+|`/fbp forceload`|Nur für Krieger, Schurke und Jäger: zeigt das Addon trotzdem an oder blendet es wieder aus. Pro Charakter gespeichert|
+|`/fbp smartcross`|Smart Healing: Abrangen über Zaubergrenzen innerhalb einer Heilkette an/aus (Standard an)|
 |`/fbp raid`|Raidmodus an/aus|
 |`/fbp raidtest 20` · `40` · `off`|Raid-Test mit 20 oder 40 Geistern, oder aus|
 |`/fbp ticker`|Mana-Ticker an/aus|
@@ -1091,6 +1161,7 @@ Alles liegt in der Tabelle `HealBox`, gespeichert **pro Charakter**:
 |`Scale`|Skalierung der Plaketten|
 |`AttachMode`|0 = eigene Plaketten, 1 = Standard-Gruppenfenster|
 |`Active`|Anzeige ein/aus (Shift + Linksklick auf die Minimap)|
+|`ForceLoad`|1 = Anzeige auch für Krieger, Schurke und Jäger, 0 = aus (Standard). Wird mit `/fbp forceload` gesetzt|
 |`HealComm`|1 = Sync an, 0 = aus|
 |`Locale`|`deDE`, `enUS`, `esES`, `frFR` oder `itIT`|
 |`ButtonSpacing`|Abstand der Buttons in px (0 bis 20)|
@@ -1103,6 +1174,7 @@ Alles liegt in der Tabelle `HealBox`, gespeichert **pro Charakter**:
 |`LOSIcon`|1 = Sichtlinien-Abzeichen an, 0 = aus|
 |`PlateLeft` · `PlateRight`|Klickaktion auf einer Plakette: `target`, `menu`, `move` oder `none`|
 |`SmartRank` · `SmartMargin`|Smart Healing an/aus (Standard aus) und Sicherheitsaufschlag in Prozent|
+|`SmartCross`|1 = Abrangen darf den Zauber innerhalb einer Heilkette wechseln (Standard), 0 = beim belegten Zauber bleiben. Wird mit `/fbp smartcross` gesetzt|
 |`Cooldowns` · `AggroMark` · `SpellTimers` · `BuffIcons`|Cooldown-Uhr, roter Rahmen für den Angegriffenen, HoT/Schild-Timer, Buff-Icons links am Balken|
 |`ClassColors`|1 = Namen in Klassenfarbe, 0 = weiß|
 |`RangeFade`|1 = Plaketten außer Reichweite abblenden, 0 = aus|
@@ -1167,8 +1239,11 @@ Alle Stellschrauben stehen als Globals oben in ihrem jeweiligen Abschnitt und la
 
 |Funktion|Zweck|
 |-|-|
-|`FBHealBox_OnLoad()`|Event-Registrierung, Startmeldung|
-|`FBHealBox_OnEvent(event, arg1)`|Zentrale Ereignisverteilung|
+|`FBHealBox_OnLoad()`|Event-Registrierung|
+|`FBHealBox_OnEvent(event, arg1)`|Zentrale Ereignisverteilung; entscheidet bei `ADDON_LOADED` / `VARIABLES_LOADED` auch über die Klassensperre|
+|`FBHealBox_ClassIsBlocked()` · `FBHealBox_ClassAllowed()`|Krieger, Schurke oder Jäger? Und darf die Anzeige trotzdem laufen (`ForceLoad`)?|
+|`FBHealBox_ApplyClassGate()` · `FBHealBox_Suppressed()`|Wendet die Klassensperre an und meldet den Ruhezustand an die Module|
+|`FBHealBox_HideAll()` · `FBHealBox_StartUp()` · `FBHealBox_Announce()`|Legt alles schlafen, weckt alles auf, gibt die Startmeldung genau einmal aus|
 |`FBHealBoxSetup()`|Legt die zehn Plaketten an (fünf Spieler, fünf Begleiter)|
 |`FBHealBoxCreateFrame(…)`|Baut eine Plakette samt der vier Balken|
 |`FBHealBox_SetBarStrata(f, strata)`|Stapelt Mana / Leben / Schild / Vorhersage|
@@ -1180,6 +1255,8 @@ Alle Stellschrauben stehen als Globals oben in ihrem jeweiligen Abschnitt und la
 |`FBHealBox_CastOn(button, castString)`|Wirkt den Zauber eines Buttons (links oder rechts) auf sein Ziel|
 |`FBHealBox_DropSpell(btnIndex, side)` · `FBHealBox_CursorSpell()`|Drag & Drop aus dem Zauberbuch|
 |`FBHealBox_SmartRank(castString, unit)`|Wählt den zu wirkenden Rang|
+|`FBHealBox_IsHoT(base, ranks)`|Heilung über Zeit? Namensliste plus Tooltip, Zauberwache und laufende HoTs. Smart Healing lässt diese aus|
+|`FBHealBox_HealFamily(base)` · `FBHealBox_DirectAmount(spell, sd)`|Die Heilkette eines Zaubers; die erwartete Heilung eines Rangs, oder nil, wenn der Zauber nicht in Frage kommt|
 |`FBHealBox_CheckAggroAll()` · `FBHealBox_ApplyBorder(f)`|Roter Rahmen für den Angegriffenen; Rahmen-Vorrang|
 |`FBHealBox_UpdateSpellTimers()` · `FBHealBox_SpellTimerFor(...)`|HoT/Schild-Timer auf Buttons|
 |`FBHealBox_UpdateButtonCooldown(b)` · `FBHealBox_UpdateAllCooldowns()`|Cooldown-Uhr|
@@ -1279,6 +1356,10 @@ Die vier Funktionen, die die Balken speisen. Alle erwarten einen **Spielernamen*
 
 ## Fehlersuche
 
+**Nach dem Einloggen ist gar nichts zu sehen.** Im Chat steht eine orange Zeile mit deiner Klasse: Bei Krieger, Schurke und Jäger schläft das Addon mit Absicht. `/fbp forceload` zeigt es trotzdem an, siehe [Für welche Klassen es lädt](#für-welche-klassen-es-lädt).
+
+**Smart Healing rangt einen Zauber nicht ab.** Zauber mit Heilung über Zeit sind bewusst ausgenommen, ebenso Schilde, Buffs und alles, dessen Tooltip keine Heilung beschreibt. Rangt es zwar ab, wechselt aber nie den Zauber, steht der Zauber in keiner Heilkette oder `/fbp smartcross` ist aus. Unter 30 % Leben geht immer der belegte Rang raus. `/fbp debug` schreibt zu jeder Entscheidung den Grund in den Chat.
+
 **Ein Zauber taucht im Menü nicht auf.** Er steht nicht in der Zauberliste deiner Klasse (`Spell.Name` am Dateianfang) oder ist noch nicht gelernt. Die Liste lässt sich frei erweitern.
 
 **Gelernte Absorb-Werte sind gedeckelt.** Ein gemerkter Absorb über dem 1,5-fachen des Tooltipwerts gilt als Zählfehler und wird beim Laden verworfen (`FBPredict_SanitizeMemory`); die durch die alte Doppelladung verdoppelten Werte aus Versionen vor 1.4.2 räumen sich so von selbst auf.
@@ -1322,6 +1403,7 @@ Nicht vorhandene Einträge stören nicht: Findet der Zauberbuch-Scan sie nicht, 
 * Heilvorhersage für Direktheilung, HoT-Restticks und Absorb-Schilde, selbstkorrigierend über den Combatlog
 * HealComm-Sync mit Puppeteer, pfUI, Luna und Co., ohne Ace-Bibliotheken
 * Lokalisierung Deutsch, Englisch, Spanisch, Französisch und Italienisch, im laufenden Spiel umschaltbar
+* 1.4.4.3: Klassensperre für Krieger, Schurke und Jäger (Anzeige bleibt aus, Hinweis im Chat, Freischaltung mit `/fbp forceload`) und Smart Healing rangt HoTs aller Klassen nicht mehr ab. Smart Healing rangt innerhalb einer Heilkette auch über Zaubergrenzen ab (Große Heilung zu Geringem Heilen, Heiliges Licht zu Blitz des Lichts), `/fbp smartcross` schaltet es aus; siehe CHANGELOG siehe CHANGELOG
 * 1.4.4.2: 32-Stufen-Ablaufanzeige für Buff-Icons (ersetzt die 4-Quadranten-Uhr durch 32 vertikale Stufen) sowie Syntax- und Diagnose-Korrekturen; siehe CHANGELOG
 * 1.4.4.1: Buff-Erkennung & Tooltip-Scan behoben (Göttlicher Willen Uhr-Icon), vollständige Klassen-Zauberlisten mit Segen, Buffs, Hilfszaubern und Wiederbelebung, Gruppen-Buff-Erkennung; siehe CHANGELOG
 * 1.4.4: Leistungsdurchgang ohne Funktionsänderung (zentrale Button-Zustände, Anzeige-Zwischenspeicher, gemeinsame Aura-Scans, zusammengefasste Event-Salven); siehe CHANGELOG
@@ -1331,7 +1413,7 @@ Nicht vorhandene Einträge stören nicht: Findet der Zauberbuch-Scan sie nicht, 
 
 ---
 
-Heal Box Vanilla v1.4.4.2 · Original von Dourd, UI Overhauled · Vanilla-Portierung und Erweiterung 09/2026 von Mquadrat
+Heal Box Vanilla v1.4.4.3 · Original von Dourd, UI Overhauled · Vanilla-Portierung und Erweiterung 09/2026 von Mquadrat
 
 ---
 
@@ -1342,4 +1424,3 @@ Heal Box Vanilla v1.4.4.2 · Original von Dourd, UI Overhauled · Vanilla-Portie
 **Deutsch:** World of Warcraft Vanilla 1.12.1 Heiler-Addon, Classic WoW Heil-Addon, Heilfenster mit Klick-Buttons, Healium-Alternative für Vanilla, HealComm-kompatibel, Heilvorhersage und eingehende Heilung, Absorb-Schild-Anzeige, HoT-Timer, Machtwort: Schild und Geschwächte Seele, Buff-Timer als Uhr-Icons, Seelenstärke nachbuffen, Dispel-Anzeige, Gruppen- und Begleiterfenster, kompakte Raidframes für 20er und 40er Schlachtzüge, Raid-Raster für Heiler, Mana-Ticker und Fünf-Sekunden-Regel, Regenerations-Tick-Balken, automatisches Abrangen, Smart Healing, Smart Damage, Angriffsziel-Markierung, Sichtlinien-Anzeige, Reichweiten-Fading, Klassenfarben, SuperWoW, UnitXP, MobHealth3 und MobInfo-2, läuft auf Turtle WoW und anderen 1.12-Privatservern, Priester Druide Paladin Schamane Heiler-UI, Lua 5.0 Addon, Deutsch Englisch Spanisch Französisch Italienisch.
 
 #WoWVanilla #Vanilla112 #WoW1121 #ClassicWoW #TurtleWoW #WoWAddon #VanillaAddon #HealerAddon #HealingAddon #Healium #HealComm #HealPrediction #RaidFrames #PartyFrames #UnitFrames #ClickCasting #ManaTicker #FiveSecondRule #Downranking #SmartHealing #SmartDamage #BuffTimer #HoTTracker #DispelTracker #Priest #Druid #Paladin #Shaman #SuperWoW #UnitXP #MobHealth #Lua50 #HealBoxVanilla
-
