@@ -292,6 +292,7 @@ FBLocale["enUS"] = {
     FBP_SMART_CROSS = "· across spells: %s",
     SMART_CROSS_ON  = "Smart Healing may now switch spell within a heal chain (e.g. Greater Heal to Lesser Heal). |cFF00FF00On|r.",
     SMART_CROSS_OFF = "Smart Healing now stays within the assigned spell and only lowers its rank. |cFFFF0000Cross-spell off|r.",
+    SMART_CROSS_NEEDS = "Note: Smart Healing itself is off, so this has no effect yet. Turn it on in the options or with the Smart Healing switch on the Buttons tab.",
 
     CLASS_BLOCKED = "not shown for %s: this addon is made for healing classes. Warriors, rogues and hunters have no heals, no heal prediction and nothing to gain from the mana ticker.",
     CLASS_BLOCKED_HINT = "Type /fbp forceload to show it anyway. The setting is kept for this character.",
@@ -431,6 +432,7 @@ FBLocale["deDE"] = {
     FBP_SMART_CROSS = "· ueber Zaubergrenzen: %s",
     SMART_CROSS_ON  = "Smart Healing darf den Zauber innerhalb einer Heilkette wechseln (z. B. Grosse Heilung zu Geringem Heilen). |cFF00FF00An|r.",
     SMART_CROSS_OFF = "Smart Healing bleibt beim belegten Zauber und senkt nur dessen Rang. |cFFFF0000Kettenwechsel aus|r.",
+    SMART_CROSS_NEEDS = "Hinweis: Smart Healing selbst ist aus, das wirkt also noch nicht. Einschalten im Optionsfenster ueber den Schalter Smart Healing im Reiter Buttons.",
 
     CLASS_BLOCKED = "wird fuer %s nicht angezeigt: Das Addon ist fuer Heilerklassen gemacht. Krieger, Schurken und Jaeger haben keine Heilzauber, keine Heilvorhersage und keinen Nutzen vom Mana-Ticker.",
     CLASS_BLOCKED_HINT = "Mit /fbp forceload trotzdem anzeigen. Die Einstellung bleibt fuer diesen Charakter gespeichert.",
@@ -589,6 +591,7 @@ FBLocale["esES"] = {
     FBP_SMART_CROSS = "· entre hechizos: %s",
     SMART_CROSS_ON  = "Smart Healing puede cambiar de hechizo dentro de una cadena de curación (p. ej. Curar más y Curar menos). |cFF00FF00Activado|r.",
     SMART_CROSS_OFF = "Smart Healing se queda en el hechizo asignado y solo baja su rango. |cFFFF0000Cambio de hechizo desactivado|r.",
+    SMART_CROSS_NEEDS = "Nota: Smart Healing está desactivado, así que esto aún no tiene efecto. Actívalo en la pestaña Botones.",
 
     CLASS_BLOCKED   = "no se muestra para %s: este addon está hecho para clases sanadoras. Guerreros, pícaros y cazadores no tienen curaciones, ni predicción de curación, ni provecho del marcador de maná.",
     CLASS_BLOCKED_HINT = "Escribe /fbp forceload para mostrarlo igualmente. El ajuste se guarda para este personaje.",
@@ -719,6 +722,7 @@ FBLocale["frFR"] = {
     FBP_SMART_CROSS = "· entre sorts : %s",
     SMART_CROSS_ON  = "Smart Healing peut changer de sort dans une chaîne de soins (p. ex. Soins supérieurs vers Soins inférieurs). |cFF00FF00Activé|r.",
     SMART_CROSS_OFF = "Smart Healing reste sur le sort assigné et n'abaisse que son rang. |cFFFF0000Changement de sort désactivé|r.",
+    SMART_CROSS_NEEDS = "Note : Smart Healing lui-même est désactivé, ceci n'a donc pas encore d'effet. Activez-le dans l'onglet Boutons.",
 
     CLASS_BLOCKED   = "non affiché pour %s : cet addon est fait pour les classes soigneuses. Les guerriers, voleurs et chasseurs n'ont pas de soins, pas de prévision de soins et aucun usage du compteur de mana.",
     CLASS_BLOCKED_HINT = "Tapez /fbp forceload pour l'afficher quand même. Le réglage est conservé pour ce personnage.",
@@ -849,6 +853,7 @@ FBLocale["itIT"] = {
     FBP_SMART_CROSS = "· tra incantesimi: %s",
     SMART_CROSS_ON  = "Smart Healing può cambiare incantesimo all'interno di una catena di cure (p. es. da Cura Superiore a Cura Inferiore). |cFF00FF00Attivo|r.",
     SMART_CROSS_OFF = "Smart Healing resta sull'incantesimo assegnato e ne abbassa solo il rango. |cFFFF0000Cambio incantesimo disattivato|r.",
+    SMART_CROSS_NEEDS = "Nota: Smart Healing stesso è disattivato, quindi questo non ha ancora effetto. Attivalo nella scheda Pulsanti.",
 
     CLASS_BLOCKED   = "non mostrato per %s: questo addon è pensato per le classi curatrici. Guerrieri, ladri e cacciatori non hanno cure, né previsione delle cure, né vantaggi dal contatore del mana.",
     CLASS_BLOCKED_HINT = "Scrivi /fbp forceload per mostrarlo comunque. L'impostazione resta salvata per questo personaggio.",
@@ -1456,7 +1461,8 @@ function FBHealBox_UpdateSmartCrossState()
     if (HealBox.SmartRank == 1) then
         SmartCrossCheck:Enable();
         if (SmartCrossCheck.Text) then
-            SmartCrossCheck.Text:SetTextColor(1, 1, 1, 1);
+            -- Gold wie bei allen anderen Schaltern (GameFontNormal)
+            SmartCrossCheck.Text:SetTextColor(1, 0.82, 0, 1);
         end
     else
         SmartCrossCheck:Disable();
@@ -5754,6 +5760,9 @@ SlashCmdList["FBHEALPREDICT"] = function(msg)
         end
         if (HealBox.ForceLoad == 1) then
             HealBox.ForceLoad = 0;
+            -- Die Sperrmeldung kam beim Einloggen schon, hier reicht die
+            -- Rueckmeldung des Befehls
+            FBGateAnnounced = true;
             FBHealBox_ApplyClassGate();
             DEFAULT_CHAT_FRAME:AddMessage("|cFFFFFF00"..FBADDON_NAME..":|r "..FBT("CLASS_FORCE_OFF"));
         else
@@ -5803,6 +5812,9 @@ SlashCmdList["FBHEALPREDICT"] = function(msg)
         local key = "SMART_CROSS_OFF";
         if (HealBox.SmartCross == 1) then key = "SMART_CROSS_ON"; end
         DEFAULT_CHAT_FRAME:AddMessage("|cFFFFFF00"..FBADDON_NAME..":|r "..FBT(key));
+        if (HealBox.SmartRank ~= 1) then
+            DEFAULT_CHAT_FRAME:AddMessage("|cFFAAAAAA"..FBT("SMART_CROSS_NEEDS").."|r");
+        end
         if (SmartCrossCheck) then SmartCrossCheck:SetChecked(HealBox.SmartCross == 1); end
         return;
     end
