@@ -1,6 +1,6 @@
 # Heal Box Vanilla
 
-ADDON DOCUMENTATION · VERSION 1.4.4.3 · World of Warcraft CLIENT 1.12.1
+ADDON DOCUMENTATION · VERSION 1.4.5 · World of Warcraft CLIENT 1.12.1
 
 Party, pet and self heal display with quick-cast buttons for healers. One name plate with a health bar per group slot, plus one for every pet in the group directly below its owner, and next to it up to ten freely assignable spell buttons. A thin mana bar sits inside the health bar for everyone who actually uses mana. On top of that a complete heal prediction (direct heals, remaining HoT ticks and absorb shields) that corrects itself from the combat log and shares its numbers with other healers in the HealComm format. The interface is available in **English and German**, switchable in the options window.
 
@@ -88,6 +88,8 @@ Everything is clipped at the end of the bar: a shield exceeding maximum HP stays
 ### Mana bar
 
 The mana bar is `FBMANA_BAR_HEIGHT` (5) pixels high and lies on the bottom edge of the health bar. Where mana is missing a darker translucent strip shows through (`FBMANA_BG_ALPHA`, 0.35, set to 0 for none). It only appears when the unit's **power type is mana** (`UnitPowerType() == 0`): warriors, rogues, hunter pets and druids in cat or bear form get no strip, and the health bar is visible at full height. The bar follows `UNIT_MANA`, `UNIT_MAXMANA` and `UNIT_DISPLAYPOWER`. The *Mana bar* option switches it off entirely.
+
+With *Show rage, energy, focus* ticked the strip is no longer reserved for mana: every unit gets its own resource in its usual colour, taken from `FBPOWER_COLORS` (mana blue, rage red, focus orange, energy yellow). Druids switching form change colour with `UNIT_DISPLAYPOWER` like any other power change. Off by default, because for a healer an empty strip on a warrior is information too: there is nothing there you could refill.
 
 ### Dispel colouring
 
@@ -283,6 +285,10 @@ The window has two tabs.
 
 **Mana bar**: shows or hides the mana strip inside the health bar. On by default.
 
+**Hide Blizzard party frames**: hides `PartyMemberFrame1` to `4` while you are in a group, so only the Heal Box plates remain. Off by default. This and *Default party frames* can never both be on, because the attach mode docks the plates onto exactly those frames; whichever one is ticked greys the other out. Switching it off brings the frames back immediately, and a class the addon does not load for gets them back too.
+
+**Show rage, energy, focus**: the mana strip normally stays empty for anyone without mana. With this on, warriors, rogues and pets show their own resource in the usual colour (rage red, energy yellow, focus orange, table `FBPOWER_COLORS`). Needs the mana bar to be on. Off by default.
+
 **Show pets**: shows or hides all pet plates. On by default.
 
 **Debuff icon**: shows or hides the debuff icon with stack count next to the name. On by default.
@@ -367,6 +373,12 @@ HoTs cast from the action bar are recognised as well, then with the highest know
 
 The tick interval cannot be read from the tooltip in Vanilla and therefore lives in `FBPredictTickInterval` (3 seconds by default, Lifebloom 1).
 
+### Equipment bonus
+
+Vanilla spell tooltips show the naked base value, the healing bonus from your gear is not in there. Learned values from the combat log carry it automatically, so the gap only exists for ranks you have never cast. If an API supplies the bonus, the addon closes that gap: the value is weighted the vanilla way, cast time divided by 3.5 and capped at 3.5 seconds, instants counting as 1.5. A 3 second Greater Heal with +700 healing therefore starts out 600 higher than its tooltip, a 1.5 second Flash Heal 300.
+
+`GetSpellBonusHealing` is what the addon looks for, plus `GetSpellBonusHeal` and `GetHealingBonus`, first as a global and then inside a `ClassicAPI` table. **ClassicAPI** provides it; without any such API the bonus stays 0 and nothing changes. `/fbp` reports the value found and whether it is being applied, `/fbp healbonus` turns it off. The first learned value for a rank always wins over the estimate.
+
 ### Absorb shields
 
 Maximum absorb from the spellbook tooltip, consumption from the combat log (`(123 absorbed)`). For `\*_VS_SELF_*` events the victim is the player, otherwise the message is searched for one of the currently shielded names.
@@ -428,6 +440,7 @@ On receive, your own messages are filtered by sender name, and since HealComm st
 |`/fbp buffs`|Lists the tracked buff spells, their presence and remaining time on you, and your raw buff textures|
 |`/fbp forceload`|Warrior, rogue and hunter only: shows the addon anyway, or hides it again. Saved per character|
 |`/fbp smartcross`|Smart Healing: downranking across spells within a heal chain on/off (on by default)|
+|`/fbp healbonus`|Counts the equipment healing bonus into the prediction, on/off. Only works when an API supplies the bonus|
 |`/fbp raid`|Toggles raid mode|
 |`/fbp raidtest 20` · `40` · `off`|Raid test with 20 or 40 ghosts, or off|
 |`/fbp ticker`|Toggles the mana ticker|
@@ -462,6 +475,9 @@ Everything lives in the `HealBox` table, saved **per character**:
 |`PlateLeft` · `PlateRight`|Click action on a plate: `target`, `menu`, `move` or `none`|
 |`SmartRank` · `SmartMargin`|Smart Healing on/off (default off) and safety margin in percent|
 |`SmartCross`|1 = downranking may switch spell within a heal chain (default), 0 = stay on the assigned spell. Set in the options or with `/fbp smartcross`|
+|`PowerBar`|1 = the bar also shows rage, energy and focus, 0 = mana only (default)|
+|`HideBlizzParty`|1 = Blizzard's party frames stay hidden, 0 = untouched (default). Never active together with `AttachMode`|
+|`HealBonus`|1 = equipment healing bonus counts towards unlearned ranks (default), 0 = plain tooltip values. `/fbp healbonus`|
 |`Cooldowns` · `AggroMark` · `SpellTimers` · `BuffIcons`|Cooldown sweep, red border for the attacked member, HoT/shield timers, buff icons left of the bar|
 |`ClassColors`|1 = names in class colour, 0 = white|
 |`RangeFade`|1 = fade plates out of range, 0 = off|
@@ -515,10 +531,13 @@ Every knob is a global at the top of its own section and can be changed without 
 |`FBMENU_GRACE_TIME`|3.0|Menu auto-close (999 = off)|
 |`FBPREDICT_TICK_DEFAULT`|3|Default tick interval for HoTs|
 |`FBPREDICT_THROTTLE`|0.2|Update rate of the prediction|
+|`FBRAID_TICK` · `FBRAID_TICK_SLICES`|0.5 · 4|Full sweep for raid range and line of sight, and how many ticks it is spread over|
+|`FBTICK_DRAW_STEP`|0.03|Redraw step of the mana ticker spark|
 |`FBPREDICT_CONFIRM_TIME`|3.0|Time to wait for the aura confirmation|
 |`FBPREDICT_TARGET_TIME`|2.0|Lifetime of the remembered cast target|
 |`FBPredictTickInterval`|`{Lifebloom = 1}`|Deviating tick intervals|
 |`FBCommGroupHeal`|`{Prayer of Healing}`|What is broadcast as `GrpHeal`|
+|`FBPOWER_COLORS`|blue · red · orange · yellow|Bar colour per resource (mana, rage, focus, energy)|
 |`FBHealChains`|(table)|Which spells count as the same heal, only smaller. Smart Healing may switch spell inside a chain|
 |`FBHoTSpells`|(table)|Heal over time spells that Smart Healing never downranks|
 |`FBBlockedClasses`|`WARRIOR`, `ROGUE`, `HUNTER`|Classes the addon does not load for without `/fbp forceload`|
@@ -550,6 +569,14 @@ Every knob is a global at the top of its own section and can be changed without 
 |`FBHealBox_SmartRank(castString, unit)`|Picks the rank to cast|
 |`FBHealBox_IsHoT(base, ranks)`|Heal over time? List of names plus tooltip, spell watch and running HoTs. Smart Healing skips these|
 |`FBHealBox_HealFamily(base)` · `FBHealBox_DirectAmount(spell, sd)`|The heal chain a spell belongs to; the expected heal of one rank, or nil if the spell is not eligible|
+|`FBPredict_ExpectedDirect(spell, rank, info, id)`|Expected direct heal: learned value, otherwise tooltip plus the share of the equipment bonus|
+|`FBHealBox_ProbeHealBonus()` · `FBHealBox_HealingBonus()` · `FBHealBox_HealBonusFor(id)`|Finds an API for the healing bonus, reads it, and weights it by cast time|
+|`FBHealBox_SpellCastSeconds(id)`|Cast time from the tooltip (0 = instant), cached per spellbook slot|
+|`FBHealBox_ApplyBlizzParty()` · `FBHealBox_HideBlizzPartyActive()`|Hides or restores Blizzard's party frames, including the lock against the attach mode|
+|`FBHealBox_SetPowerColor(bar, cache, ptype)`|Colours a resource bar for mana, rage, focus or energy|
+|`FBPredict_ScanPlayerBuffTimes()`|Reads all of your own buff timers once per frame into a texture-to-seconds map|
+|`FBHealBox_ApiFailed()`|Puts range, distance and line of sight back to the protected single call after a sweep threw|
+|`FBHealBox_UpperTex(tex)`|Upper-cased texture path, remembered, so `strupper` does not allocate per call|
 |`FBHealBox_CheckAggroAll()` · `FBHealBox_ApplyBorder(f)`|Red border for the attacked member; border precedence|
 |`FBHealBox_UpdateSpellTimers()` · `FBHealBox_SpellTimerFor(...)`|HoT/shield timers on buttons|
 |`FBHealBox_UpdateButtonCooldown(b)` · `FBHealBox_UpdateAllCooldowns()`|Cooldown sweep|
@@ -707,6 +734,7 @@ Entries that do not exist do no harm: if the spellbook scan does not find them, 
 * heal prediction for direct heals, remaining HoT ticks and absorb shields, self-correcting from the combat log
 * HealComm sync with Puppeteer, pfUI, Luna and others, without any Ace libraries
 * English, German, Spanish, French and Italian localization, switchable in game
+* 1.4.5: Blizzard's party frames can be hidden (mutually exclusive with the attach mode), rage, energy and focus in the resource bar, and the equipment healing bonus via ClassicAPI in the prediction, plus a performance pass without functional change (player buffs read once per frame, staggered raid range and line-of-sight sweeps, fewer protected calls, no throwaway strings in the raid health text); see CHANGELOG
 * 1.4.4.3: class gate for warriors, rogues and hunters (display stays off, chat hint, `/fbp forceload` to override) and Smart Healing no longer downranks heal over time spells of any class. Smart Healing downranks across spells inside a heal chain (Greater Heal to Lesser Heal, Holy Light to Flash of Light), `/fbp smartcross` turns it off; see CHANGELOG
 * 1.4.4.2: 32-step buff icon duration display (replacing the 4-quadrant clock with a 32-stage vertical wipe) and syntax/diagnostic bugfixes; see CHANGELOG
 * 1.4.4.1: buff tracking & tooltip scanning fix (Divine Spirit clock icon), expanded class spell lists with blessings, buffs, utility and rez spells, group buff alternate tracking; see CHANGELOG
@@ -717,14 +745,14 @@ Entries that do not exist do no harm: if the spellbook scan does not find them, 
 
 ---
 
-Heal Box Vanilla v1.4.4.3 · original by Dourd, UI Overhauled · ported to Vanilla and extended 09/2026 by Mquadrat
+Heal Box Vanilla v1.4.5 · original by Dourd, UI Overhauled · ported to Vanilla and extended 09/2026 by Mquadrat
 
 _______________________________________________________________________
 GERMAN
 
 # Heal Box Vanilla
 
-ADDON DOKUMENTATION · VERSION 1.4.4.3 · World of Warcraft CLIENT 1.12.1
+ADDON DOKUMENTATION · VERSION 1.4.5 · World of Warcraft CLIENT 1.12.1
 
 Party-, Begleiter- und Selbst-Heilanzeige mit Schnellzugriff-Buttons für Heiler. Für jeden Gruppenplatz eine Namensplakette mit Lebensbalken, dazu eine für jeden Begleiter in der Gruppe direkt unter seinem Besitzer, daneben bis zu zehn frei belegbare Zauber-Buttons. Ein schmaler Manabalken liegt im Lebensbalken, bei allen, die tatsächlich Mana nutzen. Dazu eine vollständige Heilvorhersage (Direktheilung, HoT-Restticks und Absorb-Schilde), die sich über den Combatlog selbst korrigiert und ihre Werte im HealComm-Format mit anderen Heilern teilt. Die Oberfläche gibt es auf **Deutsch und Englisch**, umschaltbar im Optionsfenster.
 
@@ -804,6 +832,8 @@ Alles wird am Balkenende abgeschnitten: Ein Schild über der Maximal-HP bleibt u
 ### Manabalken
 
 Der Manabalken ist `FBMANA_BAR_HEIGHT` (5) Pixel hoch und liegt auf der Unterkante des Lebensbalkens. Wo Mana fehlt, scheint ein dunkler, halbtransparenter Streifen durch (`FBMANA_BG_ALPHA`, 0.35, auf 0 setzen, wenn unerwünscht). Er erscheint nur, wenn der **Powertyp der Einheit Mana** ist (`UnitPowerType() == 0`): Krieger, Schurken, Jägerbegleiter und Druiden in Katzen- oder Bärengestalt bekommen keinen Streifen, der Lebensbalken ist dann auf voller Höhe zu sehen. Der Balken folgt `UNIT_MANA`, `UNIT_MAXMANA` und `UNIT_DISPLAYPOWER`. Die Option *Manabalken* schaltet ihn ganz ab.
+
+Mit *Wut, Energie, Fokus zeigen* ist der Streifen nicht mehr dem Mana vorbehalten: Jede Einheit bekommt ihre eigene Ressource in der gewohnten Farbe aus `FBPOWER_COLORS` (Mana blau, Wut rot, Fokus orange, Energie gelb). Druiden, die die Gestalt wechseln, wechseln über `UNIT_DISPLAYPOWER` die Farbe mit, wie bei jeder anderen Änderung des Powertyps. Standardmäßig aus, denn für einen Heiler ist ein leerer Streifen beim Krieger auch eine Information: Da ist nichts, was du auffüllen könntest.
 
 ### Dispel-Färbung
 
@@ -999,6 +1029,10 @@ Das Fenster hat zwei Reiter.
 
 **Manabalken**: Manastreifen im Lebensbalken an/aus. Standardmäßig an.
 
+**Blizzard-Gruppenfenster aus**: versteckt `PartyMemberFrame1` bis `4`, solange du in einer Gruppe bist, sodass nur die Plaketten der Heal Box übrig bleiben. Standardmäßig aus. Diese Option und *Standard-Gruppenfenster* können nie beide an sein, weil der Anheftmodus die Plaketten genau an diese Frames hängt; was angehakt ist, graut das andere aus. Ausschalten holt die Frames sofort zurück, und eine Klasse, für die das Addon nicht lädt, bekommt sie ebenfalls zurück.
+
+**Wut, Energie, Fokus zeigen**: der Manastreifen bleibt normalerweise leer bei allen ohne Mana. Eingeschaltet zeigen Krieger, Schurken und Begleiter ihre eigene Ressource in der gewohnten Farbe (Wut rot, Energie gelb, Fokus orange, Tabelle `FBPOWER_COLORS`). Setzt den Manabalken voraus. Standardmäßig aus.
+
 **Begleiter anzeigen**: alle Pet-Plaketten an/aus. Standardmäßig an.
 
 **Debuff-Icon**: Debuff-Icon mit Stackzahl neben dem Namen an/aus. Standardmäßig an.
@@ -1081,6 +1115,12 @@ HoTs von der Aktionsleiste werden ebenfalls erkannt, dann mit dem höchsten beka
 
 Das Tickintervall ist in Vanilla nicht aus dem Tooltip lesbar und steht deshalb in `FBPredictTickInterval` (Standard 3 Sekunden, Lifebloom 1).
 
+### Ausrüstungsbonus
+
+Vanilla-Tooltips zeigen den nackten Grundwert, der Heilbonus deiner Ausrüstung steht nicht darin. Gelernte Werte aus dem Combatlog tragen ihn von selbst, die Lücke gibt es also nur bei Rängen, die du nie gewirkt hast. Liefert eine API den Bonus, schließt das Addon diese Lücke: Der Wert wird wie in Vanilla üblich mit Zauberzeit geteilt durch 3,5 gewichtet und bei 3,5 Sekunden gedeckelt, Instants zählen als 1,5. Eine Große Heilung mit 3 Sekunden Zauberzeit startet bei +700 Heilung also 600 über ihrem Tooltip, eine Blitzheilung mit 1,5 Sekunden 300.
+
+Gesucht wird `GetSpellBonusHealing`, dazu `GetSpellBonusHeal` und `GetHealingBonus`, erst als globale Funktion, dann in einer `ClassicAPI`-Tabelle. **ClassicAPI** bringt das mit; ohne eine solche API bleibt der Bonus 0 und es ändert sich nichts. `/fbp` nennt den gefundenen Wert und ob er angewandt wird, `/fbp healbonus` schaltet ihn ab. Der erste gelernte Wert eines Rangs schlägt die Schätzung immer.
+
 ### Absorb-Schilde
 
 Maximaler Absorb aus dem Zauberbuch-Tooltip, Verbrauch aus dem Combatlog (`(123 absorbed)`). Bei `\*_VS_SELF_*`-Events ist das Opfer der Spieler, sonst wird unter den aktuell beschildeten Namen gesucht.
@@ -1142,6 +1182,7 @@ Beim Empfang werden eigene Nachrichten über den Absendernamen gefiltert, und da
 |`/fbp buffs`|Listet die verfolgten Buff-Zauber, ihre Präsenz und Restzeit auf dir sowie deine rohen Buff-Texturen|
 |`/fbp forceload`|Nur für Krieger, Schurke und Jäger: zeigt das Addon trotzdem an oder blendet es wieder aus. Pro Charakter gespeichert|
 |`/fbp smartcross`|Smart Healing: Abrangen über Zaubergrenzen innerhalb einer Heilkette an/aus (Standard an)|
+|`/fbp healbonus`|Rechnet den Heilbonus der Ausrüstung in die Vorhersage, an/aus. Wirkt nur, wenn eine API den Bonus liefert|
 |`/fbp raid`|Raidmodus an/aus|
 |`/fbp raidtest 20` · `40` · `off`|Raid-Test mit 20 oder 40 Geistern, oder aus|
 |`/fbp ticker`|Mana-Ticker an/aus|
@@ -1176,6 +1217,9 @@ Alles liegt in der Tabelle `HealBox`, gespeichert **pro Charakter**:
 |`PlateLeft` · `PlateRight`|Klickaktion auf einer Plakette: `target`, `menu`, `move` oder `none`|
 |`SmartRank` · `SmartMargin`|Smart Healing an/aus (Standard aus) und Sicherheitsaufschlag in Prozent|
 |`SmartCross`|1 = Abrangen darf den Zauber innerhalb einer Heilkette wechseln (Standard), 0 = beim belegten Zauber bleiben. In den Optionen oder mit `/fbp smartcross` schaltbar|
+|`PowerBar`|1 = der Balken zeigt auch Wut, Energie und Fokus, 0 = nur Mana (Standard)|
+|`HideBlizzParty`|1 = Blizzards Gruppenfenster bleiben versteckt, 0 = unangetastet (Standard). Nie zusammen mit `AttachMode` aktiv|
+|`HealBonus`|1 = Heilbonus der Ausrüstung zählt bei ungelernten Rängen (Standard), 0 = nackte Tooltipwerte. `/fbp healbonus`|
 |`Cooldowns` · `AggroMark` · `SpellTimers` · `BuffIcons`|Cooldown-Uhr, roter Rahmen für den Angegriffenen, HoT/Schild-Timer, Buff-Icons links am Balken|
 |`ClassColors`|1 = Namen in Klassenfarbe, 0 = weiß|
 |`RangeFade`|1 = Plaketten außer Reichweite abblenden, 0 = aus|
@@ -1227,10 +1271,13 @@ Alle Stellschrauben stehen als Globals oben in ihrem jeweiligen Abschnitt und la
 |`FBMENU_GRACE_TIME`|3.0|Auto-Close des Menüs (999 = aus)|
 |`FBPREDICT_TICK_DEFAULT`|3|Standard-Tickintervall für HoTs|
 |`FBPREDICT_THROTTLE`|0.2|Update-Rate der Vorhersage|
+|`FBRAID_TICK` · `FBRAID_TICK_SLICES`|0.5 · 4|Voller Durchlauf für Reichweite und Sichtlinie im Raid, und auf wie viele Ticks er verteilt wird|
+|`FBTICK_DRAW_STEP`|0.03|Zeichentakt des Ticker-Funkens|
 |`FBPREDICT_CONFIRM_TIME`|3.0|Wartezeit auf die Aura-Bestätigung|
 |`FBPREDICT_TARGET_TIME`|2.0|Gültigkeit des gemerkten Cast-Ziels|
 |`FBPredictTickInterval`|`{Lifebloom = 1}`|Abweichende Tickintervalle|
 |`FBCommGroupHeal`|`{Prayer of Healing}`|Was als `GrpHeal` gefunkt wird|
+|`FBPOWER_COLORS`|blau · rot · orange · gelb|Balkenfarbe je Ressource (Mana, Wut, Fokus, Energie)|
 |`FBHealChains`|(Tabelle)|Welche Zauber als derselbe Heilzauber in klein gelten. Innerhalb einer Kette darf Smart Healing den Zauber wechseln|
 |`FBHoTSpells`|(Tabelle)|Zauber mit Heilung über Zeit, die Smart Healing nie abrangt|
 |`FBBlockedClasses`|`WARRIOR`, `ROGUE`, `HUNTER`|Klassen, für die das Addon ohne `/fbp forceload` nicht lädt|
@@ -1261,6 +1308,14 @@ Alle Stellschrauben stehen als Globals oben in ihrem jeweiligen Abschnitt und la
 |`FBHealBox_SmartRank(castString, unit)`|Wählt den zu wirkenden Rang|
 |`FBHealBox_IsHoT(base, ranks)`|Heilung über Zeit? Namensliste plus Tooltip, Zauberwache und laufende HoTs. Smart Healing lässt diese aus|
 |`FBHealBox_HealFamily(base)` · `FBHealBox_DirectAmount(spell, sd)`|Die Heilkette eines Zaubers; die erwartete Heilung eines Rangs, oder nil, wenn der Zauber nicht in Frage kommt|
+|`FBPredict_ExpectedDirect(spell, rank, info, id)`|Erwartete Sofortheilung: gelernter Wert, sonst Tooltip plus Anteil am Ausrüstungsbonus|
+|`FBHealBox_ProbeHealBonus()` · `FBHealBox_HealingBonus()` · `FBHealBox_HealBonusFor(id)`|Sucht eine API für den Heilbonus, liest sie aus und gewichtet nach Zauberzeit|
+|`FBHealBox_SpellCastSeconds(id)`|Zauberzeit aus dem Tooltip (0 = Instant), je Zauberbuchplatz gemerkt|
+|`FBHealBox_ApplyBlizzParty()` · `FBHealBox_HideBlizzPartyActive()`|Versteckt Blizzards Gruppenfenster oder gibt sie zurück, samt Sperre gegen den Anheftmodus|
+|`FBHealBox_SetPowerColor(bar, cache, ptype)`|Färbt einen Ressourcenbalken für Mana, Wut, Fokus oder Energie|
+|`FBPredict_ScanPlayerBuffTimes()`|Liest alle eigenen Bufflaufzeiten einmal je Frame in eine Tabelle Textur nach Sekunden|
+|`FBHealBox_ApiFailed()`|Stellt Reichweite, Abstand und Sichtlinie auf den geschützten Einzelaufruf zurück, wenn ein Durchlauf geworfen hat|
+|`FBHealBox_UpperTex(tex)`|Groß geschriebener Texturpfad, gemerkt, damit `strupper` nicht je Aufruf zuteilt|
 |`FBHealBox_CheckAggroAll()` · `FBHealBox_ApplyBorder(f)`|Roter Rahmen für den Angegriffenen; Rahmen-Vorrang|
 |`FBHealBox_UpdateSpellTimers()` · `FBHealBox_SpellTimerFor(...)`|HoT/Schild-Timer auf Buttons|
 |`FBHealBox_UpdateButtonCooldown(b)` · `FBHealBox_UpdateAllCooldowns()`|Cooldown-Uhr|
@@ -1407,6 +1462,7 @@ Nicht vorhandene Einträge stören nicht: Findet der Zauberbuch-Scan sie nicht, 
 * Heilvorhersage für Direktheilung, HoT-Restticks und Absorb-Schilde, selbstkorrigierend über den Combatlog
 * HealComm-Sync mit Puppeteer, pfUI, Luna und Co., ohne Ace-Bibliotheken
 * Lokalisierung Deutsch, Englisch, Spanisch, Französisch und Italienisch, im laufenden Spiel umschaltbar
+* 1.4.5: Blizzards Gruppenfenster ausblendbar (schließt sich mit dem Anheftmodus gegenseitig aus), Wut, Energie und Fokus im Ressourcenbalken, Heilbonus der Ausrüstung über ClassicAPI in der Vorhersage, dazu ein Leistungsdurchgang ohne Funktionsänderung (Spielerbuffs einmal je Frame, gestaffelte Reichweiten- und Sichtlinienprüfung im Raid, weniger geschützte Aufrufe, keine Wegwerf-Strings im Raid-HP-Text); siehe CHANGELOG
 * 1.4.4.3: Klassensperre für Krieger, Schurke und Jäger (Anzeige bleibt aus, Hinweis im Chat, Freischaltung mit `/fbp forceload`) und Smart Healing rangt HoTs aller Klassen nicht mehr ab. Smart Healing rangt innerhalb einer Heilkette auch über Zaubergrenzen ab (Große Heilung zu Geringem Heilen, Heiliges Licht zu Blitz des Lichts), `/fbp smartcross` schaltet es aus; siehe CHANGELOG
 * 1.4.4.2: 32-Stufen-Ablaufanzeige für Buff-Icons (ersetzt die 4-Quadranten-Uhr durch 32 vertikale Stufen) sowie Syntax- und Diagnose-Korrekturen; siehe CHANGELOG
 * 1.4.4.1: Buff-Erkennung & Tooltip-Scan behoben (Göttlicher Willen Uhr-Icon), vollständige Klassen-Zauberlisten mit Segen, Buffs, Hilfszaubern und Wiederbelebung, Gruppen-Buff-Erkennung; siehe CHANGELOG
@@ -1417,7 +1473,7 @@ Nicht vorhandene Einträge stören nicht: Findet der Zauberbuch-Scan sie nicht, 
 
 ---
 
-Heal Box Vanilla v1.4.4.3 · Original von Dourd, UI Overhauled · Vanilla-Portierung und Erweiterung 09/2026 von Mquadrat
+Heal Box Vanilla v1.4.5 · Original von Dourd, UI Overhauled · Vanilla-Portierung und Erweiterung 09/2026 von Mquadrat
 
 ---
 
