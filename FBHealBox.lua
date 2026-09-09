@@ -34,6 +34,9 @@
 --     Smart Healing rangt HoTs aller Klassen nicht mehr ab. 
 --     Smart Healing rangt in Heilketten auch ueber Zaubergrenzen
 --     ab (Grosse Heilung -> Geringes Heilen), abschaltbar mit /fbp smartcross.
+--   * v1.4.5: Blizzards Gruppenfenster ausblendbar (schliesst sich mit dem
+--     Anheftmodus gegenseitig aus), Wut, Energie und Fokus im Balken,
+--     +Heilung der Ausruestung ueber ClassicAPI in der Vorhersage.
 --
 -- Ehre wem Ehre gebuehrt: Aufbau, Namensplaketten und Grundidee stammen
 -- aus dem Original.
@@ -120,6 +123,9 @@ HealBox = {
     ButtonSpacing = 2,   -- px zwischen den Buttons (1..20)
     RowSpacing = 4,      -- px zwischen den Plaketten (1..20)
     ManaBar = 1,         -- Manabalken im Lebensbalken anzeigen
+    PowerBar = 0,        -- auch Wut, Energie und Fokus im Balken zeigen
+    HideBlizzParty = 0,  -- Blizzards Gruppenfenster verstecken
+    HealBonus = 1,       -- +Heilung der Ausruestung in die Vorhersage rechnen
     ShowPets = 1,        -- Begleiter als eigene Plaketten anzeigen
     ClassColors = 1,     -- Namen in Klassenfarbe
     RangeFade = 1,       -- Plakette ausgrauen, wenn ausser Reichweite
@@ -145,7 +151,7 @@ HealBox = {
 -- feuert ADDON_LOADED fuer uns.
 FBADDON_NAME   = "Heal Box Vanilla";
 FBADDON_FOLDER = "FBHealBox";
-HealBoxVersion = "|cFFFFFF00v1.4.4.3|r"; 
+HealBoxVersion = "|cFFFFFF00v1.4.5|r"; 
 
 -- ==========================================================================
 -- [ Lokalisierung / Localization ]
@@ -279,7 +285,7 @@ FBLocale["enUS"] = {
     FBP_INCOMING  = "Incoming",
     FBP_DEBUG     = "Debug:",
     FBP_RESET     = "Learned values discarded.",
-    FBP_COMMANDS  = "Commands: /fbp config (options window), /fbp test (test mode), /fbp buffs (buff diagnostics), /fbp forceload (show for warrior/rogue/hunter), /fbp smartcross (downranking across spells), /fbp debug, /fbp reset",
+    FBP_COMMANDS  = "Commands: /fbp config (options window), /fbp test (test mode), /fbp buffs (buff diagnostics), /fbp forceload (show for warrior/rogue/hunter), /fbp smartcross (downranking across spells), /fbp healbonus (equipment bonus), /fbp debug, /fbp reset",
     FBP_SMART     = "Smart Healing: %s (safety margin %d %%)",
 
     DBG_HOT       = "HoT %s on %s: %d per tick, %ds",
@@ -293,6 +299,14 @@ FBLocale["enUS"] = {
     SMART_CROSS_ON  = "Smart Healing may now switch spell within a heal chain (e.g. Greater Heal to Lesser Heal). |cFF00FF00On|r.",
     SMART_CROSS_OFF = "Smart Healing now stays within the assigned spell and only lowers its rank. |cFFFF0000Cross-spell off|r.",
     SMART_CROSS_NEEDS = "Note: Smart Healing itself is off, so this has no effect yet. Turn it on in the options or with the Smart Healing switch on the Buttons tab.",
+    HIDEPARTY     = "Hide Blizzard party frames",
+    HIDEPARTY_TIP = "Hides Blizzard's party frames while you are in a group, so only the Heal Box plates remain. Cannot be combined with 'Attach to party frames', because that mode docks the plates onto exactly those frames; whichever one is on greys the other out. Switching it off brings the frames back at once, and so does a class the addon does not load for.",
+    POWERBAR      = "Show rage, energy, focus",
+    POWERBAR_TIP  = "The thin bar under the health bar normally shows mana and stays hidden for everyone else. With this on, warriors, rogues and pets get their own resource in its usual colour: rage red, energy yellow, focus orange. Needs the mana bar to be on.",
+    HEALBONUS_ON  = "Equipment bonus of +%d healing is now included in the prediction. |cFF00FF00On|r.",
+    HEALBONUS_OFF = "Equipment bonus is no longer included, spell tooltips count as they are. |cFFFF0000Off|r.",
+    HEALBONUS_NA  = "No API delivers a healing bonus. ClassicAPI (or anything else with GetSpellBonusHealing) enables this; without it the learned values from the combat log carry the gear anyway.",
+    FBP_HEALBONUS = "Equipment: +%d healing, applied to unlearned ranks: %s",
 
     CLASS_BLOCKED = "not shown for %s: this addon is made for healing classes. Warriors, rogues and hunters have no heals, no heal prediction and nothing to gain from the mana ticker.",
     CLASS_BLOCKED_HINT = "Type /fbp forceload to show it anyway. The setting is kept for this character.",
@@ -419,7 +433,7 @@ FBLocale["deDE"] = {
     FBP_INCOMING  = "Fremdheilung",
     FBP_DEBUG     = "Debug:",
     FBP_RESET     = "Gelernte Werte verworfen.",
-    FBP_COMMANDS  = "Befehle: /fbp config (Optionsfenster), /fbp test (Testmodus), /fbp buffs (Buff-Diagnose), /fbp forceload (Anzeige fuer Krieger/Schurke/Jaeger), /fbp smartcross (Abrangen ueber Zaubergrenzen), /fbp debug, /fbp reset",
+    FBP_COMMANDS  = "Befehle: /fbp config (Optionsfenster), /fbp test (Testmodus), /fbp buffs (Buff-Diagnose), /fbp forceload (Anzeige fuer Krieger/Schurke/Jaeger), /fbp smartcross (Abrangen ueber Zaubergrenzen), /fbp healbonus (Ausruestungsbonus), /fbp debug, /fbp reset",
     FBP_SMART     = "Smart Healing: %s (Sicherheitsaufschlag %d %%)",
 
     DBG_HOT       = "HoT %s auf %s: %d pro Tick, %ds",
@@ -433,6 +447,14 @@ FBLocale["deDE"] = {
     SMART_CROSS_ON  = "Smart Healing darf den Zauber innerhalb einer Heilkette wechseln (z. B. Grosse Heilung zu Geringem Heilen). |cFF00FF00An|r.",
     SMART_CROSS_OFF = "Smart Healing bleibt beim belegten Zauber und senkt nur dessen Rang. |cFFFF0000Kettenwechsel aus|r.",
     SMART_CROSS_NEEDS = "Hinweis: Smart Healing selbst ist aus, das wirkt also noch nicht. Einschalten im Optionsfenster ueber den Schalter Smart Healing im Reiter Buttons.",
+    HIDEPARTY     = "Blizzard-Gruppenfenster aus",
+    HIDEPARTY_TIP = "Versteckt Blizzards Gruppenfenster, solange du in einer Gruppe bist, sodass nur die Plaketten der Heal Box uebrig bleiben. Nicht zusammen mit 'An Gruppenfenster anheften' nutzbar, weil dieser Modus die Plaketten genau an diese Frames haengt; was gerade an ist, graut das andere aus. Ausschalten holt die Frames sofort zurueck, ebenso eine Klasse, fuer die das Addon nicht laedt.",
+    POWERBAR      = "Wut, Energie, Fokus zeigen",
+    POWERBAR_TIP  = "Der schmale Streifen unter dem Lebensbalken zeigt normalerweise Mana und bleibt bei allen anderen leer. Eingeschaltet bekommen Krieger, Schurken und Begleiter ihre eigene Ressource in der gewohnten Farbe: Wut rot, Energie gelb, Fokus orange. Setzt den Manabalken voraus.",
+    HEALBONUS_ON  = "Ausruestungsbonus von +%d Heilung wird jetzt eingerechnet. |cFF00FF00An|r.",
+    HEALBONUS_OFF = "Ausruestungsbonus wird nicht mehr eingerechnet, es zaehlt der nackte Tooltip. |cFFFF0000Aus|r.",
+    HEALBONUS_NA  = "Keine API liefert einen Heilbonus. Mit ClassicAPI (oder etwas anderem mit GetSpellBonusHealing) geht das; ohne sie tragen die gelernten Werte aus dem Combatlog die Ausruestung ohnehin mit.",
+    FBP_HEALBONUS = "Ausruestung: +%d Heilung, auf ungelernte Raenge angewandt: %s",
 
     CLASS_BLOCKED = "wird fuer %s nicht angezeigt: Das Addon ist fuer Heilerklassen gemacht. Krieger, Schurken und Jaeger haben keine Heilzauber, keine Heilvorhersage und keinen Nutzen vom Mana-Ticker.",
     CLASS_BLOCKED_HINT = "Mit /fbp forceload trotzdem anzeigen. Die Einstellung bleibt fuer diesen Charakter gespeichert.",
@@ -579,7 +601,7 @@ FBLocale["esES"] = {
     FBP_INCOMING    = "Entrante",
     FBP_DEBUG       = "Depuración:",
     FBP_RESET       = "Valores aprendidos descartados.",
-    FBP_COMMANDS    = "Comandos: /fbp config (ventana de opciones), /fbp test (modo de prueba), /fbp buffs (diagnóstico de beneficios), /fbp forceload (mostrar para guerrero/pícaro/cazador), /fbp smartcross (reducción entre hechizos), /fbp debug, /fbp reset",
+    FBP_COMMANDS    = "Comandos: /fbp config (ventana de opciones), /fbp test (modo de prueba), /fbp buffs (diagnóstico de beneficios), /fbp forceload (mostrar para guerrero/pícaro/cazador), /fbp smartcross (reducción entre hechizos), /fbp healbonus (bono de equipo), /fbp debug, /fbp reset",
     FBP_SMART       = "Smart Healing: %s (margen de seguridad %d %%)",
     DBG_HOT         = "HoT %s sobre %s: %d por pulso, %ds",
     DBG_SHIELD      = "Escudo %s sobre %s: %d absorción, %ds",
@@ -592,6 +614,14 @@ FBLocale["esES"] = {
     SMART_CROSS_ON  = "Smart Healing puede cambiar de hechizo dentro de una cadena de curación (p. ej. Curar más y Curar menos). |cFF00FF00Activado|r.",
     SMART_CROSS_OFF = "Smart Healing se queda en el hechizo asignado y solo baja su rango. |cFFFF0000Cambio de hechizo desactivado|r.",
     SMART_CROSS_NEEDS = "Nota: Smart Healing está desactivado, así que esto aún no tiene efecto. Actívalo en la pestaña Botones.",
+    HIDEPARTY       = "Ocultar marcos de grupo",
+    HIDEPARTY_TIP   = "Oculta los marcos de grupo de Blizzard mientras estás en un grupo, dejando solo las placas de Heal Box. No se puede combinar con 'Anclar a los marcos de grupo', porque ese modo ancla las placas justo en esos marcos; el que esté activo desactiva el otro.",
+    POWERBAR        = "Mostrar ira, energía, enfoque",
+    POWERBAR_TIP    = "La barra fina bajo la salud muestra normalmente maná y queda vacía para los demás. Activada, guerreros, pícaros y mascotas muestran su recurso en su color habitual: ira roja, energía amarilla, enfoque naranja. Requiere la barra de maná.",
+    HEALBONUS_ON    = "El bono de equipo de +%d de sanación ya se incluye en la predicción. |cFF00FF00Activado|r.",
+    HEALBONUS_OFF   = "El bono de equipo ya no se incluye, cuenta el tooltip puro. |cFFFF0000Desactivado|r.",
+    HEALBONUS_NA    = "Ninguna API ofrece un bono de sanación. ClassicAPI (u otra con GetSpellBonusHealing) lo habilita; sin ella, los valores aprendidos del registro de combate ya incluyen el equipo.",
+    FBP_HEALBONUS   = "Equipo: +%d de sanación, aplicado a rangos no aprendidos: %s",
 
     CLASS_BLOCKED   = "no se muestra para %s: este addon está hecho para clases sanadoras. Guerreros, pícaros y cazadores no tienen curaciones, ni predicción de curación, ni provecho del marcador de maná.",
     CLASS_BLOCKED_HINT = "Escribe /fbp forceload para mostrarlo igualmente. El ajuste se guarda para este personaje.",
@@ -710,7 +740,7 @@ FBLocale["frFR"] = {
     FBP_INCOMING    = "Entrant",
     FBP_DEBUG       = "Débogage :",
     FBP_RESET       = "Valeurs apprises effacées.",
-    FBP_COMMANDS    = "Commandes : /fbp config (fenêtre des options), /fbp test (mode test), /fbp buffs (diagnostic des buffs), /fbp forceload (afficher pour guerrier/voleur/chasseur), /fbp smartcross (rang abaissé entre sorts), /fbp debug, /fbp reset",
+    FBP_COMMANDS    = "Commandes : /fbp config (fenêtre des options), /fbp test (mode test), /fbp buffs (diagnostic des buffs), /fbp forceload (afficher pour guerrier/voleur/chasseur), /fbp smartcross (rang abaissé entre sorts), /fbp healbonus (bonus d'équipement), /fbp debug, /fbp reset",
     FBP_SMART       = "Smart Healing : %s (marge de sécurité %d %%)",
     DBG_HOT         = "HoT %s sur %s : %d par tick, %ds",
     DBG_SHIELD      = "Bouclier %s sur %s : %d absorption, %ds",
@@ -723,6 +753,14 @@ FBLocale["frFR"] = {
     SMART_CROSS_ON  = "Smart Healing peut changer de sort dans une chaîne de soins (p. ex. Soins supérieurs vers Soins inférieurs). |cFF00FF00Activé|r.",
     SMART_CROSS_OFF = "Smart Healing reste sur le sort assigné et n'abaisse que son rang. |cFFFF0000Changement de sort désactivé|r.",
     SMART_CROSS_NEEDS = "Note : Smart Healing lui-même est désactivé, ceci n'a donc pas encore d'effet. Activez-le dans l'onglet Boutons.",
+    HIDEPARTY       = "Masquer les cadres de groupe",
+    HIDEPARTY_TIP   = "Masque les cadres de groupe de Blizzard tant que vous êtes en groupe, il ne reste que les plaques de Heal Box. Incompatible avec 'Ancrer aux cadres de groupe', car ce mode ancre les plaques précisément sur ces cadres ; celui qui est actif grise l'autre.",
+    POWERBAR        = "Afficher rage, énergie, focus",
+    POWERBAR_TIP    = "La fine barre sous la santé montre normalement le mana et reste vide pour les autres. Activée, les guerriers, voleurs et familiers affichent leur ressource dans sa couleur habituelle : rage rouge, énergie jaune, focus orange. Nécessite la barre de mana.",
+    HEALBONUS_ON    = "Le bonus d'équipement de +%d soins est désormais pris en compte. |cFF00FF00Activé|r.",
+    HEALBONUS_OFF   = "Le bonus d'équipement n'est plus pris en compte, seul l'infobulle compte. |cFFFF0000Désactivé|r.",
+    HEALBONUS_NA    = "Aucune API ne fournit de bonus aux soins. ClassicAPI (ou autre avec GetSpellBonusHealing) l'active ; sans elle, les valeurs apprises du journal de combat portent déjà l'équipement.",
+    FBP_HEALBONUS   = "Équipement : +%d soins, appliqué aux rangs non appris : %s",
 
     CLASS_BLOCKED   = "non affiché pour %s : cet addon est fait pour les classes soigneuses. Les guerriers, voleurs et chasseurs n'ont pas de soins, pas de prévision de soins et aucun usage du compteur de mana.",
     CLASS_BLOCKED_HINT = "Tapez /fbp forceload pour l'afficher quand même. Le réglage est conservé pour ce personnage.",
@@ -841,7 +879,7 @@ FBLocale["itIT"] = {
     FBP_INCOMING    = "In arrivo",
     FBP_DEBUG       = "Debug:",
     FBP_RESET       = "Valori appresi scartati.",
-    FBP_COMMANDS    = "Comandi: /fbp config (finestra opzioni), /fbp test (modalità test), /fbp buffs (diagnostica benefici), /fbp forceload (mostra per guerriero/ladro/cacciatore), /fbp smartcross (riduzione tra incantesimi), /fbp debug, /fbp reset",
+    FBP_COMMANDS    = "Comandi: /fbp config (finestra opzioni), /fbp test (modalità test), /fbp buffs (diagnostica benefici), /fbp forceload (mostra per guerriero/ladro/cacciatore), /fbp smartcross (riduzione tra incantesimi), /fbp healbonus (bonus equipaggiamento), /fbp debug, /fbp reset",
     FBP_SMART       = "Smart Healing: %s (margine di sicurezza %d %%)",
     DBG_HOT         = "HoT %s su %s: %d per tick, %ds",
     DBG_SHIELD      = "Scudo %s su %s: %d assorbimento, %ds",
@@ -854,6 +892,14 @@ FBLocale["itIT"] = {
     SMART_CROSS_ON  = "Smart Healing può cambiare incantesimo all'interno di una catena di cure (p. es. da Cura Superiore a Cura Inferiore). |cFF00FF00Attivo|r.",
     SMART_CROSS_OFF = "Smart Healing resta sull'incantesimo assegnato e ne abbassa solo il rango. |cFFFF0000Cambio incantesimo disattivato|r.",
     SMART_CROSS_NEEDS = "Nota: Smart Healing stesso è disattivato, quindi questo non ha ancora effetto. Attivalo nella scheda Pulsanti.",
+    HIDEPARTY       = "Nascondi i riquadri gruppo",
+    HIDEPARTY_TIP   = "Nasconde i riquadri del gruppo di Blizzard finché sei in gruppo, restano solo le targhette di Heal Box. Non combinabile con 'Aggancia ai riquadri gruppo', perché quella modalità aggancia le targhette proprio a quei riquadri; quella attiva disattiva l'altra.",
+    POWERBAR        = "Mostra ira, energia, focus",
+    POWERBAR_TIP    = "La barra sottile sotto la salute mostra di norma il mana e resta vuota per gli altri. Attiva, guerrieri, ladri e famigli mostrano la loro risorsa nel colore consueto: ira rossa, energia gialla, focus arancione. Richiede la barra del mana.",
+    HEALBONUS_ON    = "Il bonus dell'equipaggiamento di +%d cura viene ora incluso. |cFF00FF00Attivo|r.",
+    HEALBONUS_OFF   = "Il bonus dell'equipaggiamento non viene più incluso, conta il tooltip nudo. |cFFFF0000Disattivo|r.",
+    HEALBONUS_NA    = "Nessuna API fornisce un bonus alle cure. ClassicAPI (o altro con GetSpellBonusHealing) lo abilita; senza, i valori appresi dal registro di combattimento includono già l'equipaggiamento.",
+    FBP_HEALBONUS   = "Equipaggiamento: +%d cura, applicato ai ranghi non appresi: %s",
 
     CLASS_BLOCKED   = "non mostrato per %s: questo addon è pensato per le classi curatrici. Guerrieri, ladri e cacciatori non hanno cure, né previsione delle cure, né vantaggi dal contatore del mana.",
     CLASS_BLOCKED_HINT = "Scrivi /fbp forceload per mostrarlo comunque. L'impostazione resta salvata per questo personaggio.",
@@ -902,6 +948,14 @@ NamePlateHeight = 28;
 -- Manabalken: "Balken im Balken" am unteren Rand des Lebensbalkens
 FBMANA_BAR_HEIGHT = 5;                        -- px
 FBMANA_BAR_COLOR  = { 0.15, 0.40, 1.00, 1 };  -- blau
+-- Farben je Energieart, wie sie UnitPowerType liefert. Nur Mana faerbt den
+-- Balken standardmaessig; die uebrigen erscheinen erst mit HealBox.PowerBar.
+FBPOWER_COLORS = {
+    [0] = { 0.15, 0.40, 1.00, 1 },   -- Mana, blau
+    [1] = { 0.85, 0.20, 0.20, 1 },   -- Wut, rot
+    [2] = { 1.00, 0.55, 0.20, 1 },   -- Fokus, orange
+    [3] = { 1.00, 0.85, 0.10, 1 },   -- Energie, gelb
+};
 FBMANA_BG_ALPHA   = 0.35;                     -- dunkler Streifen hinter dem Mana (0 = aus)
 
 -- Begleiter-Plaketten: Namensfarbe, Einrueckung unter dem Besitzer (die
@@ -1054,7 +1108,7 @@ FBTestMode = false;
 -- los = true zeigt das Sichtlinien-Abzeichen, aggro = true den roten Rahmen,
 -- hotLeft/shieldLeft Restsekunden auf Button 1 bzw. 2.
 FBTestGhosts = {
-    ["party1"]    = { name = "Brynn",  class = "WARRIOR", hpMax = 3400, hp = 0.90, swing = 0.08, hasMana = false, buffMissing = true, state = "dead" },
+    ["party1"]    = { name = "Brynn",  class = "WARRIOR", hpMax = 3400, hp = 0.90, swing = 0.08, hasMana = false, power = 1, mpMax = 100, mp = 0.45, buffMissing = true, state = "dead" },
     ["party2"]    = { name = "Cerys",  class = "WARLOCK", hpMax = 2300, hp = 0.55, swing = 0.10, hasMana = true, mpMax = 3100, mp = 0.65, shield = 450, los = true },
     ["party3"]    = { name = "Dorn",   class = "HUNTER",  hpMax = 2900, hp = 0.30, swing = 0.15, hasMana = true, mpMax = 2400, mp = 0.35, inc = 700, aggro = true, hotLeft = 9, shieldLeft = 21,
                       -- sechs Buffs: Seelenstaerke, Willen, Schattenschutz, Furchtzauberschutz, Mal der Wildnis (fremd, ohne Uhr), Koenige
@@ -1065,9 +1119,9 @@ FBTestGhosts = {
                                 { tex = "Interface\\Icons\\Spell_Nature_Regeneration", dur = 1800 },
                                 { tex = "Interface\\Icons\\Spell_Magic_MageArmor", left = 1750, dur = 1800 } } },
     ["party4"]    = { name = "Elowen", class = "DRUID",   hpMax = 2700, hp = 0.95, swing = 0.04, hasMana = true, mpMax = 3600, mp = 0.90, debuff = true, debuffTex = "Interface\\Icons\\Spell_Shadow_ShadowWordPain", debuffCount = 3, outOfRange = true },
-    ["pet"]       = { name = "Fang",   hpMax = 1900, hp = 0.75, swing = 0.12, hasMana = false },
+    ["pet"]       = { name = "Fang",   hpMax = 1900, hp = 0.75, swing = 0.12, hasMana = false, power = 3, mpMax = 100, mp = 0.80 },
     ["partypet2"] = { name = "Zorbek", hpMax = 1200, hp = 0.60, swing = 0.10, hasMana = true, mpMax = 900, mp = 0.50 },
-    ["partypet3"] = { name = "Bramble", hpMax = 2100, hp = 0.40, swing = 0.14, hasMana = false, inc = 300,
+    ["partypet3"] = { name = "Bramble", hpMax = 2100, hp = 0.40, swing = 0.14, hasMana = false, power = 2, mpMax = 100, mp = 0.60, inc = 300,
                       debuffType = "Disease", debuffTex = "Interface\\Icons\\Spell_Nature_NullifyDisease", debuffCount = 1 },
 };
 
@@ -1127,18 +1181,26 @@ end
 -- liefert mp, mpMax, hasMana. hasMana ist nur wahr, wenn die Einheit
 -- tatsaechlich Mana nutzt (Powertyp 0). Krieger, Schurken, Druiden in
 -- Gestalt und Jaegerbegleiter bekommen keinen Manabalken.
+-- Energie einer Einheit: Wert, Maximum, anzeigen?, Energieart (0 = Mana).
+-- Ohne HealBox.PowerBar bleibt es beim Mana, Wut, Energie und Fokus liefern
+-- dann wie frueher "nichts anzuzeigen" und der Lebensbalken bleibt voll hoch.
 function FBUnitMana(unit)
     local g = FBTest_Ghost(unit);
     if (g) then
-        if (not g.hasMana) then return 0, 0, false; end
-        return math.floor(g.mpMax * g.mp), g.mpMax, true;
+        if (not g.hasMana) then
+            if (HealBox.PowerBar == 1) and (g.power) and (g.mpMax) then
+                return math.floor(g.mpMax * (g.mp or 0)), g.mpMax, true, g.power;
+            end
+            return 0, 0, false, nil;
+        end
+        return math.floor(g.mpMax * g.mp), g.mpMax, true, 0;
     end
     local ptype = 0;
     if (UnitPowerType) then ptype = UnitPowerType(unit); end
-    if (ptype ~= 0) then return 0, 0, false; end
+    if (ptype ~= 0) and (HealBox.PowerBar ~= 1) then return 0, 0, false, nil; end
     local mp, mpMax = UnitMana(unit), UnitManaMax(unit);
-    if (not mpMax) or (mpMax <= 0) then return 0, 0, false; end
-    return (mp or 0), mpMax, true;
+    if (not mpMax) or (mpMax <= 0) then return 0, 0, false, nil; end
+    return (mp or 0), mpMax, true, ptype;
 end
 
 -- nil (lebt), "dead", "ghost" oder "offline"
@@ -1329,6 +1391,7 @@ function FBHealBox_HideAll()
     end
     if (panel) then panel:Hide(); end
     if (MMButton) then MMButton:Hide(); end
+    FBHealBox_ApplyBlizzParty();   -- Blizzards Gruppenfenster zurueckgeben
     FBHealBox_RunHook("Suppress");
 end
 
@@ -1367,6 +1430,7 @@ function FBHealBox_StartUp()
     FBHealBox_SyncOptions();
     HealBoxAttachMode(HealBox.AttachMode);
     FBHealBox_ApplyButtonSpacing();
+    FBHealBox_ApplyBlizzParty();
     if (MMButton) then MMButton:Show(); end
     FBUpdateNames();
 end
@@ -1389,6 +1453,7 @@ function FBHealBox_OnLoad()
     this:RegisterEvent("UNIT_MANA"); 
     this:RegisterEvent("UNIT_MAXMANA"); 
     this:RegisterEvent("UNIT_DISPLAYPOWER"); 
+    this:RegisterEvent("UNIT_INVENTORY_CHANGED"); 
 end 
 
 -- Fehlende Schluessel in den geladenen SavedVariables nachziehen
@@ -1404,6 +1469,9 @@ function FBHealBox_ApplyDefaults()
     if (HealBox.ButtonSpacing == nil) then HealBox.ButtonSpacing = 2; end
     if (HealBox.RowSpacing == nil) then HealBox.RowSpacing = 4; end
     if (HealBox.ManaBar == nil) then HealBox.ManaBar = 1; end
+    if (HealBox.PowerBar == nil) then HealBox.PowerBar = 0; end
+    if (HealBox.HideBlizzParty == nil) then HealBox.HideBlizzParty = 0; end
+    if (HealBox.HealBonus == nil) then HealBox.HealBonus = 1; end
     if (HealBox.ShowPets == nil) then HealBox.ShowPets = 1; end
     if (HealBox.ClassColors == nil) then HealBox.ClassColors = 1; end
     if (HealBox.RangeFade == nil) then HealBox.RangeFade = 1; end
@@ -1434,6 +1502,8 @@ function FBHealBox_SyncOptions()
     if (AttachModeCheck) then AttachModeCheck:SetChecked(HealBox.AttachMode == 1); end
     if (HealCommCheck) then HealCommCheck:SetChecked(HealBox.HealComm == 1); end
     if (ManaBarCheck) then ManaBarCheck:SetChecked(HealBox.ManaBar == 1); end
+    if (PowerBarCheck) then PowerBarCheck:SetChecked(HealBox.PowerBar == 1); end
+    if (HidePartyCheck) then HidePartyCheck:SetChecked(HealBox.HideBlizzParty == 1); end
     if (ShowPetsCheck) then ShowPetsCheck:SetChecked(HealBox.ShowPets == 1); end
     if (TestModeCheck) then TestModeCheck:SetChecked(FBTestMode); end
     if (ClassColorsCheck) then ClassColorsCheck:SetChecked(HealBox.ClassColors == 1); end
@@ -1453,6 +1523,7 @@ function FBHealBox_SyncOptions()
     FBHealBox_UpdatePlateActionLabels();
     FBHealBox_ApplyRightClickLayout();
     FBHealBox_UpdateSmartCrossState();
+    FBHealBox_UpdatePartyExclusion();
     FBHealBox_RunHook("SyncOptions");
 end
 
@@ -1468,6 +1539,26 @@ function FBHealBox_UpdateSmartCrossState()
         SmartCrossCheck:Disable();
         if (SmartCrossCheck.Text) then
             SmartCrossCheck.Text:SetTextColor(0.5, 0.5, 0.5, 1);
+        end
+    end
+end
+
+-- Anheftmodus und das Verstecken der Blizzard-Frames schliessen sich aus:
+-- was gerade nicht geht, wird gesperrt und ausgegraut.
+function FBHealBox_UpdatePartyExclusion()
+    local pairsList = {
+        { box = AttachModeCheck, blocked = (HealBox.HideBlizzParty == 1) },
+        { box = HidePartyCheck,  blocked = (HealBox.AttachMode == 1) },
+    };
+    for _, e in ipairs(pairsList) do
+        if (e.box) then
+            if (e.blocked) then
+                e.box:Disable();
+                if (e.box.Text) then e.box.Text:SetTextColor(0.5, 0.5, 0.5, 1); end
+            else
+                e.box:Enable();
+                if (e.box.Text) then e.box.Text:SetTextColor(1, 0.82, 0, 1); end
+            end
         end
     end
 end
@@ -1528,6 +1619,8 @@ function FBLoadSpellData()
     -- Tooltips auswerten: welche dieser Zauber sind HoTs bzw. Absorb-Schilde?
     FBPredict_BuildWatch();
     FBSpellNameCache = {};
+    FBSpellCastCache = {};
+    FBHealBox_InvalidateRangeSpell();
     FBHealBox_ProbeAPIs();
     -- Doppelt gezaehlte Absorb-Lernwerte (Versionen vor 1.4.2) verwerfen
     FBPredict_SanitizeMemory();
@@ -1551,6 +1644,7 @@ end
 -- side = "L" (Standard) oder "R" (Rechtsklick)
 function FBApplySpellChoice(i, castString, side)
     if type(castString) == "number" then return; end
+    FBHealBox_InvalidateRangeSpell();   -- Belegung geaendert
     local names, icons, ids, fields = FBChoiceTables(side);
     
     names[i] = castString;
@@ -2075,6 +2169,12 @@ function FBHealBox_OnEvent(event, arg1)
     -- im naechsten Frame zusammengefasst.
     if (event == "PARTY_MEMBERS_CHANGED" or event == "UNIT_PET") then 
         FBNamesDirty = true; 
+        FBBlizzPartyDirty = true;   -- neue Mitglieder gleich mit verstecken
+    end 
+    
+    -- Ausruestung gewechselt: gemerkten +Heilung-Wert verwerfen
+    if (event == "UNIT_INVENTORY_CHANGED") and (arg1 == "player") then 
+        FBHealBox_InvalidateHealBonus(); 
     end 
     
     if (event == "UNIT_NAME_UPDATE") then 
@@ -2543,7 +2643,7 @@ function FBHealBox_DirectAmount(spellName, sd)
     if (not sd) then return nil; end
     local info = FBPredict_GetSpellInfo(sd.id, spellName);
     if (not info) or (not info.direct) or info.shield or info.hot or (not info.isHeal) then return nil; end
-    return FBPredict_Remembered("direct", spellName, sd.rank) or info.direct;
+    return FBPredict_ExpectedDirect(spellName, sd.rank, info, sd.id);
 end
 
 -- Alle Zauber, die als kleinere Ausgabe von base gelten (base immer dabei)
@@ -2915,6 +3015,18 @@ end
 
 -- Buff-Texturen einer Einheit, je Frame nur einmal gelesen: Vorhersage-Scan
 -- und Buff-Wache brauchen dieselbe Liste im selben Event.
+-- Grossschreibung von Texturpfaden einmal merken. Die Pfade wiederholen sich
+-- staendig, strupper legt sonst bei jedem Aufruf einen neuen String an, der
+-- gleich wieder Muell ist. Die Tabelle bleibt klein: es gibt nur so viele
+-- Eintraege wie unterschiedliche Buff-Texturen.
+FBTexUpperMemo = {};
+function FBHealBox_UpperTex(tex)
+    if (not tex) then return nil; end
+    local u = FBTexUpperMemo[tex];
+    if (not u) then u = strupper(tex); FBTexUpperMemo[tex] = u; end
+    return u;
+end
+
 FBBuffScanMemo = {};   -- [unit] = { t, tex = {}, list = {}, n }
 function FBHealBox_UnitBuffs(unit)
     local now = GetTime();
@@ -2926,7 +3038,7 @@ function FBHealBox_UnitBuffs(unit)
     while (i <= 32) do
         local tex = UnitBuff(unit, i);
         if (not tex) then break; end
-        tex = strupper(tex);
+        tex = FBHealBox_UpperTex(tex);
         m.tex[tex] = true;
         m.list[i] = tex;
         i = i + 1;
@@ -3211,10 +3323,24 @@ function FBLOS_HasUnitXP()
 end
 
 -- UnitXP sicher abfragen: true / false, nil wenn nicht verfuegbar
+-- Ein Durchlauf hat geworfen, obwohl die Form sich vorher bewaehrt hatte.
+-- Dann gehen alle drei Abfragen wieder in den geschuetzten Einzelaufruf: der
+-- faengt den Fehler ab, liefert nil und der Rueckfallweg greift wie frueher.
+-- Das Addon heilt sich also selbst, statt dauerhaft Fehler zu werfen.
+function FBHealBox_ApiFailed()
+    FBAPI_RangeDirect = false;
+    FBAPI_DistDirect  = false;
+    FBAPI_SightDirect = false;
+end
+
+-- Wie bei der Reichweite: der erste Aufruf geschuetzt, danach direkt.
+FBAPI_SightDirect = false;
 function FBLOS_QueryUnitXP(unit)
     if (not UnitXP) then return nil; end
+    if (FBAPI_SightDirect) then return UnitXP("inSight", "player", unit); end
     local ok, res = pcall(UnitXP, "inSight", "player", unit);
     if (not ok) then return nil; end
+    FBAPI_SightDirect = true;
     return res;
 end
 
@@ -3254,6 +3380,10 @@ function FBLOS_Clear(name)
 end
 
 function FBHealBox_CheckLOSAll()
+    if (not pcall(FBHealBox_CheckLOSSweep)) then FBHealBox_ApiFailed(); end
+end
+
+function FBHealBox_CheckLOSSweep()
     for p = 1, FBSlotCount do
         local f = FBPartyFrame[p];
         if (f and f.LOSIcon) then
@@ -3309,6 +3439,9 @@ function FBHealBox_ProbeAPIs()
     FBAPI_Probed = true;
     FBAPI_SpellRange = false; FBAPI_RangeForm = nil;
     FBAPI_UsableSpell = false; FBAPI_UsableForm = nil;
+    -- Direktaufruf erst wieder erlauben, wenn eine Form sich bewaehrt hat
+    FBAPI_RangeDirect = false; FBAPI_DistDirect = false; FBAPI_SightDirect = false;
+    FBHealBox_ProbeHealBonus();
     if (type(IsSpellInRange) == "function") then
         local ok = pcall(IsSpellInRange, 1, BOOKTYPE_SPELL, "player");
         if (ok) then
@@ -3327,6 +3460,120 @@ function FBHealBox_ProbeAPIs()
             if (ok) then FBAPI_UsableSpell = true; FBAPI_UsableForm = 1; end
         end
     end
+end
+
+-- ==========================================================================
+-- [ +Heilung aus der Ausruestung ]
+--
+-- Vanilla-Tooltips zeigen den Heilbonus der Ausruestung nicht, der Tooltip
+-- eines Zaubers nennt also immer den nackten Grundwert. Gelernte Werte aus
+-- dem Combatlog enthalten den Bonus dagegen von selbst, deshalb greift die
+-- Rechnung hier nur bei Raengen, die noch nie gewirkt wurden.
+--
+-- Den Bonus liefert eine Zusatz-API, wenn eine da ist (ClassicAPI bringt
+-- GetSpellBonusHealing mit). Gewichtet wird er wie in Vanilla ueblich mit
+-- Zauberzeit geteilt durch 3,5, gedeckelt bei 3,5 Sekunden; Instants rechnen
+-- mit 1,5 Sekunden. Ohne API bleibt der Bonus 0 und alles laeuft wie bisher.
+-- ==========================================================================
+
+FBAPI_HealBonusFn = nil;    -- gefundene Funktion oder nil
+FBSpellCastCache  = {};     -- [bookID] = Zauberzeit in Sekunden oder false
+
+function FBHealBox_ProbeHealBonus()
+    FBAPI_HealBonusFn = nil;
+    FBHealBonusValue = nil;
+    local names = { "GetSpellBonusHealing", "GetSpellBonusHeal", "GetHealingBonus" };
+    for _, n in ipairs(names) do
+        local fn = getglobal(n);
+        if (type(fn) == "function") then
+            local ok, v = pcall(fn);
+            if (ok) and (type(v) == "number") then FBAPI_HealBonusFn = fn; return; end
+        end
+    end
+    -- ClassicAPI legt seine Nachbauten je nach Fassung in eine eigene Tabelle
+    if (type(ClassicAPI) == "table") then
+        local t = ClassicAPI.API or ClassicAPI;
+        for _, n in ipairs(names) do
+            local fn = t[n];
+            if (type(fn) == "function") then
+                local ok, v = pcall(fn);
+                if (ok) and (type(v) == "number") then FBAPI_HealBonusFn = fn; return; end
+            end
+        end
+    end
+end
+
+-- Aktueller +Heilung-Wert oder 0.
+--
+-- Der Wert aendert sich nur beim Ausruestungswechsel, wird aber bei einem
+-- Smart-Healing-Klick fuer jeden Kandidaten gebraucht (mit Heilketten bis zu
+-- fuenfzehn). Deshalb einmal lesen und merken; UNIT_INVENTORY_CHANGED und
+-- der Zauberbuch-Neuaufbau werfen den Wert weg.
+FBHealBonusValue = nil;
+
+function FBHealBox_InvalidateHealBonus()
+    FBHealBonusValue = nil;
+end
+
+function FBHealBox_HealingBonus()
+    if (not FBAPI_Probed) then FBHealBox_ProbeAPIs(); end
+    if (HealBox.HealBonus ~= 1) or (not FBAPI_HealBonusFn) then return 0; end
+    if (FBHealBonusValue ~= nil) then return FBHealBonusValue; end
+    local v;
+    local ok, res = pcall(FBAPI_HealBonusFn);
+    if (ok) and (type(res) == "number") and (res > 0) then v = res; else v = 0; end
+    FBHealBonusValue = v;
+    return v;
+end
+
+-- Zauberzeit aus dem Tooltip. Sie steht rechts in der zweiten Zeile
+-- ("2.5 sec cast"), Instants stehen dort als "Instant cast". 0 = Instant.
+function FBHealBox_SpellCastSeconds(id)
+    if (not id) then return nil; end
+    local c = FBSpellCastCache[id];
+    if (c ~= nil) then return c or nil; end
+    -- Regelfall ist der Treffer oben: FBPredict_TooltipText fuellt den
+    -- Zwischenspeicher beim Auslesen der Zauberdaten mit. Hierher kommt nur,
+    -- wer noch nie durch die Tooltip-Auswertung gelaufen ist.
+    FBPredictTip:SetOwner(UIParent, "ANCHOR_NONE");
+    FBPredictTip:ClearLines();
+    FBPredictTip:SetSpell(id, BOOKTYPE_SPELL);
+    local secs = nil;
+    for i = 1, 6 do
+        for _, side in ipairs({ "Left", "Right" }) do
+            local fs = getglobal("FBHealBoxScanTipText"..side..i);
+            if (fs and fs:IsShown()) then
+                local t = fs:GetText();
+                if (t) then
+                    local _, _, v = string.find(t, "([%d%.]+)%s+[Ss]ec%s+cast");
+                    if (v) then secs = tonumber(v); end
+                    if (not secs) and string.find(t, "[Ii]nstant") then secs = 0; end
+                end
+            end
+        end
+    end
+    FBSpellCastCache[id] = secs or false;
+    return secs;
+end
+
+-- Anteil des +Heilung-Werts, der auf diesen Zauber entfaellt
+function FBHealBox_HealBonusFor(bookID)
+    local bonus = FBHealBox_HealingBonus();
+    if (bonus <= 0) then return 0; end
+    local secs = FBHealBox_SpellCastSeconds(bookID);
+    if (not secs) then secs = 2.5; end    -- Zauberzeit unlesbar: mittlerer Wert
+    if (secs <= 0) then secs = 1.5; end   -- Instants rechnen mit 1,5 Sekunden
+    if (secs > 3.5) then secs = 3.5; end
+    return bonus * (secs / 3.5);
+end
+
+-- Erwartete Sofortheilung eines Rangs: gelernter Wert, sonst Tooltip plus
+-- anteiliger Ausruestungsbonus
+function FBPredict_ExpectedDirect(spellName, rank, info, bookID)
+    local learned = FBPredict_Remembered("direct", spellName, rank);
+    if (learned) then return learned; end
+    if (not info) or (not info.direct) then return nil; end
+    return info.direct + FBHealBox_HealBonusFor(bookID);
 end
 
 -- Reichweite eines Zaubers aus dem Tooltip (Meter) oder nil
@@ -3358,12 +3605,23 @@ function FBHealBox_SpellInRange(id, unit)
     if (not FBAPI_Probed) then FBHealBox_ProbeAPIs(); end
     if (FBAPI_SpellRange) then
         local ok, r;
-        if (FBAPI_RangeForm == 3) then
+        -- Der erste Aufruf je Form laeuft geschuetzt. Danach ist bewiesen,
+        -- dass der Client sie versteht, und pcall faellt weg: im Vierzigerraid
+        -- waren das 80 geschuetzte Aufrufe je Sekunde nur fuer die Reichweite.
+        if (FBAPI_RangeDirect) then
+            ok = true;
+            if (FBAPI_RangeForm == 3) then
+                r = IsSpellInRange(id, BOOKTYPE_SPELL, unit);
+            else
+                r = IsSpellInRange(FBHealBox_SpellNameOf(id), unit);
+            end
+        elseif (FBAPI_RangeForm == 3) then
             ok, r = pcall(IsSpellInRange, id, BOOKTYPE_SPELL, unit);
         else
             ok, r = pcall(IsSpellInRange, FBHealBox_SpellNameOf(id), unit);
         end
         if (ok) then
+            FBAPI_RangeDirect = true;
             if (r == 1 or r == true) then return 1; end
             if (r == 0 or r == false) then return 0; end
             return nil;
@@ -3373,8 +3631,14 @@ function FBHealBox_SpellInRange(id, unit)
     end
     local range = FBHealBox_SpellRangeYards(id);
     if (UnitXP and range) then
-        local ok, d = pcall(UnitXP, "distanceBetween", "player", unit);
+        local ok, d;
+        if (FBAPI_DistDirect) then
+            ok = true; d = UnitXP("distanceBetween", "player", unit);
+        else
+            ok, d = pcall(UnitXP, "distanceBetween", "player", unit);
+        end
         if (ok and type(d) == "number") then
+            FBAPI_DistDirect = true;
             if (d <= range) then return 1; else return 0; end
         end
     end
@@ -3419,11 +3683,23 @@ end
 
 FBRangeAccum = 0; 
 
+-- Erster belegter Button: Zauber fuer die Reichweitenpruefung. Wird je
+-- Einheit und Durchlauf gebraucht, im Vierzigerraid also hundertfach je
+-- Sekunde, aendert sich aber nur beim Umbelegen. Also merken.
+FBRangeSpellCached = nil;   -- false = keiner belegt, nil = neu suchen
+
+function FBHealBox_InvalidateRangeSpell()
+    FBRangeSpellCached = nil;
+end
+
 function FBHealBox_RangeSpellID() 
+    if (FBRangeSpellCached ~= nil) then return FBRangeSpellCached or nil; end
+    local found = false;
     for i = 1, MaxButtonCount do 
-        if (FBActiveSpellIDs[i]) then return FBActiveSpellIDs[i]; end 
+        if (FBActiveSpellIDs[i]) then found = FBActiveSpellIDs[i]; break; end 
     end 
-    return nil; 
+    FBRangeSpellCached = found;
+    return found or nil; 
 end 
 
 function FBHealBox_UnitInRange(unit) 
@@ -3443,7 +3719,14 @@ function FBHealBox_UnitInRange(unit)
     return true; 
 end 
 
-function FBHealBox_CheckRangeAll() 
+-- Der Durchlauf selbst laeuft geschuetzt: ein pcall je Durchlauf statt eines
+-- je Einheit. Das kostet praktisch nichts und haelt einen spaeten Fehler aus
+-- den Reichweiten-Abfragen trotzdem vom Frame fern.
+function FBHealBox_CheckRangeAll()
+    if (not pcall(FBHealBox_CheckRangeSweep)) then FBHealBox_ApiFailed(); end
+end
+
+function FBHealBox_CheckRangeSweep() 
     for p = 1, FBSlotCount do 
         local f = FBPartyFrame[p]; 
         if (f) then 
@@ -3550,6 +3833,15 @@ function FBHealBox_ApplyLocale()
         SmartCrossCheck.Text:SetText(FBT("SMARTCROSS"));
         SmartCrossCheck.tooltipText = FBT("SMARTCROSS_TIP");
     end
+    if (HidePartyCheck) then
+        HidePartyCheck.Text:SetText(FBT("HIDEPARTY"));
+        HidePartyCheck.tooltipText = FBT("HIDEPARTY_TIP");
+    end
+    if (PowerBarCheck) then
+        PowerBarCheck.Text:SetText(FBT("POWERBAR"));
+        PowerBarCheck.tooltipText = FBT("POWERBAR_TIP");
+    end
+    FBHealBox_UpdatePartyExclusion();
     FBUpdateSmartMarginText();
     FBHealBox_UpdateSmartCrossState();
     if (CooldownsCheck) then
@@ -3954,6 +4246,10 @@ function FBHealBoxCreateAddonOptionFrame()
     local cy = gy - 95; 
     AttachModeCheck = FBHealBox_CreateCheck("$parentCheckButton", tabGeneral, 40, cy, "ATTACH", "ATTACH_TIP", function() 
         HealBox.AttachMode = AttachModeCheck:GetChecked() and 1 or 0; 
+        -- Anheften und Verstecken schliessen sich aus
+        if (HealBox.AttachMode == 1) then HealBox.HideBlizzParty = 0; end 
+        if (HidePartyCheck) then HidePartyCheck:SetChecked(HealBox.HideBlizzParty == 1); end 
+        FBHealBox_UpdatePartyExclusion(); 
         HealBoxAttachMode(HealBox.AttachMode); 
         FBUpdateNames(); 
     end); 
@@ -4039,8 +4335,29 @@ function FBHealBoxCreateAddonOptionFrame()
     end); 
     BuffIconsCheck:SetChecked(1); 
     
+    HidePartyCheck = FBHealBox_CreateCheck("FBHealBoxHidePartyCheck", tabGeneral, 40, cy - 210, "HIDEPARTY", "HIDEPARTY_TIP", function() 
+        HealBox.HideBlizzParty = HidePartyCheck:GetChecked() and 1 or 0; 
+        if (HealBox.HideBlizzParty == 1) then 
+            HealBox.AttachMode = 0; 
+            if (AttachModeCheck) then AttachModeCheck:SetChecked(nil); end 
+            HealBoxAttachMode(0); 
+            FBUpdateNames(); 
+        end 
+        FBHealBox_UpdatePartyExclusion(); 
+        FBHealBox_ApplyBlizzParty(); 
+    end); 
+    HidePartyCheck:SetChecked(nil); 
+    
+    PowerBarCheck = FBHealBox_CreateCheck("FBHealBoxPowerBarCheck", tabGeneral, 250, cy - 210, "POWERBAR", "POWERBAR_TIP", function() 
+        HealBox.PowerBar = PowerBarCheck:GetChecked() and 1 or 0; 
+        FBHealBox_InvalidateUnitCaches(); 
+        FBHealBox_RefreshAllBars(); 
+        FBHealBox_RunHook("SyncOptions"); 
+    end); 
+    PowerBarCheck:SetChecked(nil); 
+    
     -- [ Sprache und Buff-Wache ] -------------------------------------------
-    local py = cy - 215; 
+    local py = cy - 245; 
     FBLangBtn = FBHealBox_CreatePickButton("FBHealBoxLangBtn", tabGeneral, 35, py, 180, 26, 18); 
     FBLangBtn.icon:SetTexture("Interface\\Icons\\INV_Misc_Note_01"); 
     FBLangBtn:SetScript("OnEnter", function() 
@@ -4185,6 +4502,7 @@ function FBHealBoxButtons()
 end 
 
 function FBHealBoxButtonsChanged() 
+    FBHealBox_InvalidateRangeSpell(); 
     local rightOn = (HealBox.RightClick == 1); 
     for p = 1, FBSlotCount do 
         local unit = FBPartyUnit[p]; 
@@ -4462,6 +4780,46 @@ function FBHealBox_BlizzAnchor(p)
     return nil; 
 end 
 
+-- ==========================================================================
+-- [ Blizzards Gruppenfenster ]
+--
+-- Der Anheftmodus haengt die Plaketten genau an PartyMemberFrame1 bis 4.
+-- Beides gleichzeitig ergibt keinen Sinn, deshalb sperren sich die zwei
+-- Optionen im Optionsfenster gegenseitig, und diese Pruefung hier ist der
+-- Sicherheitsgurt fuer alte gespeicherte Werte. Im Ruhezustand der
+-- Klassensperre gibt das Addon die Frames ebenfalls wieder frei.
+-- ==========================================================================
+
+function FBHealBox_HideBlizzPartyActive()
+    if (FBAddonSuppressed) then return false; end
+    if (HealBox.AttachMode == 1) then return false; end
+    return (HealBox.HideBlizzParty == 1);
+end
+
+function FBHealBox_ApplyBlizzParty()
+    local hide = FBHealBox_HideBlizzPartyActive();
+    for i = 1, 4 do
+        local f = getglobal("PartyMemberFrame"..i);
+        if (f) then
+            -- Blizzard zeigt die Frames bei jeder Gruppenaenderung neu an,
+            -- deshalb einmalig OnShow abfangen statt nur einmal zu verstecken
+            if (not f.fbShowHooked) then
+                f.fbShowHooked = true;
+                f.fbOldOnShow = f:GetScript("OnShow");
+                f:SetScript("OnShow", function()
+                    if (this.fbOldOnShow) then this.fbOldOnShow(); end
+                    if (FBHealBox_HideBlizzPartyActive()) then this:Hide(); end
+                end);
+            end
+            if (hide) then
+                f:Hide();
+            elseif (UnitExists("party"..i)) then
+                f:Show();
+            end
+        end
+    end
+end
+
 function HealBoxAttachMode(mode) 
     if (not FBHealBox1) then return; end 
     
@@ -4509,6 +4867,7 @@ function HealBoxAttachMode(mode)
         end 
         FBHealBox_Layout(); 
     end 
+    FBHealBox_ApplyBlizzParty(); 
 end 
 
 -- ==========================================================================
@@ -4588,13 +4947,33 @@ function FBPredict_TooltipText(bookID)
     FBPredictTip:SetSpell(bookID, BOOKTYPE_SPELL);
 
     local txt = "";
+    local secs = nil;
     local i = 1;
     while (i <= 30) do
         local fs = getglobal("FBHealBoxScanTipTextLeft"..i);
         if (not fs or not fs:IsShown()) then break; end
         local line = fs:GetText();
         if (line) then txt = txt.." "..line; end
+        -- Die Zauberzeit steht rechts ("2.5 sec cast", "Instant cast"). Sie
+        -- kommt bewusst nicht in txt: eine Zahl wie 2.5 wuerde die Muster
+        -- fuer Schilddauer und Heilbetrag durcheinanderbringen. Hier wird sie
+        -- nur nebenbei gelesen, solange der Tooltip ohnehin steht, und
+        -- gemerkt. Der Ausruestungsbonus braucht dann keinen eigenen Scan.
+        if (secs == nil) then
+            local rs = getglobal("FBHealBoxScanTipTextRight"..i);
+            if (rs and rs:IsShown()) then
+                local rline = rs:GetText();
+                if (rline) then
+                    local _, _, v = string.find(rline, "([%d%.]+)%s+[Ss]ec%s+cast");
+                    if (v) then secs = tonumber(v); end
+                    if (secs == nil) and string.find(rline, "[Ii]nstant") then secs = 0; end
+                end
+            end
+        end
         i = i + 1;
+    end
+    if (FBSpellCastCache[bookID] == nil) then
+        FBSpellCastCache[bookID] = secs or false;
     end
     return txt;
 end
@@ -4823,22 +5202,47 @@ function FBPredict_StartBuff(unitName, spellName, secs)
     FBBuffIconsDirty = true;
 end
 
--- Restlaufzeit eines eigenen Buffs (Textur) ueber die Spielerbuff-API
-function FBPredict_PlayerBuffTimeLeft(tex)
-    if (not GetPlayerBuff) or (not GetPlayerBuffTexture) or (not GetPlayerBuffTimeLeft) then return nil; end
+-- Restlaufzeiten aller eigenen Buffs, [TEXTUR] = Sekunden.
+--
+-- Frueher lief je gesuchtem Buff eine eigene Schleife ueber die gesamte
+-- Buffliste. Bei sechs Wachen und dreissig Buffs waren das rund 200 Aufrufe
+-- je Sekunde. Jetzt wird die Liste einmal je Frame gelesen und alle Wachen
+-- bedienen sich daraus; der Zeitstempel arbeitet wie bei FBHealBox_UnitBuffs.
+FBPlayerBuffLeft  = {};
+FBPlayerBuffStamp = nil;
+
+function FBPredict_ScanPlayerBuffTimes()
+    local now = GetTime();
+    if (FBPlayerBuffStamp == now) then return FBPlayerBuffLeft; end
+    FBPlayerBuffStamp = now;
+    for k in pairs(FBPlayerBuffLeft) do FBPlayerBuffLeft[k] = nil; end
+    if (not GetPlayerBuff) or (not GetPlayerBuffTexture) or (not GetPlayerBuffTimeLeft) then
+        return FBPlayerBuffLeft;
+    end
     local i = 0;
     while true do
         local id = GetPlayerBuff(i, "HELPFUL");
         if (not id) or (id < 0) then break; end
         local t = GetPlayerBuffTexture(id);
-        if (t and strupper(t) == tex) then
+        if (t) then
             local left = GetPlayerBuffTimeLeft(id);
-            if (left and left > 0) then return left; end
-            return nil;
+            if (left and left > 0) then
+                local up = FBHealBox_UpperTex(t);
+                -- gleiche Textur mehrfach (etwa gestapelte Buffs): laengste Zeit
+                if (not FBPlayerBuffLeft[up]) or (left > FBPlayerBuffLeft[up]) then
+                    FBPlayerBuffLeft[up] = left;
+                end
+            end
         end
         i = i + 1;
     end
-    return nil;
+    return FBPlayerBuffLeft;
+end
+
+-- Restlaufzeit eines eigenen Buffs (Textur, gross geschrieben) oder nil
+function FBPredict_PlayerBuffTimeLeft(tex)
+    if (not tex) then return nil; end
+    return FBPredict_ScanPlayerBuffTimes()[tex];
 end
 
 -- [ Lernspeicher (wandert in die SavedVariables) ] --------------------------
@@ -5056,7 +5460,7 @@ function FBPredict_CastStart(spellName, castMs)
     local info = FBPredict_GetSpellInfo(bookID, spellName);
     if (not info) or (not info.direct) then return; end
 
-    local amount = FBPredict_Remembered("direct", spellName, rank) or info.direct;
+    local amount = FBPredict_ExpectedDirect(spellName, rank, info, bookID) or info.direct;
     FBLOS_Clear(FBPredict_ResolveTarget());   -- Cast laeuft an: Sichtlinie ist da
 
     FBPredictDirect = {
@@ -5196,6 +5600,22 @@ function FBPredict_ToPattern(gs, anchor)
     return p;
 end
 
+-- Feststehendes Wortstueck aus einer Client-Vorlage schneiden: alles vor dem
+-- ersten Platzhalter faellt weg, alles ab dem naechsten ebenfalls, uebrig
+-- bleibt ein Stueck reiner Text fuer den billigen Vortest. Bei "Your %s heals
+-- %s for %d." ist das " heals ". Klappt das nicht, greift der Rueckfall.
+function FBPredict_PlainPart(template, fallback)
+    if (not template) or (type(template) ~= "string") then return fallback; end
+    local s1, e1 = string.find(template, "%%%a");
+    if (not s1) then return fallback; end
+    local rest = string.sub(template, e1 + 1);
+    local s2 = string.find(rest, "%%%a");
+    if (s2) then rest = string.sub(rest, 1, s2 - 1); end
+    -- Satzzeichen am Ende stoeren nicht, zu kurze Stuecke taugen aber nichts
+    if (string.len(rest) < 4) then return fallback; end
+    return rest;
+end
+
 function FBPredict_InitPatterns()
     -- "%s gains %d health from your %s."
     FBPredictPatHoTOther = FBPredict_ToPattern(PERIODICAURAHEALOTHERSELF, true)
@@ -5213,6 +5633,13 @@ function FBPredict_InitPatterns()
     -- " (%d absorbed)"
     FBPredictPatAbsorb    = FBPredict_ToPattern(ABSORB_TRAILER, false)
                         or "%((%d+) absorbed%)";
+    -- Vortests: " heals " und " health from your ".
+    -- Beim Tick wird bewusst die Selbst-Vorlage genommen: "You gain ..." und
+    -- "%s gains ..." unterscheiden sich im Verb, das Stueck dahinter ist in
+    -- beiden gleich. Ein aus der Fremd-Vorlage geschnittenes " gains " wuerde
+    -- die eigenen Ticks aussperren.
+    FBPRED_WORD_HEAL = FBPredict_PlainPart(HEALEDSELFOTHER, " heals ");
+    FBPRED_WORD_TICK = FBPredict_PlainPart(PERIODICAURAHEALSELFSELF, " health from your ");
 end
 
 -- Events, bei denen das Opfer immer der Spieler selbst ist
@@ -5343,32 +5770,40 @@ function FBPredict_ParseCombat(event, msg)
         return;
     end
 
-    -- Direktheilung auf jemand anderen: "Your Flash Heal heals Bob for 1240."
-    local _, _, spell, who, amt = string.find(msg, FBPredictPatHealOther);
-    if (spell and who and amt) then
-        FBPredict_OnDirectHeal(spell, who, tonumber(amt));
-        return;
+    -- Vor den verankerten Mustern ein billiger Textvergleich (viertes
+    -- Argument true = einfache Suche ohne Musterlogik). Fremde Heilungen und
+    -- fremde Ticks fallen so nach einem Vergleich raus statt nach vier
+    -- Musterlaeufen; im Raid sind das die meisten Meldungen.
+    if (string.find(msg, FBPRED_WORD_HEAL, 1, true)) then
+        -- Direktheilung auf jemand anderen: "Your Flash Heal heals Bob for 1240."
+        local _, _, spell, who, amt = string.find(msg, FBPredictPatHealOther);
+        if (spell and who and amt) then
+            FBPredict_OnDirectHeal(spell, who, tonumber(amt));
+            return;
+        end
+
+        -- Direktheilung auf mich: "Your Flash Heal heals you for 1240."
+        local _, _, spell2, amt2 = string.find(msg, FBPredictPatHealSelf);
+        if (spell2 and amt2) then
+            FBPredict_OnDirectHeal(spell2, UnitName("player"), tonumber(amt2));
+            return;
+        end
     end
 
-    -- Direktheilung auf mich: "Your Flash Heal heals you for 1240."
-    local _, _, spell2, amt2 = string.find(msg, FBPredictPatHealSelf);
-    if (spell2 and amt2) then
-        FBPredict_OnDirectHeal(spell2, UnitName("player"), tonumber(amt2));
-        return;
-    end
+    if (string.find(msg, FBPRED_WORD_TICK, 1, true)) then
+        -- HoT-Tick auf jemand anderen: "Bob gains 194 health from your Renew."
+        local _, _, who3, amt3, spell3 = string.find(msg, FBPredictPatHoTOther);
+        if (who3 and amt3 and spell3) then
+            FBPredict_OnTick(who3, tonumber(amt3), spell3);
+            return;
+        end
 
-    -- HoT-Tick auf jemand anderen: "Bob gains 194 health from your Renew."
-    local _, _, who3, amt3, spell3 = string.find(msg, FBPredictPatHoTOther);
-    if (who3 and amt3 and spell3) then
-        FBPredict_OnTick(who3, tonumber(amt3), spell3);
-        return;
-    end
-
-    -- HoT-Tick auf mich: "You gain 194 health from your Renew."
-    local _, _, amt4, spell4 = string.find(msg, FBPredictPatHoTSelf);
-    if (amt4 and spell4) then
-        FBPredict_OnTick(UnitName("player"), tonumber(amt4), spell4);
-        return;
+        -- HoT-Tick auf mich: "You gain 194 health from your Renew."
+        local _, _, amt4, spell4 = string.find(msg, FBPredictPatHoTSelf);
+        if (amt4 and spell4) then
+            FBPredict_OnTick(UnitName("player"), tonumber(amt4), spell4);
+            return;
+        end
     end
 end
 
@@ -5456,6 +5891,7 @@ FBPredictFrame:SetScript("OnUpdate", function()
 end);
 
 FBNamesDirty = false;
+FBBlizzPartyDirty = false;
 FBBtnStatesDirty = nil;
 FBBuffIconsDirty = true;
 FBBuffIconsAccum = 0;
@@ -5465,6 +5901,12 @@ function FBPredict_OnUpdate(elapsed)
     if (FBNamesDirty) then
         FBNamesDirty = false;
         FBUpdateNames();
+    end
+    -- Blizzards Gruppenfenster im selben Sammelpunkt, statt bei jedem
+    -- einzelnen Ereignis einer Salve
+    if (FBBlizzPartyDirty) then
+        FBBlizzPartyDirty = false;
+        FBHealBox_ApplyBlizzParty();
     end
     -- Aufgeschobene Button-Zustaende (USABLE schlaegt COOLDOWN, da es beides tut)
     if (FBBtnStatesDirty) then
@@ -5806,6 +6248,21 @@ SlashCmdList["FBHEALPREDICT"] = function(msg)
         return;
     end
 
+    -- Ausruestungsbonus in der Vorhersage an/aus
+    if (msg == "healbonus" or msg == "bonus") then
+        if (not FBAPI_Probed) then FBHealBox_ProbeAPIs(); end
+        if (not FBAPI_HealBonusFn) then
+            DEFAULT_CHAT_FRAME:AddMessage("|cFFFFFF00"..FBADDON_NAME..":|r "..FBT("HEALBONUS_NA"));
+            return;
+        end
+        if (HealBox.HealBonus == 1) then HealBox.HealBonus = 0; else HealBox.HealBonus = 1; end
+        local key = "HEALBONUS_OFF";
+        if (HealBox.HealBonus == 1) then key = "HEALBONUS_ON"; end
+        DEFAULT_CHAT_FRAME:AddMessage("|cFFFFFF00"..FBADDON_NAME..":|r "
+            ..format(FBT(key), math.floor(FBHealBox_HealingBonus() + 0.5)));
+        return;
+    end
+
     -- Abrangen ueber Zaubergrenzen (Heilketten) an/aus
     if (msg == "smartcross" or msg == "cross") then
         if (HealBox.SmartCross == 1) then HealBox.SmartCross = 0; else HealBox.SmartCross = 1; end
@@ -5856,6 +6313,14 @@ SlashCmdList["FBHEALPREDICT"] = function(msg)
             i = i + 1;
         end
         return;
+    end
+
+    if (not FBAPI_Probed) then FBHealBox_ProbeAPIs(); end
+    if (FBAPI_HealBonusFn) then
+        local state = FBT("FBP_STATE_OFF");
+        if (HealBox.HealBonus == 1) then state = FBT("FBP_STATE_ON"); end
+        DEFAULT_CHAT_FRAME:AddMessage("|cFF00FFFF[FBP]|r "..format(FBT("FBP_HEALBONUS"),
+            math.floor(FBHealBox_HealingBonus() + 0.5), state));
     end
 
     DEFAULT_CHAT_FRAME:AddMessage("|cFF00FFFF[FBP]|r "..FBT("FBP_WATCHED"));
@@ -6136,7 +6601,8 @@ end
 function FBHealBox_BuffIconList(unitName, g, out)
     local n = 0;
     if (g) then
-        for _, b in ipairs(g.buffs or {}) do
+        if (not g.buffs) then return 0; end
+        for _, b in ipairs(g.buffs) do
             n = n + 1;
             local e = out[n] or {}; out[n] = e;
             e.tex = b.tex; e.expires = b.left and (GetTime() + b.left); e.duration = b.dur; e.name = "Test";
@@ -6254,19 +6720,31 @@ function FBHealBox_UpdateAllBuffIcons()
     FBHealBox_RunHook("BuffIcons");
 end
 
+-- Balkenfarbe der Energieart anpassen. Der Zwischenspeicher am Rahmen
+-- verhindert, dass die Farbe bei jedem Durchlauf neu gesetzt wird.
+function FBHealBox_SetPowerColor(bar, cache, ptype)
+    if (not bar) then return; end
+    local t = ptype or 0;
+    if (cache) and (cache.powerType == t) then return; end
+    if (cache) then cache.powerType = t; end
+    local c = FBPOWER_COLORS[t] or FBMANA_BAR_COLOR;
+    bar:SetStatusBarColor(c[1], c[2], c[3], c[4]);
+end
+
 -- Manabalken: nur wenn eingeschaltet, die Plakette sichtbar ist und die
 -- Einheit tatsaechlich Mana nutzt. Sonst weg, dann ist der Lebensbalken
 -- wieder auf voller Hoehe zu sehen.
 function FBHealBox_UpdateMana(unit, frame)
     if (not frame.ManaBar) then return; end
-    local mp, mpMax, hasMana = 0, 0, false;
+    local mp, mpMax, hasMana, ptype = 0, 0, false, nil;
     if (HealBox.ManaBar == 1) and (not frame.plateHidden) then
-        mp, mpMax, hasMana = FBUnitMana(unit);
+        mp, mpMax, hasMana, ptype = FBUnitMana(unit);
     end
     if (not hasMana) then
         if (frame.manaShown ~= false) then frame.manaShown = false; frame.ManaBar:Hide(); end
         return;
     end
+    FBHealBox_SetPowerColor(frame.ManaBar, frame, ptype);
     if (frame.lastMpMax ~= mpMax) then
         frame.lastMpMax = mpMax;
         frame.ManaBar:SetMinMaxValues(0, mpMax);
@@ -6279,7 +6757,7 @@ end
 function FBHealBox_InvalidateUnitCaches()
     for p = 1, FBSlotCount do
         local f = FBPartyFrame[p];
-        if (f) then f.dispelKnown = nil; f.lastText = nil; f.lastMax = nil; f.colorKey = nil; f.manaShown = nil; f.lastMpMax = nil; f.vHp = nil; f.vShield = nil; f.vInc = nil; f.vMp = nil; end
+        if (f) then f.dispelKnown = nil; f.lastText = nil; f.lastMax = nil; f.colorKey = nil; f.manaShown = nil; f.lastMpMax = nil; f.powerType = nil; f.vHp = nil; f.vShield = nil; f.vInc = nil; f.vMp = nil; end
     end
 end
 

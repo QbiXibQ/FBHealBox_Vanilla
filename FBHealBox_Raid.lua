@@ -28,7 +28,8 @@ FBRAID_MAX        = 40;
 FBRAID_GROUPS     = 8;
 FBRAID_PER_GROUP  = 5;
 FBRAID_MAX_BUTTONS = 4;
-FBRAID_TICK       = 0.5;     -- Sek.: Reichweite und Sichtlinie
+FBRAID_TICK       = 0.5;     -- Sek.: voller Durchlauf Reichweite und Sichtlinie
+FBRAID_TICK_SLICES = 4;      -- in so viele Haeppchen zerlegt (je 2 Gruppen)
 FBRAID_MANA_H     = 3;       -- px Manastreifen in der Zelle
 FBRAID_LOS_SIZE   = 10;      -- px Sichtlinien-Auge in der Zelle
 FBRAID_HEADER_H   = 12;      -- px Gruppenkopf
@@ -437,8 +438,14 @@ end
 function FBRaid_Mana(cell)
     local g = cell.ghost;
     if (g) then
-        if (not g.hasMana) then return 0, 0, false; end
-        return math.floor(g.mpMax * g.mp), g.mpMax, true;
+        if (not g.hasMana) then
+            -- Wut, Energie und Fokus nur, wenn der Kern sie zeigen soll
+            if (HealBox.PowerBar == 1) and (g.power) and (g.mpMax) then
+                return math.floor(g.mpMax * (g.mp or 0)), g.mpMax, true, g.power;
+            end
+            return 0, 0, false, nil;
+        end
+        return math.floor(g.mpMax * g.mp), g.mpMax, true, 0;
     end
     return FBUnitMana(cell.unit);
 end
@@ -738,7 +745,7 @@ function FBRaid_UpdateRoster()
             if (FBRaidCells[g] and FBRaidCells[g][pos]) then
                 local c = FBRaidCells[g][pos];
                 c.unit = nil; c.name = nil; c.ghost = nil; c.index = nil;
-                c.dispelKnown = nil; c.lastText = nil; c.lastMax = nil; c.colorKey = nil; c.manaShown = nil; c.lastMpMax = nil;
+                c.dispelKnown = nil; c.lastText = nil; c.lastPct = nil; c.lastDef = nil; c.lastMax = nil; c.colorKey = nil; c.manaShown = nil; c.lastMpMax = nil; c.powerType = nil;
                 c.vHp = nil; c.vShield = nil; c.vInc = nil; c.vMp = nil;
                 c:Hide();
             end
@@ -940,6 +947,7 @@ function FBRaid_UpdateCell(c, auraChanged)
         if (state == "ghost") then key = "STATE_GHOST"; end
         if (state == "offline") then key = "STATE_OFFLINE"; end
         FBRaid_SetText(c, FBT(key));
+        c.lastPct = nil; c.lastDef = nil;   -- Zahlenspeicher gilt nicht mehr
         FBRaid_SetMax(c, hpMax);
         FBRaid_SetValues(c, 0, 0, 0);
         FBRaid_SetColor(c, "state", 0.5, 0.5, 0.5, 1);
@@ -956,19 +964,29 @@ function FBRaid_UpdateCell(c, auraChanged)
     if (incTop > hpMax) then incTop = hpMax; end
     FBRaid_SetValues(c, hp, shieldTop, incTop);
 
-    -- HP-Text
+    -- HP-Text. Verglichen wird die Zahl, nicht der fertige Text: sonst baut
+    -- jedes UNIT_HEALTH einen String, der meist sofort wieder verworfen wird.
     if (cfg.HPText == "percent") then
-        FBRaid_SetText(c, math.floor(hp / hpMax * 100).."%");
+        local pct = math.floor(hp / hpMax * 100);
+        if (c.lastPct ~= pct) then
+            c.lastPct = pct; c.lastDef = nil;
+            FBRaid_SetText(c, pct.."%");
+        end
     elseif (cfg.HPText == "deficit") then
         local def = hpMax - hp;
-        if (def > 0) then FBRaid_SetText(c, "-"..def); else FBRaid_SetText(c, ""); end
+        if (c.lastDef ~= def) then
+            c.lastDef = def; c.lastPct = nil;
+            if (def > 0) then FBRaid_SetText(c, "-"..def); else FBRaid_SetText(c, ""); end
+        end
     else
+        c.lastPct = nil; c.lastDef = nil;
         FBRaid_SetText(c, false);
     end
 
     -- Mana
-    local mp, mpMax, hasMana = FBRaid_Mana(c);
+    local mp, mpMax, hasMana, ptype = FBRaid_Mana(c);
     if (cfg.ManaBar == 1 and hasMana and mpMax > 0) then
+        FBHealBox_SetPowerColor(c.ManaBar, c, ptype);
         if (c.lastMpMax ~= mpMax) then c.lastMpMax = mpMax; c.ManaBar:SetMinMaxValues(0, mpMax); end
         if (c.vMp ~= mp) then c.vMp = mp; c.ManaBar:SetValue(mp); end
         if (c.manaShown ~= true) then c.manaShown = true; c.ManaBar:Show(); end
@@ -1199,10 +1217,30 @@ function FBRaid_SyncButtons()
 end
 
 -- Reichweite, Sichtlinie und Geister-Atmung im Takt
+-- Reichweite und Sichtlinie kosten je Zelle einen Aufruf ins Spiel hinein.
+-- Bei acht Gruppen waeren das in einem Rutsch bis zu 80 Abfragen in einem
+-- einzigen Frame. Deshalb wandert der Durchlauf in Haeppchen: je Tick nur
+-- ein Teil der Gruppen, nach FBRAID_TICK_SLICES Ticks sind alle einmal dran.
+-- Die Taktdauer ist entsprechend kuerzer, der volle Durchlauf dauert also
+-- weiterhin FBRAID_TICK Sekunden. force = true macht alles auf einmal.
+FBRaidTickSlice = 0;
+
+-- Der Durchlauf laeuft geschuetzt, aber nur einmal je Tick statt einmal je
+-- Zelle: im Vierzigerraid ein pcall alle 0,125 Sekunden statt achtzig je
+-- Sekunde. Wirft eine Abfrage doch, gehen die Direktaufrufe zurueck in den
+-- geschuetzten Einzelaufruf und der Rueckfallweg greift wieder.
 function FBRaid_Tick(force)
     if (not FBRaid_IsActive()) then return; end
+    local slice = FBRaidTickSlice;
+    FBRaidTickSlice = math.mod(FBRaidTickSlice + 1, FBRAID_TICK_SLICES);
+    if (not pcall(FBRaid_TickSweep, slice, force)) then
+        if (FBHealBox_ApiFailed) then FBHealBox_ApiFailed(); end
+    end
+end
+
+function FBRaid_TickSweep(slice, force)
     for g = 1, FBRAID_GROUPS do
-        if (FBRaidCells[g]) then
+        if (FBRaidCells[g]) and (force or (math.mod(g - 1, FBRAID_TICK_SLICES) == slice)) then
             for pos = 1, FBRAID_PER_GROUP do
                 local c = FBRaidCells[g][pos];
                 if (c and c.unit and c:IsShown()) then
@@ -1264,7 +1302,7 @@ FBRaidEventFrame:SetScript("OnUpdate", function()
         FBRaid_RefreshBuffBorders();
     end
     FBRaidTickAccum = FBRaidTickAccum + (arg1 or 0);
-    if (FBRaidTickAccum < FBRAID_TICK) then return; end
+    if (FBRaidTickAccum < (FBRAID_TICK / FBRAID_TICK_SLICES)) then return; end
     FBRaidTickAccum = 0;
     FBRaid_Tick(false);
 end);

@@ -422,8 +422,19 @@ FBTickerFrame:SetScript("OnEvent", function()
     end
     FBTicker_UpdateGate();
 end);
+-- Der Funke wandert in fuenf Sekunden ueber den Balken, ein Neuzeichnen in
+-- jedem Frame bringt dabei kein sichtbar weicheres Bild. Ein fester Takt von
+-- 0,03 Sekunden (rund 33 Bilder je Sekunde) spart auf schnellen Rechnern die
+-- Haelfte der Durchlaeufe samt der Breiten- und Hoehenabfragen je Balken.
+FBTickerDrawAccum = 0;
+FBTICK_DRAW_STEP  = 0.03;
+
 FBTickerFrame:SetScript("OnUpdate", function()
     if (FBAddonSuppressed) then return; end
+    if (not FBTicker.gate) then return; end
+    FBTickerDrawAccum = FBTickerDrawAccum + (arg1 or 0);
+    if (FBTickerDrawAccum < FBTICK_DRAW_STEP) then return; end
+    FBTickerDrawAccum = 0;
     FBTicker_Draw();
 end);
 
@@ -529,7 +540,7 @@ FBHealBox_RegisterHook("Loaded", function()
 end);
 -- Klassensperre des Kerns: Funken ausknipsen
 FBHealBox_RegisterHook("Suppress", function()
-    for _, e in ipairs(FBTicker.sparks or {}) do
+    for _, e in ipairs(FBTicker.sparks) do
         if (e.spark) then e.spark:Hide(); end
     end
     return true;
