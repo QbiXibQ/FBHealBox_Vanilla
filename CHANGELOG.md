@@ -1,6 +1,6 @@
 # Changelog
 
-## 1.4.5 (2026-09-08)
+## 1.4.5 (2026-09-09)
 
 Three additions around the frames and the prediction: Blizzard's party frames can go away, the resource bar is no longer reserved for mana, and gear healing is counted where an API can supply it. Plus a performance pass with no change in behaviour.
 
