@@ -1,6 +1,6 @@
 # Changelog
 
-## 1.4.5.1 (2026-09-08)
+## 1.4.5.1 (2026-09-11)
 
 Two display fixes: the mana ticker spark moves smoothly again, and the global cooldown no longer greys out every button.
 
