@@ -1,6 +1,6 @@
 # Heal Box Vanilla
 
-ADDON DOCUMENTATION · VERSION 1.4.5 · World of Warcraft CLIENT 1.12.1
+ADDON DOCUMENTATION · VERSION 1.4.5.1 · World of Warcraft CLIENT 1.12.1
 
 Party, pet and self heal display with quick-cast buttons for healers. One name plate with a health bar per group slot, plus one for every pet in the group directly below its owner, and next to it up to ten freely assignable spell buttons. A thin mana bar sits inside the health bar for everyone who actually uses mana. On top of that a complete heal prediction (direct heals, remaining HoT ticks and absorb shields) that corrects itself from the combat log and shares its numbers with other healers in the HealComm format. The interface is available in **English and German**, switchable in the options window.
 
@@ -129,7 +129,7 @@ Everything in the chain is a candidate, and the one with the smallest expected h
 
 The *Smartcross* switch on the *Buttons* tab turns chain switching off and on, `/fbp smartcross` does the same from chat. With it off, Smart Healing stays on the assigned spell and only lowers its rank, the way it worked before 1.4.4.3. The chains live in `FBHealChains` near the Smart Healing code and can be edited freely; spells you do not want swapped simply come out of the list. Downsides: the estimate ignores crits, and with burst damage or when you want to overheal on purpose (a tank before a big hit) the lower rank can fall short. Leave it off whenever overhealing is what you want. `/fbp debug` prints every decision, `/fbp` shows the state.
 
-**Cooldowns.** Every button shows the usual cooldown sweep for its spell. The global cooldown is not shown (`FBCD_MIN_DURATION`). Option *Cooldowns on buttons*.
+**Cooldowns.** Every button shows the usual cooldown sweep for its spell. The global cooldown is not shown (`FBCD_MIN_DURATION`), and it does not darken the icons either: the client reports every spell as unusable while it runs, which would turn all buttons grey after every cast.  Option *Cooldowns on buttons*.
 
 **HoT and shield timers.** The button of a spell shows, for its unit, the remaining seconds of your own HoT (green) or shield (blue) of that spell. When Power Word: Shield is used up, the same button shows Weakened Soul in red until the target can be shielded again. The left-click spell is checked first, then the right-click spell. Only your own effects are tracked. Option *HoT and shield timers*.
 
@@ -515,7 +515,7 @@ Every knob is a global at the top of its own section and can be changed without 
 |`FBRANGE_ALPHA` · `FBRANGE_INTERVAL`|0.5 · 0.5|Faded opacity and check interval of the range fading|
 |`FBBUFF_MISSING_COLOR`|`{1, 0.5, 0, 1}`|Border colour when the watched buff is missing|
 |`FBAGGRO_COLOR`|`{1, 0.15, 0.15, 1}`|Border colour for the attacked member|
-|`FBCD_MIN_DURATION`|2|Cooldowns shorter than this (the global cooldown) are not shown|
+|`FBCD_MIN_DURATION`|2|Cooldowns shorter than this (the global cooldown) are neither shown on the clock nor allowed to darken a button|
 |`FBTIMER_COLOR_HOT` · `_SHIELD` · `_WS`|green · blue · red|Timer colours on the buttons|
 |`FBBUFFICON_SIZE` · `FBBUFFICON_GAP` · `FBBUFFICON_MAX` · `FBBUFFICON_XOFF`|8 · 1 · 6 · -2|Buff icons left of the plate|
 |`FBBUFFICON_STEPS` · `FBBUFFICON_GREY`|32 · 0.30|Duration progress steps (32) and grey tint when client cannot desaturate|
@@ -532,7 +532,7 @@ Every knob is a global at the top of its own section and can be changed without 
 |`FBPREDICT_TICK_DEFAULT`|3|Default tick interval for HoTs|
 |`FBPREDICT_THROTTLE`|0.2|Update rate of the prediction|
 |`FBRAID_TICK` · `FBRAID_TICK_SLICES`|0.5 · 4|Full sweep for raid range and line of sight, and how many ticks it is spread over|
-|`FBTICK_DRAW_STEP`|0.03|Redraw step of the mana ticker spark|
+|`FBTICK_GEOM_STEP`|0.25|How often the ticker re-reads the bar size (the spark itself is drawn every frame)|
 |`FBPREDICT_CONFIRM_TIME`|3.0|Time to wait for the aura confirmation|
 |`FBPREDICT_TARGET_TIME`|2.0|Lifetime of the remembered cast target|
 |`FBPredictTickInterval`|`{Lifebloom = 1}`|Deviating tick intervals|
@@ -734,6 +734,7 @@ Entries that do not exist do no harm: if the spellbook scan does not find them, 
 * heal prediction for direct heals, remaining HoT ticks and absorb shields, self-correcting from the combat log
 * HealComm sync with Puppeteer, pfUI, Luna and others, without any Ace libraries
 * English, German, Spanish, French and Italian localization, switchable in game
+* 1.4.5.1: mana ticker spark no longer stutters (movement threshold and redraw step), and the global cooldown no longer darkens every button; see CHANGELOG
 * 1.4.5: Blizzard's party frames can be hidden (mutually exclusive with the attach mode), rage, energy and focus in the resource bar, and the equipment healing bonus via ClassicAPI in the prediction, plus a performance pass without functional change (player buffs read once per frame, staggered raid range and line-of-sight sweeps, fewer protected calls, no throwaway strings in the raid health text); see CHANGELOG
 * 1.4.4.3: class gate for warriors, rogues and hunters (display stays off, chat hint, `/fbp forceload` to override) and Smart Healing no longer downranks heal over time spells of any class. Smart Healing downranks across spells inside a heal chain (Greater Heal to Lesser Heal, Holy Light to Flash of Light), `/fbp smartcross` turns it off; see CHANGELOG
 * 1.4.4.2: 32-step buff icon duration display (replacing the 4-quadrant clock with a 32-stage vertical wipe) and syntax/diagnostic bugfixes; see CHANGELOG
@@ -745,14 +746,14 @@ Entries that do not exist do no harm: if the spellbook scan does not find them, 
 
 ---
 
-Heal Box Vanilla v1.4.5 · original by Dourd, UI Overhauled · ported to Vanilla and extended 09/2026 by Mquadrat
+Heal Box Vanilla v1.4.5.1 · original by Dourd, UI Overhauled · ported to Vanilla and extended 09/2026 by Mquadrat
 
 _______________________________________________________________________
 GERMAN
 
 # Heal Box Vanilla
 
-ADDON DOKUMENTATION · VERSION 1.4.5 · World of Warcraft CLIENT 1.12.1
+ADDON DOKUMENTATION · VERSION 1.4.5.1 · World of Warcraft CLIENT 1.12.1
 
 Party-, Begleiter- und Selbst-Heilanzeige mit Schnellzugriff-Buttons für Heiler. Für jeden Gruppenplatz eine Namensplakette mit Lebensbalken, dazu eine für jeden Begleiter in der Gruppe direkt unter seinem Besitzer, daneben bis zu zehn frei belegbare Zauber-Buttons. Ein schmaler Manabalken liegt im Lebensbalken, bei allen, die tatsächlich Mana nutzen. Dazu eine vollständige Heilvorhersage (Direktheilung, HoT-Restticks und Absorb-Schilde), die sich über den Combatlog selbst korrigiert und ihre Werte im HealComm-Format mit anderen Heilern teilt. Die Oberfläche gibt es auf **Deutsch und Englisch**, umschaltbar im Optionsfenster.
 
@@ -873,7 +874,7 @@ Alles in der Kette ist Kandidat, gewonnen hat der mit der kleinsten erwarteten H
 
 Der Schalter *Smartcross* im Reiter *Buttons* schaltet den Kettenwechsel aus und wieder ein, `/fbp smartcross` tut dasselbe aus dem Chat. Aus bleibt Smart Healing beim belegten Zauber und senkt nur dessen Rang, so wie es vor 1.4.4.3 war. Die Ketten stehen in `FBHealChains` direkt beim Smart-Healing-Code und lassen sich frei bearbeiten; Zauber, die nicht getauscht werden sollen, fliegen einfach aus der Liste. Nachteile: Die Schätzung kennt keine Crits, und bei Schadensspitzen oder gewolltem Überheilen (Tank vor einem großen Treffer) kann der kleinere Rang zu wenig sein. Aus lassen, wann immer Overheal gewollt ist. `/fbp debug` zeigt jede Entscheidung, `/fbp` den Zustand.
 
-**Cooldowns.** Jeder Button zeigt die gewohnte Cooldown-Uhr seines Zaubers. Der globale Cooldown wird nicht gezeigt (`FBCD_MIN_DURATION`). Option *Cooldowns auf den Buttons*.
+**Cooldowns.** Jeder Button zeigt die gewohnte Cooldown-Uhr seines Zaubers. Der globale Cooldown wird nicht gezeigt (`FBCD_MIN_DURATION`) und dunkelt die Symbole auch nicht ab: Der Client meldet, solange er läuft, jeden Zauber als nicht nutzbar, was nach jedem Wirken alle Buttons grau färben würde. Option *Cooldowns auf den Buttons*.
 
 **HoT- und Schild-Timer.** Der Button eines Zaubers zeigt für seine Einheit die Restsekunden deines eigenen HoTs (grün) oder Schilds (blau) dieses Zaubers. Ist Machtwort: Schild verbraucht, zeigt derselbe Button rot die Geschwächte Seele, bis das Ziel wieder schildbar ist. Geprüft wird zuerst der Linksklick-Zauber, dann der Rechtsklick-Zauber. Nur eigene Effekte werden verfolgt. Option *HoT- und Schild-Timer*.
 
@@ -1255,7 +1256,7 @@ Alle Stellschrauben stehen als Globals oben in ihrem jeweiligen Abschnitt und la
 |`FBRANGE_ALPHA` · `FBRANGE_INTERVAL`|0.5 · 0.5|Deckkraft und Prüfintervall des Reichweiten-Fadings|
 |`FBBUFF_MISSING_COLOR`|`{1, 0.5, 0, 1}`|Rahmenfarbe bei fehlendem Wache-Buff|
 |`FBAGGRO_COLOR`|`{1, 0.15, 0.15, 1}`|Rahmenfarbe für den Angegriffenen|
-|`FBCD_MIN_DURATION`|2|Kürzere Cooldowns (globaler Cooldown) werden nicht gezeigt|
+|`FBCD_MIN_DURATION`|2|Kürzere Cooldowns (globaler Cooldown) werden weder auf der Uhr gezeigt noch dürfen sie einen Button abdunkeln|
 |`FBTIMER_COLOR_HOT` · `_SHIELD` · `_WS`|grün · blau · rot|Timerfarben auf den Buttons|
 |`FBBUFFICON_SIZE` · `FBBUFFICON_GAP` · `FBBUFFICON_MAX` · `FBBUFFICON_XOFF`|8 · 1 · 6 · -2|Buff-Icons links neben der Plakette|
 |`FBBUFFICON_STEPS` · `FBBUFFICON_GREY`|32 · 0.30|Anzahl Ablaufstufen (32) und Grauton, falls Client nicht entsättigen kann|
@@ -1272,7 +1273,7 @@ Alle Stellschrauben stehen als Globals oben in ihrem jeweiligen Abschnitt und la
 |`FBPREDICT_TICK_DEFAULT`|3|Standard-Tickintervall für HoTs|
 |`FBPREDICT_THROTTLE`|0.2|Update-Rate der Vorhersage|
 |`FBRAID_TICK` · `FBRAID_TICK_SLICES`|0.5 · 4|Voller Durchlauf für Reichweite und Sichtlinie im Raid, und auf wie viele Ticks er verteilt wird|
-|`FBTICK_DRAW_STEP`|0.03|Zeichentakt des Ticker-Funkens|
+|`FBTICK_GEOM_STEP`|0.25|Wie oft der Ticker die Balkenmaße nachliest (der Funke selbst wird in jedem Frame gezeichnet)|
 |`FBPREDICT_CONFIRM_TIME`|3.0|Wartezeit auf die Aura-Bestätigung|
 |`FBPREDICT_TARGET_TIME`|2.0|Gültigkeit des gemerkten Cast-Ziels|
 |`FBPredictTickInterval`|`{Lifebloom = 1}`|Abweichende Tickintervalle|
@@ -1462,6 +1463,7 @@ Nicht vorhandene Einträge stören nicht: Findet der Zauberbuch-Scan sie nicht, 
 * Heilvorhersage für Direktheilung, HoT-Restticks und Absorb-Schilde, selbstkorrigierend über den Combatlog
 * HealComm-Sync mit Puppeteer, pfUI, Luna und Co., ohne Ace-Bibliotheken
 * Lokalisierung Deutsch, Englisch, Spanisch, Französisch und Italienisch, im laufenden Spiel umschaltbar
+* 1.4.5.1: Ruckeln des Manafunkens behoben (Bewegungsschwelle und Zeichentakt) und der globale Cooldown dunkelt nicht mehr alle Buttons ab; siehe CHANGELOG
 * 1.4.5: Blizzards Gruppenfenster ausblendbar (schließt sich mit dem Anheftmodus gegenseitig aus), Wut, Energie und Fokus im Ressourcenbalken, Heilbonus der Ausrüstung über ClassicAPI in der Vorhersage, dazu ein Leistungsdurchgang ohne Funktionsänderung (Spielerbuffs einmal je Frame, gestaffelte Reichweiten- und Sichtlinienprüfung im Raid, weniger geschützte Aufrufe, keine Wegwerf-Strings im Raid-HP-Text); siehe CHANGELOG
 * 1.4.4.3: Klassensperre für Krieger, Schurke und Jäger (Anzeige bleibt aus, Hinweis im Chat, Freischaltung mit `/fbp forceload`) und Smart Healing rangt HoTs aller Klassen nicht mehr ab. Smart Healing rangt innerhalb einer Heilkette auch über Zaubergrenzen ab (Große Heilung zu Geringem Heilen, Heiliges Licht zu Blitz des Lichts), `/fbp smartcross` schaltet es aus; siehe CHANGELOG
 * 1.4.4.2: 32-Stufen-Ablaufanzeige für Buff-Icons (ersetzt die 4-Quadranten-Uhr durch 32 vertikale Stufen) sowie Syntax- und Diagnose-Korrekturen; siehe CHANGELOG
@@ -1473,7 +1475,7 @@ Nicht vorhandene Einträge stören nicht: Findet der Zauberbuch-Scan sie nicht, 
 
 ---
 
-Heal Box Vanilla v1.4.5 · Original von Dourd, UI Overhauled · Vanilla-Portierung und Erweiterung 09/2026 von Mquadrat
+Heal Box Vanilla v1.4.5.1 · Original von Dourd, UI Overhauled · Vanilla-Portierung und Erweiterung 09/2026 von Mquadrat
 
 ---
 
