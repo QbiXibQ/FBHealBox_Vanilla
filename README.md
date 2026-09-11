@@ -129,7 +129,9 @@ Everything in the chain is a candidate, and the one with the smallest expected h
 
 The *Smartcross* switch on the *Buttons* tab turns chain switching off and on, `/fbp smartcross` does the same from chat. With it off, Smart Healing stays on the assigned spell and only lowers its rank, the way it worked before 1.4.4.3. The chains live in `FBHealChains` near the Smart Healing code and can be edited freely; spells you do not want swapped simply come out of the list. Downsides: the estimate ignores crits, and with burst damage or when you want to overheal on purpose (a tank before a big hit) the lower rank can fall short. Leave it off whenever overhealing is what you want. `/fbp debug` prints every decision, `/fbp` shows the state.
 
-**Cooldowns.** Every button shows the usual cooldown sweep for its spell. The global cooldown is not shown (`FBCD_MIN_DURATION`), and it does not darken the icons either: the client reports every spell as unusable while it runs, which would turn all buttons grey after every cast.  Option *Cooldowns on buttons*.
+**Cooldowns.** Every button shows the usual cooldown sweep for its spell, the global cooldown included: after every cast you watch the short wait run out on all buttons, the way the action bars do it.
+
+What the global cooldown must never do is darken the icons. While it runs, the client reports every spell as unusable, so taken literally all buttons would go grey for a second and a half and then snap back to bright after every single cast. That is why the two are handled by separate thresholds: `FBCD_SHOW_MIN` (0) decides from which length the sweep runs, `FBCD_MIN_DURATION` (2) the length up to which a cooldown is not treated as a reason to darken a button. Setting `FBCD_SHOW_MIN` to 2 leaves the global cooldown out of the display again. Option *Cooldowns on buttons*.
 
 **HoT and shield timers.** The button of a spell shows, for its unit, the remaining seconds of your own HoT (green) or shield (blue) of that spell. When Power Word: Shield is used up, the same button shows Weakened Soul in red until the target can be shielded again. The left-click spell is checked first, then the right-click spell. Only your own effects are tracked. Option *HoT and shield timers*.
 
@@ -515,7 +517,8 @@ Every knob is a global at the top of its own section and can be changed without 
 |`FBRANGE_ALPHA` · `FBRANGE_INTERVAL`|0.5 · 0.5|Faded opacity and check interval of the range fading|
 |`FBBUFF_MISSING_COLOR`|`{1, 0.5, 0, 1}`|Border colour when the watched buff is missing|
 |`FBAGGRO_COLOR`|`{1, 0.15, 0.15, 1}`|Border colour for the attacked member|
-|`FBCD_MIN_DURATION`|2|Cooldowns shorter than this (the global cooldown) are neither shown on the clock nor allowed to darken a button|
+|`FBCD_MIN_DURATION`|2|Length of the global cooldown: a cooldown up to this length does not darken a button|
+|`FBCD_SHOW_MIN`|0|From which length the cooldown sweep runs. 0 shows every cooldown including the global one, 2 leaves it out|
 |`FBTIMER_COLOR_HOT` · `_SHIELD` · `_WS`|green · blue · red|Timer colours on the buttons|
 |`FBBUFFICON_SIZE` · `FBBUFFICON_GAP` · `FBBUFFICON_MAX` · `FBBUFFICON_XOFF`|8 · 1 · 6 · -2|Buff icons left of the plate|
 |`FBBUFFICON_STEPS` · `FBBUFFICON_GREY`|32 · 0.30|Duration progress steps (32) and grey tint when client cannot desaturate|
@@ -874,7 +877,9 @@ Alles in der Kette ist Kandidat, gewonnen hat der mit der kleinsten erwarteten H
 
 Der Schalter *Smartcross* im Reiter *Buttons* schaltet den Kettenwechsel aus und wieder ein, `/fbp smartcross` tut dasselbe aus dem Chat. Aus bleibt Smart Healing beim belegten Zauber und senkt nur dessen Rang, so wie es vor 1.4.4.3 war. Die Ketten stehen in `FBHealChains` direkt beim Smart-Healing-Code und lassen sich frei bearbeiten; Zauber, die nicht getauscht werden sollen, fliegen einfach aus der Liste. Nachteile: Die Schätzung kennt keine Crits, und bei Schadensspitzen oder gewolltem Überheilen (Tank vor einem großen Treffer) kann der kleinere Rang zu wenig sein. Aus lassen, wann immer Overheal gewollt ist. `/fbp debug` zeigt jede Entscheidung, `/fbp` den Zustand.
 
-**Cooldowns.** Jeder Button zeigt die gewohnte Cooldown-Uhr seines Zaubers. Der globale Cooldown wird nicht gezeigt (`FBCD_MIN_DURATION`) und dunkelt die Symbole auch nicht ab: Der Client meldet, solange er läuft, jeden Zauber als nicht nutzbar, was nach jedem Wirken alle Buttons grau färben würde. Option *Cooldowns auf den Buttons*.
+**Cooldowns.** Jeder Button zeigt die gewohnte Cooldown-Uhr seines Zaubers, den globalen Cooldown eingeschlossen: Nach jedem Zauber läuft die kurze Wartezeit auf allen Buttons ab, so wie es die Aktionsleisten machen.
+
+Was der globale Cooldown auf keinen Fall tun darf, ist die Symbole abdunkeln. Solange er läuft, meldet der Client jeden Zauber als nicht nutzbar, wörtlich genommen würden also nach jedem einzelnen Zauber alle Buttons anderthalb Sekunden grau und dann schlagartig wieder hell. Deshalb sind es zwei getrennte Schwellen: `FBCD_SHOW_MIN` (0) entscheidet, ab welcher Länge die Uhr läuft, `FBCD_MIN_DURATION` (2) die Länge, bis zu der eine Abklingzeit nicht als Grund zum Abdunkeln gilt. Wer `FBCD_SHOW_MIN` auf 2 setzt, hat den globalen Cooldown wieder aus der Anzeige. Option *Cooldowns auf den Buttons*.
 
 **HoT- und Schild-Timer.** Der Button eines Zaubers zeigt für seine Einheit die Restsekunden deines eigenen HoTs (grün) oder Schilds (blau) dieses Zaubers. Ist Machtwort: Schild verbraucht, zeigt derselbe Button rot die Geschwächte Seele, bis das Ziel wieder schildbar ist. Geprüft wird zuerst der Linksklick-Zauber, dann der Rechtsklick-Zauber. Nur eigene Effekte werden verfolgt. Option *HoT- und Schild-Timer*.
 
@@ -1256,7 +1261,8 @@ Alle Stellschrauben stehen als Globals oben in ihrem jeweiligen Abschnitt und la
 |`FBRANGE_ALPHA` · `FBRANGE_INTERVAL`|0.5 · 0.5|Deckkraft und Prüfintervall des Reichweiten-Fadings|
 |`FBBUFF_MISSING_COLOR`|`{1, 0.5, 0, 1}`|Rahmenfarbe bei fehlendem Wache-Buff|
 |`FBAGGRO_COLOR`|`{1, 0.15, 0.15, 1}`|Rahmenfarbe für den Angegriffenen|
-|`FBCD_MIN_DURATION`|2|Kürzere Cooldowns (globaler Cooldown) werden weder auf der Uhr gezeigt noch dürfen sie einen Button abdunkeln|
+|`FBCD_MIN_DURATION`|2|Länge des globalen Cooldowns: Eine Abklingzeit bis zu dieser Länge dunkelt keinen Button ab|
+|`FBCD_SHOW_MIN`|0|Ab welcher Länge die Cooldown-Uhr läuft. 0 zeigt jede Abklingzeit samt globalem Cooldown, 2 lässt ihn weg|
 |`FBTIMER_COLOR_HOT` · `_SHIELD` · `_WS`|grün · blau · rot|Timerfarben auf den Buttons|
 |`FBBUFFICON_SIZE` · `FBBUFFICON_GAP` · `FBBUFFICON_MAX` · `FBBUFFICON_XOFF`|8 · 1 · 6 · -2|Buff-Icons links neben der Plakette|
 |`FBBUFFICON_STEPS` · `FBBUFFICON_GREY`|32 · 0.30|Anzahl Ablaufstufen (32) und Grauton, falls Client nicht entsättigen kann|
