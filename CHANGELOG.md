@@ -1,6 +1,27 @@
 # Changelog
 
-## 1.4.5 (2026-09-09)
+## 1.4.5.1 (2026-09-08)
+
+Two display fixes: the mana ticker spark moves smoothly again, and the global cooldown no longer greys out every button.
+
+### English
+
+**Fixed**
+
+- **The mana ticker spark moves smoothly again.** The spark was only redrawn once it had travelled half a pixel. That sounds frugal, but it crosses the bar in five seconds, roughly 20 pixels per second, so at 60 frames it advanced on every second frame at best and, depending on rounding, sometimes after one frame and sometimes after two. That uneven step was the stutter, and the fixed 0.03 second redraw step introduced in 1.4.5 made it worse. The threshold is now effectively gone (0.05 px) and the spark is drawn every frame again, which doubles its motion from 30 to 60 steps per second with an even gap.
+- **Drawing every frame still costs nothing.** Each spark remembers the width and height of its bar and re-reads them four times a second (`FBTICK_GEOM_STEP`) instead of asking the frame on every pass, and the gate check sits in front of it all: with a full mana bar there is no pass at all.
+- **The global cooldown no longer darkens every button.** After casting anything, the client reports every spell as unusable for the length of the global cooldown. Taken literally, that turned all icons dark grey for a second and a half after every cast, as if nothing were available at all. A running cooldown no longer than the global one (`FBCD_MIN_DURATION`) is no longer treated as a reason to darken a button. Blue for missing mana, red for out of range and grey for a spell that really cannot be cast, for instance in the wrong shapeshift form, all work as before, and real cooldowns are still shown by the clock on the button. This affects the plates and the raid cells alike, both go through `FBHealBox_ButtonUsable`.
+
+### Deutsch
+
+**Behoben**
+
+- **Der Funke im Manabalken laeuft wieder rund.** Neu gezeichnet wurde er erst, wenn er einen halben Pixel weitergewandert war. Das klingt sparsam, er braucht fuer den Balken aber fuenf Sekunden, also rund 20 Pixel je Sekunde: Bei 60 Bildern kam er damit bestenfalls in jedem zweiten Frame voran und je nach Rundung mal nach einem, mal nach zwei Frames. Genau dieser ungleiche Schritt war das Ruckeln, und der feste Zeichentakt von 0,03 Sekunden aus 1.4.5 hat es verstaerkt. Die Schwelle ist jetzt praktisch weg (0,05 px) und gezeichnet wird wieder in jedem Frame, das verdoppelt die Bewegung von 30 auf 60 gleichmaessige Schritte je Sekunde.
+- **Das Zeichnen je Frame kostet trotzdem nichts.** Jeder Funke merkt sich Breite und Hoehe seines Balkens und liest sie viermal je Sekunde nach (`FBTICK_GEOM_STEP`), statt sie bei jedem Durchlauf zu erfragen, und der Torwaechter sitzt weiterhin davor: Bei vollem Manabalken laeuft gar kein Durchlauf.
+- **Der globale Cooldown dunkelt nicht mehr alle Buttons ab.** Nach jedem gewirkten Zauber meldet der Client fuer die Dauer des globalen Cooldowns saemtliche Zauber als nicht nutzbar. Woertlich genommen wurden dadurch nach jedem Zauber anderthalb Sekunden lang alle Symbole dunkelgrau, als waere gar nichts mehr verfuegbar. Eine laufende Abklingzeit, die nicht laenger ist als der globale Cooldown (`FBCD_MIN_DURATION`), gilt jetzt nicht mehr als Grund zum Abdunkeln. Blau fuer fehlendes Mana, Rot fuer ausser Reichweite und Grau fuer einen Zauber, der wirklich nicht geht, etwa in der falschen Gestalt, arbeiten unveraendert weiter, und echte Abklingzeiten zeigt weiterhin die Uhr auf dem Button. Das gilt fuer Plaketten und Raidzellen gleichermassen, beide laufen ueber `FBHealBox_ButtonUsable`.
+
+
+## 1.4.5 (2026-09-08)
 
 Three additions around the frames and the prediction: Blizzard's party frames can go away, the resource bar is no longer reserved for mana, and gear healing is counted where an API can supply it. Plus a performance pass with no change in behaviour.
 
@@ -25,7 +46,7 @@ Three additions around the frames and the prediction: Blizzard's party frames ca
 - **Cheap pre-test before the combat log patterns.** Up to four anchored patterns ran on every message from twenty registered events. A plain substring test now filters first, with the words cut out of the client's own message templates so it works in every language. The tick test deliberately comes from the self template, because "You gain" and "%s gains" differ in the verb but share what follows.
 - **Equipment bonus read once instead of per candidate.** With heal chains a single Smart Healing click asked the API for the bonus up to fifteen times. The value is now remembered and dropped again on `UNIT_INVENTORY_CHANGED` or a spellbook rebuild.
 - **Cast time comes free with the spell scan.** `FBHealBox_SpellCastSeconds` used to build its own tooltip on a cache miss, which could mean a dozen tooltip builds in the middle of combat on the first click. `FBPredict_TooltipText` now picks the cast time off the right-hand side while the tooltip is standing anyway and fills the cache; the standalone scan remains only as a fallback. The cast time is deliberately kept out of the parsed text, because a number like 2.5 would confuse the shield duration and heal amount patterns.
-- **Smaller things.** The range spell of the first assigned button is remembered instead of being searched over ten slots on every range check (invalidated on rebinding and on a spellbook rebuild). The ticker redraws on a fixed 0.03 second step instead of every frame. Blizzard's party frames are re-evaluated in the same collection point as the name updates instead of on every event of a burst. Two `or {}` fallbacks in loops no longer allocate a throwaway table.
+- **Smaller things.** The range spell of the first assigned button is remembered instead of being searched over ten slots on every range check (invalidated on rebinding and on a spellbook rebuild). The ticker redraws on a fixed 0.03 second step instead of every frame (taken back in 1.4.5.1, it made the spark stutter). Blizzard's party frames are re-evaluated in the same collection point as the name updates instead of on every event of a burst. Two `or {}` fallbacks in loops no longer allocate a throwaway table.
 
 ### Deutsch
 
@@ -48,7 +69,7 @@ Three additions around the frames and the prediction: Blizzard's party frames ca
 - **Billiger Vortest vor den Combatlog-Mustern.** Bei jeder Meldung aus zwanzig registrierten Ereignissen liefen bis zu vier verankerte Muster. Ein einfacher Textvergleich filtert jetzt vorweg, mit Wortstuecken, die aus den Meldungsvorlagen des Clients geschnitten werden und damit in jeder Sprache passen. Der Tick-Vortest kommt bewusst aus der Selbst-Vorlage, weil sich "You gain" und "%s gains" im Verb unterscheiden, im Rest aber gleich sind.
 - **Ausruestungsbonus einmal statt je Kandidat.** Mit Heilketten fragte ein einziger Smart-Healing-Klick die API bis zu fuenfzehnmal nach dem Bonus. Der Wert wird jetzt gemerkt und bei `UNIT_INVENTORY_CHANGED` oder einem Neuaufbau des Zauberbuchs wieder verworfen.
 - **Zauberzeit faellt beim Auslesen der Zauber mit ab.** `FBHealBox_SpellCastSeconds` baute bei einem Fehlgriff einen eigenen Tooltip, was beim ersten Klick mitten im Kampf ein Dutzend Tooltip-Aufbauten bedeuten konnte. `FBPredict_TooltipText` liest die Zauberzeit jetzt nebenbei von der rechten Seite ab, solange der Tooltip ohnehin steht, und fuellt den Zwischenspeicher; der eigene Scan bleibt nur als Rueckfall. Der Wert kommt bewusst nicht in den ausgewerteten Text, weil eine Zahl wie 2.5 die Muster fuer Schilddauer und Heilbetrag durcheinanderbraechte.
-- **Kleinigkeiten.** Der Reichweiten-Zauber des ersten belegten Buttons wird gemerkt, statt bei jeder Pruefung ueber zehn Plaetze zu suchen (verworfen beim Umbelegen und beim Neuaufbau des Zauberbuchs). Der Ticker zeichnet in einem festen Takt von 0,03 Sekunden statt in jedem Frame. Blizzards Gruppenfenster werden im selben Sammelpunkt wie die Namen neu bewertet statt bei jedem Ereignis einer Salve. Zwei `or {}`-Rueckfaelle in Schleifen legen keine Wegwerf-Tabelle mehr an.
+- **Kleinigkeiten.** Der Reichweiten-Zauber des ersten belegten Buttons wird gemerkt, statt bei jeder Pruefung ueber zehn Plaetze zu suchen (verworfen beim Umbelegen und beim Neuaufbau des Zauberbuchs). Der Ticker zeichnet in einem festen Takt von 0,03 Sekunden statt in jedem Frame (in 1.4.5.1 zurueckgenommen, der Funke ruckelte dadurch). Blizzards Gruppenfenster werden im selben Sammelpunkt wie die Namen neu bewertet statt bei jedem Ereignis einer Salve. Zwei `or {}`-Rueckfaelle in Schleifen legen keine Wegwerf-Tabelle mehr an.
 
 
 ## 1.4.4.3 (2026-09-08)

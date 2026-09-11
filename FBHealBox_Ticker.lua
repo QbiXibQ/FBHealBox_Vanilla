@@ -351,7 +351,8 @@ end
 
 function FBTicker_Draw()
     if (not FBTicker.gate) then return; end
-    local frac, mode = FBTicker_Progress(GetTime());
+    local now = GetTime();
+    local frac, mode = FBTicker_Progress(now);
     if (not frac) then
         FBTicker_HideAll();
         return;
@@ -364,8 +365,17 @@ function FBTicker_Draw()
         local bar, s = e.bar, e.spark;
         if (s and bar) then
             if (bar:IsShown()) then
-                local bw = bar:GetWidth() or 0;
-                local bh = bar:GetHeight() or 0;
+                -- Breite und Hoehe aendern sich nur beim Umbauen der Anzeige.
+                -- Sie werden deshalb viermal je Sekunde nachgelesen und
+                -- dazwischen gemerkt; so kostet das Zeichnen je Frame fast
+                -- nichts mehr und darf wieder in jedem Frame laufen.
+                if (not e.geomT) or ((now - e.geomT) >= FBTICK_GEOM_STEP) then
+                    e.geomT = now;
+                    e.bw = bar:GetWidth() or 0;
+                    e.bh = bar:GetHeight() or 0;
+                end
+                local bw = e.bw or 0;
+                local bh = e.bh or 0;
                 if (bw > w and bh > 0) then
                     if (e.w ~= w or e.h ~= bh) then
                         e.w = w; e.h = bh;
@@ -376,10 +386,16 @@ function FBTicker_Draw()
                         e.mode = mode;
                         s:SetTexture(col[1], col[2], col[3], col[4]);
                     end
-                    -- Anker nur setzen, wenn der Funke mindestens einen halben
-                    -- Pixel weitergewandert ist
+                    -- Anker setzen, sobald sich die Position ueberhaupt
+                    -- geaendert hat. Eine Schwelle von einem halben Pixel
+                    -- klingt sparsam, der Funke wandert aber nur rund 20 px
+                    -- je Sekunde: bei 60 Bildern kam er damit nur in jedem
+                    -- zweiten Frame voran, und je nach Rundung mal nach einem,
+                    -- mal nach zwei Frames. Genau das sah ruckelig aus. Die
+                    -- Feinrundung auf ganze Bildpunkte macht ohnehin die
+                    -- Oberflaeche selbst.
                     local x = frac * (bw - w);
-                    if (not e.x) or (math.abs(x - e.x) >= 0.5) then
+                    if (not e.x) or (math.abs(x - e.x) >= 0.05) then
                         e.x = x;
                         s:ClearAllPoints();
                         s:SetPoint("LEFT", bar, "LEFT", x, 0);
@@ -422,19 +438,16 @@ FBTickerFrame:SetScript("OnEvent", function()
     end
     FBTicker_UpdateGate();
 end);
--- Der Funke wandert in fuenf Sekunden ueber den Balken, ein Neuzeichnen in
--- jedem Frame bringt dabei kein sichtbar weicheres Bild. Ein fester Takt von
--- 0,03 Sekunden (rund 33 Bilder je Sekunde) spart auf schnellen Rechnern die
--- Haelfte der Durchlaeufe samt der Breiten- und Hoehenabfragen je Balken.
-FBTickerDrawAccum = 0;
-FBTICK_DRAW_STEP  = 0.03;
+-- Gezeichnet wird in jedem Frame. Ein fester Takt spart zwar Durchlaeufe,
+-- macht die Bewegung aber sichtbar stufig: der Funke braucht fuer den Balken
+-- fuenf Sekunden, jede ausgelassene Position sieht man sofort. Teuer ist das
+-- Zeichnen nicht mehr, weil die Balkenmasse gemerkt werden und der Ausstieg
+-- ueber das Gate davor sitzt (voller Manabalken = gar kein Durchlauf).
+FBTICK_GEOM_STEP = 0.25;   -- Sek.: so oft werden Breite und Hoehe nachgelesen
 
 FBTickerFrame:SetScript("OnUpdate", function()
     if (FBAddonSuppressed) then return; end
     if (not FBTicker.gate) then return; end
-    FBTickerDrawAccum = FBTickerDrawAccum + (arg1 or 0);
-    if (FBTickerDrawAccum < FBTICK_DRAW_STEP) then return; end
-    FBTickerDrawAccum = 0;
     FBTicker_Draw();
 end);
 

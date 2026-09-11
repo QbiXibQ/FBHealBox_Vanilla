@@ -37,6 +37,8 @@
 --   * v1.4.5: Blizzards Gruppenfenster ausblendbar (schliesst sich mit dem
 --     Anheftmodus gegenseitig aus), Wut, Energie und Fokus im Balken,
 --     +Heilung der Ausruestung ueber ClassicAPI in der Vorhersage.
+--   * v1.4.5.1: Ruckeln des Manafunkens behoben (Bewegungsschwelle und
+--     Zeichentakt), globaler Cooldown dunkelt nicht mehr alle Buttons ab.
 --
 -- Ehre wem Ehre gebuehrt: Aufbau, Namensplaketten und Grundidee stammen
 -- aus dem Original.
@@ -151,7 +153,7 @@ HealBox = {
 -- feuert ADDON_LOADED fuer uns.
 FBADDON_NAME   = "Heal Box Vanilla";
 FBADDON_FOLDER = "FBHealBox";
-HealBoxVersion = "|cFFFFFF00v1.4.5|r"; 
+HealBoxVersion = "|cFFFFFF00v1.4.5.1|r"; 
 
 -- ==========================================================================
 -- [ Lokalisierung / Localization ]
@@ -4701,6 +4703,18 @@ function FBHealBox_ButtonUsable(id)
     if (e and e.pass == FBBtnPass) then return e.st; end
     if (not e) then e = {}; FBBtnUsableCache[id] = e; end
     local isUsable, noMana = FBHealBox_SpellUsable(id);
+    -- Waehrend des globalen Cooldowns meldet der Client jeden Zauber als
+    -- nicht nutzbar. Ungefiltert wuerden nach jedem gewirkten Zauber
+    -- saemtliche Buttons anderthalb Sekunden lang dunkel, was aussieht, als
+    -- waere gar nichts mehr verfuegbar. Laeuft eine Abklingzeit, die nicht
+    -- laenger als der globale Cooldown ist, zaehlt sie deshalb nicht als
+    -- Grund. Echte Abklingzeiten bleiben unberuehrt, die zeigt die Uhr.
+    if (not isUsable) and (not noMana) then
+        local cd = FBHealBox_ButtonCooldown(id);
+        if (cd[1] > 0) and (cd[2] > 0) and (cd[2] <= FBCD_MIN_DURATION) then
+            isUsable = 1;
+        end
+    end
     if (isUsable) then e.st = "ok"; elseif (noMana) then e.st = "mana"; else e.st = "no"; end
     e.pass = FBBtnPass;
     return e.st;
