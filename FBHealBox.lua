@@ -207,7 +207,7 @@ FBLocale["enUS"] = {
         .. "• Decisions logged with /fbp debug",
     SMART_MARGIN  = "Safety margin: |cFFFFFFFF%s %%",
     COOLDOWNS     = "Cooldowns on buttons",
-    COOLDOWNS_TIP = "Shows the cooldown sweep on every button (Nature's Swiftness, Inner Focus, Lay on Hands, shield cooldown). The global cooldown is not shown.",
+    COOLDOWNS_TIP = "Shows the cooldown sweep on every button (Nature's Swiftness, Inner Focus, Lay on Hands, shield cooldown). The global cooldown runs as a sweep too, so after every cast you see the short wait run out instead of the icons going dark and bright again. Set FBCD_SHOW_MIN to 2 in the code to leave the global cooldown out.",
     AGGRO         = "Mark who is attacked",
     AGGRO_TIP     = "Red border on the plate or cell of the member your hostile target is currently targeting. Checked five times a second.",
     BUFFICONS     = "Buff icons left of the bar",
@@ -355,7 +355,7 @@ FBLocale["deDE"] = {
         .. "• Entscheidungen im Chat via /fbp debug",
     SMART_MARGIN  = "Sicherheitsaufschlag: |cFFFFFFFF%s %%",
     COOLDOWNS     = "Cooldowns auf den Buttons",
-    COOLDOWNS_TIP = "Zeigt die Cooldown-Uhr auf jedem Button (Naturschnelligkeit, Innerer Fokus, Handauflegung, Schild-Cooldown). Der globale Cooldown wird nicht angezeigt.",
+    COOLDOWNS_TIP = "Zeigt die Cooldown-Uhr auf jedem Button (Naturschnelligkeit, Innerer Fokus, Handauflegung, Schild-Cooldown). Auch der globale Cooldown laeuft als Uhr mit, nach jedem Zauber siehst du also die kurze Wartezeit ablaufen, statt dass die Symbole dunkel und wieder hell werden. Wer ihn nicht sehen will, setzt FBCD_SHOW_MIN im Code auf 2.",
     AGGRO         = "Angegriffenen markieren",
     AGGRO_TIP     = "Roter Rahmen auf der Plakette oder Zelle des Mitglieds, das dein feindliches Ziel gerade im Ziel hat. Fuenfmal je Sekunde geprueft.",
     BUFFICONS     = "Buff-Icons links am Balken",
@@ -528,7 +528,7 @@ FBLocale["esES"] = {
         .. "• Registro de decisiones con /fbp debug",
     SMART_MARGIN    = "Margen de seguridad: |cFFFFFFFF%s %%",
     COOLDOWNS       = "Reutilización en botones",
-    COOLDOWNS_TIP   = "Muestra el barrido de reutilización en cada botón (Rapidez de la naturaleza, Enfoque interno, Imposición de manos, reutilización del escudo). La reutilización global no se muestra.",
+    COOLDOWNS_TIP   = "Muestra el barrido de reutilización en cada botón (Rapidez de la naturaleza, Enfoque interno, Imposición de manos, reutilización del escudo). La reutilización global también se muestra como barrido, así ves correr la breve espera tras cada lanzamiento en lugar de que los iconos se oscurezcan y se aclaren. Para omitirla, pon FBCD_SHOW_MIN en 2 en el código.",
     AGGRO           = "Marcar al atacado",
     AGGRO_TIP       = "Borde rojo en la placa o celda del miembro al que tu objetivo hostil está apuntando. Se comprueba cinco veces por segundo.",
     BUFFICONS       = "Iconos de beneficios (izq.)",
@@ -667,7 +667,7 @@ FBLocale["frFR"] = {
         .. "• Décisions visibles via /fbp debug",
     SMART_MARGIN    = "Marge de sécurité : |cFFFFFFFF%s %%",
     COOLDOWNS       = "Recharges sur les boutons",
-    COOLDOWNS_TIP   = "Affiche le balayage du temps de recharge sur chaque bouton (Rapidité de la nature, Focalisation intérieure, Imposition des mains, recharge du bouclier). Le temps de recharge global n'est pas affiché.",
+    COOLDOWNS_TIP   = "Affiche le balayage du temps de recharge sur chaque bouton (Rapidité de la nature, Focalisation intérieure, Imposition des mains, recharge du bouclier). Le temps de recharge global est affiché lui aussi : après chaque incantation vous voyez la courte attente s'écouler au lieu de voir les icônes s'assombrir puis redevenir claires. Pour l'exclure, mettez FBCD_SHOW_MIN à 2 dans le code.",
     AGGRO           = "Marquer la cible attaquée",
     AGGRO_TIP       = "Bordure rouge sur la plaque ou la cellule du membre que votre cible hostile vise actuellement. Vérifié cinq fois par seconde.",
     BUFFICONS       = "Icônes de buffs (gauche)",
@@ -806,7 +806,7 @@ FBLocale["itIT"] = {
         .. "• Decisioni registrate con /fbp debug",
     SMART_MARGIN    = "Margine di sicurezza: |cFFFFFFFF%s %%",
     COOLDOWNS       = "Recuperi sui pulsanti",
-    COOLDOWNS_TIP   = "Mostra l'animazione del tempo di recupero su ogni pulsante (Rapidità della Natura, Concentrazione Interiore, Imposizione delle Mani, recupero dello scudo). Il tempo di recupero globale non viene mostrato.",
+    COOLDOWNS_TIP   = "Mostra l'animazione del tempo di recupero su ogni pulsante (Rapidità della Natura, Concentrazione Interiore, Imposizione delle Mani, recupero dello scudo). Anche il tempo di recupero globale scorre come animazione: dopo ogni lancio vedi scorrere la breve attesa invece di icone che si scuriscono e si riaccendono. Per escluderlo, imposta FBCD_SHOW_MIN a 2 nel codice.",
     AGGRO           = "Segnala chi è attaccato",
     AGGRO_TIP       = "Bordo rosso sulla targhetta o sulla cella del membro che il tuo bersaglio ostile sta puntando. Controllato cinque volte al secondo.",
     BUFFICONS       = "Icone benefici (sinistra)",
@@ -997,8 +997,21 @@ FBBUFF_NORMAL_COLOR  = { 1.0, 1.0, 1.0, 1 };
 -- Rahmenfarbe fuer den Angegriffenen (schlaegt die Buff-Wache)
 FBAGGRO_COLOR        = { 1.0, 0.15, 0.15, 1 };
 
--- Cooldown-Uhr: kuerzere Cooldowns (globaler Cooldown) werden nicht gezeigt
+-- Zwei Schwellen, die frueher eine waren, weil sie verschiedene Fragen
+-- beantworten:
+--
+-- FBCD_MIN_DURATION ist die Laenge des globalen Cooldowns. Eine Abklingzeit,
+-- die nicht laenger ist, gilt nicht als Grund, einen Button abzudunkeln:
+-- waehrend des globalen Cooldowns meldet der Client jeden Zauber als nicht
+-- nutzbar, und alle Symbole grau zu faerben sieht aus, als ginge gar nichts.
+--
+-- FBCD_SHOW_MIN entscheidet, ab welcher Laenge die Uhr laeuft. 0 heisst:
+-- jede laufende Abklingzeit wird gezeigt, auch der globale Cooldown. Die Uhr
+-- ist die ruhige Anzeige dafuer, sie laeuft weich ab, statt das Symbol
+-- schlagartig dunkel und wieder hell zu machen. Wer den globalen Cooldown
+-- nicht sehen will, setzt den Wert auf 2.0.
 FBCD_MIN_DURATION = 2.0;
+FBCD_SHOW_MIN     = 0;
 
 -- Buff-Icons mit Uhr: 8 px, aussen links neben der Plakette (und Zelle),
 -- vertikal mittig, von rechts nach links aufgereiht. Die Uhr: vier
@@ -4738,7 +4751,7 @@ function FBHealBox_UpdateButtonState(b, event)
         local cd = nil;
         if (HealBox.Cooldowns == 1) then
             cd = FBHealBox_ButtonCooldown(b.id);
-            if (cd[2] > FBCD_MIN_DURATION) then key = cd[1].."|"..cd[2]; end
+            if (cd[1] > 0) and (cd[2] > FBCD_SHOW_MIN) then key = cd[1].."|"..cd[2]; end
         end
         if (b.cdKey ~= key) then
             b.cdKey = key;
