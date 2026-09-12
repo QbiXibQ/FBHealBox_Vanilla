@@ -116,6 +116,8 @@ Up to ten buttons sit next to each plate, each showing its spell's icon. A **lef
 
 **Smart Healing (off by default).** With *Smart Healing* on, a click casts the lowest rank of the assigned spell whose expected heal covers the target's missing health, minus healing already on the way, plus the *Safety margin* (default 20 %). Expected heals come from the learned values of the prediction where available, otherwise from the tooltip average. It never goes above the rank you assigned, applies to direct heals only, and below 30 % health it always casts the assigned rank. **Heal over time spells are never downranked**, whatever the class: Renew, Rejuvenation, Regrowth, Tranquility, Lifebloom, Wild Growth, Riptide and Earth Shield always go out at the rank you assigned. A HoT spreads its healing over many seconds, so the health missing at the moment of the click says nothing about which rank fits, and a downranked HoT keeps ticking too weakly for its whole duration. Mixed spells such as Regrowth count as HoTs as well. Shields and buffs such as Fortitude are likewise cast as assigned, and a spell only qualifies at all if its tooltip describes a heal.
 
+**A running HoT does not count as incoming healing.** Only what lands right away is subtracted: direct heals and spells reported over HealComm, so one to three seconds out. The healing still owed by a ticking Renew stays out of it. Counting it in full would make the deficit look tiny and turn a Heal rank 4 into a Lesser Heal, although the target needs health now and not in a quarter of a minute. The HoT is still shown on the bar, it just does not take part in the rank decision.
+
 **Heal chains (new in 1.4.4.3).** Downranking is not limited to the assigned spell. Within a *heal chain* the spell itself may change, so a click on Greater Heal can go out as Lesser Heal rank 3 when that covers the deficit. The chains hold the single-target direct heals of one class:
 
 |Class|Chain|
@@ -737,7 +739,8 @@ Entries that do not exist do no harm: if the spellbook scan does not find them, 
 * heal prediction for direct heals, remaining HoT ticks and absorb shields, self-correcting from the combat log
 * HealComm sync with Puppeteer, pfUI, Luna and others, without any Ace libraries
 * English, German, Spanish, French and Italian localization, switchable in game
-* 1.4.5.1: mana ticker spark no longer stutters (movement threshold and redraw step), and the global cooldown no longer darkens every button; see CHANGELOG
+* 1.4.5.2: a running HoT no longer counts as incoming healing when Smart Healing picks a rank; see CHANGELOG
+* 1.4.5.1: mana ticker spark no longer stutters (movement threshold and redraw step), and the global cooldown no longer darkens every button but is shown as a sweep instead (own threshold `FBCD_SHOW_MIN`); see CHANGELOG
 * 1.4.5: Blizzard's party frames can be hidden (mutually exclusive with the attach mode), rage, energy and focus in the resource bar, and the equipment healing bonus via ClassicAPI in the prediction, plus a performance pass without functional change (player buffs read once per frame, staggered raid range and line-of-sight sweeps, fewer protected calls, no throwaway strings in the raid health text); see CHANGELOG
 * 1.4.4.3: class gate for warriors, rogues and hunters (display stays off, chat hint, `/fbp forceload` to override) and Smart Healing no longer downranks heal over time spells of any class. Smart Healing downranks across spells inside a heal chain (Greater Heal to Lesser Heal, Holy Light to Flash of Light), `/fbp smartcross` turns it off; see CHANGELOG
 * 1.4.4.2: 32-step buff icon duration display (replacing the 4-quadrant clock with a 32-stage vertical wipe) and syntax/diagnostic bugfixes; see CHANGELOG
@@ -749,14 +752,14 @@ Entries that do not exist do no harm: if the spellbook scan does not find them, 
 
 ---
 
-Heal Box Vanilla v1.4.5.1 · original by Dourd, UI Overhauled · ported to Vanilla and extended 09/2026 by Mquadrat
+Heal Box Vanilla v1.4.5.2 · original by Dourd, UI Overhauled · ported to Vanilla and extended 09/2026 by Mquadrat
 
 _______________________________________________________________________
 GERMAN
 
 # Heal Box Vanilla
 
-ADDON DOKUMENTATION · VERSION 1.4.5.1 · World of Warcraft CLIENT 1.12.1
+ADDON DOKUMENTATION · VERSION 1.4.5.2 · World of Warcraft CLIENT 1.12.1
 
 Party-, Begleiter- und Selbst-Heilanzeige mit Schnellzugriff-Buttons für Heiler. Für jeden Gruppenplatz eine Namensplakette mit Lebensbalken, dazu eine für jeden Begleiter in der Gruppe direkt unter seinem Besitzer, daneben bis zu zehn frei belegbare Zauber-Buttons. Ein schmaler Manabalken liegt im Lebensbalken, bei allen, die tatsächlich Mana nutzen. Dazu eine vollständige Heilvorhersage (Direktheilung, HoT-Restticks und Absorb-Schilde), die sich über den Combatlog selbst korrigiert und ihre Werte im HealComm-Format mit anderen Heilern teilt. Die Oberfläche gibt es auf **Deutsch und Englisch**, umschaltbar im Optionsfenster.
 
@@ -863,6 +866,8 @@ Rechts neben jeder Plakette liegen bis zu zehn Buttons, jeder mit dem Icon seine
 **Rechtsklick-Zauber (optional).** Jeder Button kann einen zweiten Zauber für **Rechtsklick** tragen (etwa Blitzheilung links, Große Heilung rechts), was die Anzeige verdichtet, ohne Buttons hinzuzufügen. Das ist standardmäßig aus und wird ausschließlich über den Schalter im Reiter *Buttons* eingeschaltet. Eingeschaltet erscheint eine zweite Spalte in der Belegung, und ein kleines Icon unten rechts auf jedem Button zeigt seinen Rechtsklick-Zauber; der Tooltip nennt ihn ebenfalls. Ausschalten behält die Belegung, die Buttons reagieren nur nicht mehr auf Rechtsklick.
 
 **Smart Healing (standardmäßig aus).** Mit *Smart Healing* wirkt ein Klick den niedrigsten Rang des belegten Zaubers, dessen erwartete Heilung das fehlende Leben des Ziels abzüglich schon eingehender Heilung plus *Sicherheitsaufschlag* (Standard 20 %) deckt. Die erwartete Heilung stammt aus den gelernten Werten der Vorhersage, wo vorhanden, sonst aus dem Tooltip-Mittelwert. Nie über dem belegten Rang, nur für Direktheilungen, und unter 30 % Leben immer der belegte Rang. **Zauber mit Heilung über Zeit werden nie abgerangt**, egal welcher Klasse: Erneuerung, Verjüngung, Nachwachsen, Gelassenheit, Lebensblüte, Wildwuchs, Springflut und Erdschild gehen immer im belegten Rang raus. Ein HoT verteilt seine Heilung über viele Sekunden, das im Moment des Klicks fehlende Leben sagt also nichts darüber aus, welcher Rang passt, und ein abgerangter HoT tickt die volle Laufzeit zu schwach. Gemischte Zauber wie Nachwachsen zählen ebenfalls als HoT. Schilde und Buffs wie Seelenstärke gehen genauso wie belegt raus, und ein Zauber kommt überhaupt nur in Frage, wenn sein Tooltip eine Heilung beschreibt.
+
+**Ein laufender HoT zählt nicht als eingehende Heilung.** Abgezogen wird nur, was gleich ankommt: Direktheilungen und über HealComm gemeldete Zauber, also ein bis drei Sekunden. Die offene Restheilung eines tickenden Erneuerung bleibt außen vor. Sie voll anzurechnen ließe den Fehlbetrag winzig aussehen und machte aus einem Heilen Rang 4 ein Geringes Heilen, obwohl das Ziel jetzt Leben braucht und nicht in einer Viertelminute. Auf dem Balken wird der HoT weiterhin angezeigt, er geht nur nicht in die Rangwahl ein.
 
 **Heilketten (neu in 1.4.4.3).** Abgerangt wird nicht nur innerhalb des belegten Zaubers. Innerhalb einer *Heilkette* darf auch der Zauber selbst wechseln, ein Klick auf Große Heilung kann also als Geringes Heilen Rang 3 rausgehen, wenn das den Fehlbetrag deckt. Die Ketten enthalten die Einzelziel-Direktheilungen einer Klasse:
 
@@ -1469,7 +1474,8 @@ Nicht vorhandene Einträge stören nicht: Findet der Zauberbuch-Scan sie nicht, 
 * Heilvorhersage für Direktheilung, HoT-Restticks und Absorb-Schilde, selbstkorrigierend über den Combatlog
 * HealComm-Sync mit Puppeteer, pfUI, Luna und Co., ohne Ace-Bibliotheken
 * Lokalisierung Deutsch, Englisch, Spanisch, Französisch und Italienisch, im laufenden Spiel umschaltbar
-* 1.4.5.1: Ruckeln des Manafunkens behoben (Bewegungsschwelle und Zeichentakt) und der globale Cooldown dunkelt nicht mehr alle Buttons ab; siehe CHANGELOG
+* 1.4.5.2: Ein laufender HoT zählt bei der Rangwahl von Smart Healing nicht mehr als anfliegende Heilung; siehe CHANGELOG
+* 1.4.5.1: Ruckeln des Manafunkens behoben (Bewegungsschwelle und Zeichentakt), der globale Cooldown dunkelt nicht mehr alle Buttons ab und läuft stattdessen als Uhr mit (eigene Schwelle `FBCD_SHOW_MIN`); siehe CHANGELOG
 * 1.4.5: Blizzards Gruppenfenster ausblendbar (schließt sich mit dem Anheftmodus gegenseitig aus), Wut, Energie und Fokus im Ressourcenbalken, Heilbonus der Ausrüstung über ClassicAPI in der Vorhersage, dazu ein Leistungsdurchgang ohne Funktionsänderung (Spielerbuffs einmal je Frame, gestaffelte Reichweiten- und Sichtlinienprüfung im Raid, weniger geschützte Aufrufe, keine Wegwerf-Strings im Raid-HP-Text); siehe CHANGELOG
 * 1.4.4.3: Klassensperre für Krieger, Schurke und Jäger (Anzeige bleibt aus, Hinweis im Chat, Freischaltung mit `/fbp forceload`) und Smart Healing rangt HoTs aller Klassen nicht mehr ab. Smart Healing rangt innerhalb einer Heilkette auch über Zaubergrenzen ab (Große Heilung zu Geringem Heilen, Heiliges Licht zu Blitz des Lichts), `/fbp smartcross` schaltet es aus; siehe CHANGELOG
 * 1.4.4.2: 32-Stufen-Ablaufanzeige für Buff-Icons (ersetzt die 4-Quadranten-Uhr durch 32 vertikale Stufen) sowie Syntax- und Diagnose-Korrekturen; siehe CHANGELOG
@@ -1481,7 +1487,7 @@ Nicht vorhandene Einträge stören nicht: Findet der Zauberbuch-Scan sie nicht, 
 
 ---
 
-Heal Box Vanilla v1.4.5.1 · Original von Dourd, UI Overhauled · Vanilla-Portierung und Erweiterung 09/2026 von Mquadrat
+Heal Box Vanilla v1.4.5.2 · Original von Dourd, UI Overhauled · Vanilla-Portierung und Erweiterung 09/2026 von Mquadrat
 
 ---
 
