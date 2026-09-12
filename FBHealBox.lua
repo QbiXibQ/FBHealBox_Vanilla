@@ -38,7 +38,10 @@
 --     Anheftmodus gegenseitig aus), Wut, Energie und Fokus im Balken,
 --     +Heilung der Ausruestung ueber ClassicAPI in der Vorhersage.
 --   * v1.4.5.1: Ruckeln des Manafunkens behoben (Bewegungsschwelle und
---     Zeichentakt), globaler Cooldown dunkelt nicht mehr alle Buttons ab.
+--     Zeichentakt), globaler Cooldown dunkelt nicht mehr alle Buttons ab
+--     und laeuft stattdessen als Uhr mit (eigene Schwelle FBCD_SHOW_MIN).
+--   * v1.4.5.2: Laufende HoTs zaehlen bei Smart Healing nicht mehr als
+--     anfliegende Heilung.
 --
 -- Ehre wem Ehre gebuehrt: Aufbau, Namensplaketten und Grundidee stammen
 -- aus dem Original.
@@ -153,7 +156,7 @@ HealBox = {
 -- feuert ADDON_LOADED fuer uns.
 FBADDON_NAME   = "Heal Box Vanilla";
 FBADDON_FOLDER = "FBHealBox";
-HealBoxVersion = "|cFFFFFF00v1.4.5.1|r"; 
+HealBoxVersion = "|cFFFFFF00v1.4.5.2|r"; 
 
 -- ==========================================================================
 -- [ Lokalisierung / Localization ]
@@ -201,6 +204,7 @@ FBLocale["enUS"] = {
     SMARTRANK_TIP = "Automatically casts the lowest spell rank that covers the target's missing health (minus incoming heals) plus safety margin.\n\n"
         .. "|cFFFFD100Rules:|r\n"
         .. "• Direct heals only (HoTs and shields untouched)\n"
+        .. "• A HoT on the target is not counted as incoming\n"
         .. "• Always casts assigned rank below 30 % health\n"
         .. "• Never heals more than the assigned rank\n"
         .. "• Chain spell switching toggled via 'Smartcross'\n"
@@ -349,6 +353,7 @@ FBLocale["deDE"] = {
     SMARTRANK_TIP = "Wirkt automatisch den niedrigsten Zauberrang, der das fehlende Leben (abzgl. eingehender Heilung) plus Sicherheitsaufschlag deckt.\n\n"
         .. "|cFFFFD100Regeln:|r\n"
         .. "• Nur Direktheilung (HoTs und Schilde unberuehrt)\n"
+        .. "• Laufender HoT zaehlt nicht als anfliegende Heilung\n"
         .. "• Unter 30 % Leben immer der belegte Rang\n"
         .. "• Nie mehr Heilung als der belegte Rang\n"
         .. "• Zauberwechsel in Ketten steuert 'Smartcross'\n"
@@ -522,6 +527,7 @@ FBLocale["esES"] = {
     SMARTRANK_TIP = "Lanza automáticamente el rango más bajo que cubra la vida faltante (menos curaciones entrantes) más el margen de seguridad.\n\n"
         .. "|cFFFFD100Reglas:|r\n"
         .. "• Solo curaciones directas (HoTs y escudos intactos)\n"
+        .. "• Un HoT activo no cuenta como curación entrante\n"
         .. "• Siempre el rango asignado bajo 30 % de vida\n"
         .. "• Nunca cura más que el rango asignado\n"
         .. "• Cambio de hechizo controlado por 'Smartcross'\n"
@@ -661,6 +667,7 @@ FBLocale["frFR"] = {
     SMARTRANK_TIP = "Lance automatiquement le rang le plus bas couvrant la vie manquante (moins soins en cours) plus la marge de sécurité.\n\n"
         .. "|cFFFFD100Règles :|r\n"
         .. "• Soins directs uniquement (HoTs et boucliers intacts)\n"
+        .. "• Un HoT actif ne compte pas comme soin en cours\n"
         .. "• Rang assigné conservé sous 30 % de vie\n"
         .. "• Ne soigne jamais plus que le rang assigné\n"
         .. "• Changement de sort contrôlé par 'Smartcross'\n"
@@ -800,6 +807,7 @@ FBLocale["itIT"] = {
     SMARTRANK_TIP = "Lancia automaticamente il rango più basso la cui cura copre la salute mancante (meno cure in arrivo) più il margine di sicurezza.\n\n"
         .. "|cFFFFD100Regole:|r\n"
         .. "• Solo cure dirette (HoT e scudi non modificati)\n"
+        .. "• Un HoT attivo non conta come cura in arrivo\n"
         .. "• Sotto il 30 % di salute lancia sempre il rango assegnato\n"
         .. "• Mai una cura superiore al rango assegnato\n"
         .. "• Cambio incantesimo controllato da 'Smartcross'\n"
@@ -2686,7 +2694,16 @@ function FBHealBox_SmartRank(castString, unit)
     local hp, hpMax = FBUnitHealth(unit);
     if (hpMax <= 0) or ((hp / hpMax) <= VeryLowHP) then return castString; end
     local name = FBUnitName(unit);
-    local incoming = FBGetDirectHeal(name) + FBGetHoTHeal(name) + FBGetCommHeal(name);
+    -- Anfliegende Heilung wird abgezogen, aber nur die, die gleich ankommt:
+    -- Direktheilungen und ueber HealComm gemeldete Zauber landen in ein bis
+    -- drei Sekunden. Laufende HoTs zaehlen bewusst nicht mit. Ein Erneuerung
+    -- verteilt seine Heilung ueber fuenfzehn Sekunden, die volle Summe als
+    -- gegeben anzunehmen liesse den Fehlbetrag winzig aussehen: Aus einem
+    -- Heilen Rang 4 wuerde ein Geringes Heilen, obwohl das Ziel jetzt Leben
+    -- braucht und nicht in einer Viertelminute. Auf dem Balken wird der HoT
+    -- selbstverstaendlich weiter angezeigt, er geht nur nicht in die
+    -- Rangwahl ein.
+    local incoming = FBGetDirectHeal(name) + FBGetCommHeal(name);
     local deficit = hpMax - hp - incoming;
     if (deficit < 0) then deficit = 0; end
     local need = deficit * (1 + (HealBox.SmartMargin or 20) / 100);

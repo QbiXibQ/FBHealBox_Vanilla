@@ -1,8 +1,25 @@
 # Changelog
 
+## 1.4.5.2 (2026-09-12)
+
+One fix: a running HoT no longer pulls Smart Healing down a rank.
+
+### English
+
+**Fixed**
+
+- **A HoT on the target no longer talks Smart Healing into a lower rank.** The full healing still owed by a running HoT was subtracted from the deficit as if it had already landed, so a ticking Renew could turn a Heal rank 4 into a Lesser Heal. Only healing that arrives right away is deducted now, meaning direct heals and spells reported over HealComm, roughly one to three seconds out; HoTs stay out of the calculation because they spread their healing over up to fifteen seconds. They are of course still shown on the bar, and the rule that HoTs are never downranked themselves is untouched.
+
+### Deutsch
+
+**Behoben**
+
+- **Ein HoT auf dem Ziel redet Smart Healing keinen kleineren Rang mehr ein.** Die noch offene Heilung eines laufenden HoT wurde vom Fehlbetrag abgezogen, als waere sie schon angekommen; ein tickendes Erneuerung konnte so aus einem Heilen Rang 4 ein Geringes Heilen machen. Abgezogen wird jetzt nur noch Heilung, die gleich ankommt, also Direktheilungen und ueber HealComm gemeldete Zauber, grob ein bis drei Sekunden; HoTs bleiben aus der Rechnung heraus, weil sie ihre Heilung ueber bis zu fuenfzehn Sekunden verteilen. Angezeigt werden sie auf dem Balken selbstverstaendlich weiterhin, und die Regel, dass HoTs selbst nie abgerangt werden, bleibt unberuehrt.
+
+
 ## 1.4.5.1 (2026-09-11)
 
-Two display fixes: the mana ticker spark moves smoothly again, and the global cooldown no longer greys out every button.
+Button and ticker fixes: the mana ticker spark moves smoothly again, and the global cooldown no longer greys out every button but runs as a sweep instead.
 
 ### English
 
@@ -11,7 +28,8 @@ Two display fixes: the mana ticker spark moves smoothly again, and the global co
 - **The mana ticker spark moves smoothly again.** The spark was only redrawn once it had travelled half a pixel. That sounds frugal, but it crosses the bar in five seconds, roughly 20 pixels per second, so at 60 frames it advanced on every second frame at best and, depending on rounding, sometimes after one frame and sometimes after two. That uneven step was the stutter, and the fixed 0.03 second redraw step introduced in 1.4.5 made it worse. The threshold is now effectively gone (0.05 px) and the spark is drawn every frame again, which doubles its motion from 30 to 60 steps per second with an even gap.
 - **Drawing every frame still costs nothing.** Each spark remembers the width and height of its bar and re-reads them four times a second (`FBTICK_GEOM_STEP`) instead of asking the frame on every pass, and the gate check sits in front of it all: with a full mana bar there is no pass at all.
 - **The global cooldown no longer darkens every button.** After casting anything, the client reports every spell as unusable for the length of the global cooldown. Taken literally, that turned all icons dark grey for a second and a half after every cast, as if nothing were available at all. A running cooldown no longer than the global one (`FBCD_MIN_DURATION`) is no longer treated as a reason to darken a button. Blue for missing mana, red for out of range and grey for a spell that really cannot be cast, for instance in the wrong shapeshift form, all work as before. This affects the plates and the raid cells alike, both go through `FBHealBox_ButtonUsable`.
-- **The global cooldown does run as a sweep now.** Not showing it at all was the other half of the inconsistency: an instant like Renew left every button untouched while Power Word: Shield, which has a real cooldown in 1.12, showed one. The sweep is the calm way to show a short wait, so the display threshold moved into its own constant `FBCD_SHOW_MIN` (0, show everything) and is no longer tied to the darkening threshold `FBCD_MIN_DURATION`. Setting it to 2 restores the old quiet behaviour. The sweep starts in the very next frame, because the button pass is not throttled.
+- **It runs as a sweep instead.** Not showing it at all was the other half of the inconsistency: an instant like Renew or Abolish Disease left every button untouched, while Power Word: Shield, which has a real cooldown in 1.12, showed one. The sweep is the calm way to show a short wait, so after every cast you watch it run out on all buttons, the way the action bars do it.
+- **Two thresholds instead of one.** The display threshold moved into its own constant `FBCD_SHOW_MIN` (0, show every running cooldown) and is no longer tied to `FBCD_MIN_DURATION` (2), which now only answers whether a cooldown is a reason to darken a button. The two were the same value before, which is why showing the global cooldown and not darkening for it could not be had at the same time. Setting `FBCD_SHOW_MIN` to 2 restores the quiet display. A cooldown is also only shown when one is really running (`cd[1] > 0`), and the sweep starts in the very next frame because the button pass is not throttled.
 
 ### Deutsch
 
@@ -20,7 +38,8 @@ Two display fixes: the mana ticker spark moves smoothly again, and the global co
 - **Der Funke im Manabalken laeuft wieder rund.** Neu gezeichnet wurde er erst, wenn er einen halben Pixel weitergewandert war. Das klingt sparsam, er braucht fuer den Balken aber fuenf Sekunden, also rund 20 Pixel je Sekunde: Bei 60 Bildern kam er damit bestenfalls in jedem zweiten Frame voran und je nach Rundung mal nach einem, mal nach zwei Frames. Genau dieser ungleiche Schritt war das Ruckeln, und der feste Zeichentakt von 0,03 Sekunden aus 1.4.5 hat es verstaerkt. Die Schwelle ist jetzt praktisch weg (0,05 px) und gezeichnet wird wieder in jedem Frame, das verdoppelt die Bewegung von 30 auf 60 gleichmaessige Schritte je Sekunde.
 - **Das Zeichnen je Frame kostet trotzdem nichts.** Jeder Funke merkt sich Breite und Hoehe seines Balkens und liest sie viermal je Sekunde nach (`FBTICK_GEOM_STEP`), statt sie bei jedem Durchlauf zu erfragen, und der Torwaechter sitzt weiterhin davor: Bei vollem Manabalken laeuft gar kein Durchlauf.
 - **Der globale Cooldown dunkelt nicht mehr alle Buttons ab.** Nach jedem gewirkten Zauber meldet der Client fuer die Dauer des globalen Cooldowns saemtliche Zauber als nicht nutzbar. Woertlich genommen wurden dadurch nach jedem Zauber anderthalb Sekunden lang alle Symbole dunkelgrau, als waere gar nichts mehr verfuegbar. Eine laufende Abklingzeit, die nicht laenger ist als der globale Cooldown (`FBCD_MIN_DURATION`), gilt jetzt nicht mehr als Grund zum Abdunkeln. Blau fuer fehlendes Mana, Rot fuer ausser Reichweite und Grau fuer einen Zauber, der wirklich nicht geht, etwa in der falschen Gestalt, arbeiten unveraendert weiter. Das gilt fuer Plaketten und Raidzellen gleichermassen, beide laufen ueber `FBHealBox_ButtonUsable`.
-- **Dafuer laeuft der globale Cooldown jetzt als Uhr mit.** Ihn gar nicht zu zeigen war die andere Haelfte der Ungereimtheit: Ein Instant wie Erneuerung liess alle Buttons unberuehrt, waehrend Machtwort: Schild, das in 1.12 eine echte Abklingzeit hat, eine Uhr zeigte. Die Uhr ist die ruhige Art, eine kurze Wartezeit anzuzeigen, deshalb sitzt die Anzeigeschwelle jetzt in einer eigenen Konstante `FBCD_SHOW_MIN` (0, also alles zeigen) und haengt nicht mehr an der Abdunkel-Schwelle `FBCD_MIN_DURATION`. Wer sie auf 2 setzt, hat das alte ruhige Verhalten zurueck. Die Uhr startet im naechsten Frame, weil der Button-Durchgang nicht gedrosselt ist.
+- **Stattdessen laeuft er als Uhr mit.** Ihn gar nicht zu zeigen war die andere Haelfte der Ungereimtheit: Ein Instant wie Erneuerung oder Krankheit aufheben liess alle Buttons unberuehrt, waehrend Machtwort: Schild, das in 1.12 eine echte Abklingzeit hat, eine Uhr zeigte. Die Uhr ist die ruhige Art, eine kurze Wartezeit anzuzeigen: Nach jedem Zauber laeuft sie auf allen Buttons ab, so wie es die Aktionsleisten machen.
+- **Zwei Schwellen statt einer.** Die Anzeigeschwelle sitzt jetzt in einer eigenen Konstante `FBCD_SHOW_MIN` (0, also jede laufende Abklingzeit zeigen) und haengt nicht mehr an `FBCD_MIN_DURATION` (2), die nur noch beantwortet, ob eine Abklingzeit ein Grund zum Abdunkeln ist. Vorher war beides derselbe Wert, deshalb liess sich "globalen Cooldown zeigen" und "wegen ihm nicht abdunkeln" nicht gleichzeitig haben. Wer `FBCD_SHOW_MIN` auf 2 setzt, hat die ruhige Anzeige zurueck. Gezeigt wird ausserdem nur, wenn wirklich eine Abklingzeit laeuft (`cd[1] > 0`), und die Uhr startet im naechsten Frame, weil der Button-Durchgang nicht gedrosselt ist.
 
 
 ## 1.4.5 (2026-09-08)
